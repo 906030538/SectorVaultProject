@@ -45,9 +45,25 @@ jobs:
           fi
       - name: Validate config.json
         run: npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
-      - name: Auto merge when checks pass
-        if: success()
+      - name: Check PR scope (auto merge eligibility)
+        id: scope
+        run: |
+          {
+            node scripts/check-pr-scope.mjs \
+              ../base/index/archive index/archive \
+              origin/${{ github.base_ref }} HEAD
+          } >> "$GITHUB_OUTPUT"
+      - name: Auto merge single-submission PRs
+        if: success() && steps.scope.outputs.decision == 'auto'
         run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+      - name: Request admin review for out-of-scope PRs
+        if: success() && steps.scope.outputs.decision == 'review'
+        run: |
+          gh pr comment "$PR_URL" --body "该 PR 删除了文件或同时修改了多个投稿（changed=${{ steps.scope.outputs.changed }}, deleted=${{ steps.scope.outputs.deleted }}），不能自动合并，需要管理员审核。"
+          gh pr edit "$PR_URL" --add-reviewer "${{ github.repository_owner }}"
         env:
           GH_TOKEN: ${{ github.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}

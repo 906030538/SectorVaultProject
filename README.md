@@ -39,7 +39,8 @@
       "slug": "250831",               // 投稿目录名
       "title": "示例投稿",
       "cover": "https://.../cover.webp",
-      "submittedAt": "2026-08-31T00:00:00Z",
+      "submittedAt": "2026-08-31T00:00:00Z",   // 投稿日期（一经写入不可修改，门禁强制）
+      "publishedAt": "2026-08-31T12:00:00Z",   // 发布日期（可与投稿日期不同，允许更新）
       "type": "project",              // project | article
       "paramState": "with-param",     // with-param | tuned | no-param
       "songs": [], "engines": [], "voicebanks": [], "languages": []
@@ -90,9 +91,10 @@
 | 检查项 | 说明 |
 | --- | --- |
 | 派生数据保护 | 禁止手改 `index/current.json`（由 Action 生成，PR 中出现该文件改动即失败） |
+| 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败 |
 | JSON 语法 | `index/archive/*.json` 必须是合法 JSON |
 | Schema 校验 | 使用 ajv（draft-07）按 `schema/` 下各 schema 递归校验 |
-| 枚举与格式 | `platform`、`type`、`paramState` 枚举值，`submittedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
+| 枚举与格式 | `platform`、`type`、`paramState` 枚举值，`submittedAt`/`publishedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
 
 校验通过后由 `gh pr merge --auto --squash` 自动合入，无需人工审核；校验失败则 PR 被阻塞，需修改后重新推送。
 

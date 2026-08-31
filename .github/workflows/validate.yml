@@ -28,6 +28,10 @@ jobs:
             echo "::error::index/current.json 是由 Action 生成的派生数据，请修改 index/archive/ 下的归档索引"
             exit 1
           fi
+      - name: Check submission date immutability
+        run: |
+          git worktree add ../base origin/${{ github.base_ref }}
+          node scripts/check-submitted-at.mjs ../base/index/archive index/archive
       - name: Validate archive JSON against schemas
         run: |
           if ls index/archive/*.json >/dev/null 2>&1; then

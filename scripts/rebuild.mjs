@@ -10,6 +10,15 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const archiveDir = join(root, "index", "archive");
+const monthKey = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+const now = new Date();
+const nextMonth = monthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)));
+const nextMonthPath = join(archiveDir, `${nextMonth}.json`);
+// 提前生成下个月的空归档文件，投稿 PR 始终有当月文件可写
+if (!existsSync(nextMonthPath)) {
+  writeFileSync(nextMonthPath, JSON.stringify({ submissions: [], users: [] }, null, 2) + "\n");
+  console.log(`created empty archive for next month: ${nextMonth}.json`);
+}
 const envLimit = Number(process.env.CURRENT_LIMIT);
 const currentLimit = Number.isFinite(envLimit) && envLimit > 0
   ? envLimit

@@ -1,4 +1,3 @@
 {
-  "archiveSchedule": "0 3 1 * *",
-  "maxCurrentSubmissions": 1024
+  "currentLimit": 1024
 }

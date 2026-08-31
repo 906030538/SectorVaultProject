@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - "index/**"
-      - "config.json"
 
 permissions:
   contents: write
@@ -16,23 +15,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Validate JSON against schemas
+      - name: Reject manual edits to derived current.json
         run: |
-          npx --yes ajv-cli validate \
-            -s schema/current.schema.json \
-            -r schema/submission.schema.json \
-            -r schema/user.schema.json \
-            -d "index/**/*.json" --spec=draft7
-          npx --yes ajv-cli validate \
-            -s schema/config.schema.json \
-            -d config.json --spec=draft7
-          LIMIT=$(jq -r .maxCurrentSubmissions config.json)
-          COUNT=$(jq '.submissions | length' index/current.json)
-          test "$COUNT" -le "$LIMIT" \
-            || { echo "::error::current.json has $COUNT submissions, exceeds configured limit $LIMIT"; exit 1; }
+          changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- index/current.json)
+          if [ -n "$changed" ]; then
+            echo "::error::index/current.json 是由 Action 生成的派生数据，请修改 index/archive/ 下的归档索引"
+            exit 1
+          fi
+      - name: Validate archive JSON against schemas
+        run: |
+          if ls index/archive/*.json >/dev/null 2>&1; then
+            npx --yes ajv-cli validate \
+              -s schema/archive.schema.json \
+              -r schema/submission.schema.json \
+              -r schema/user.schema.json \
+              -d "index/archive/*.json" --spec=draft7
+          else
+            echo "no archive files yet, skipped"
+          fi
       - name: Auto merge when checks pass
         if: success()
         run: gh pr merge --auto --squash "$PR_URL"

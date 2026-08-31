@@ -1,0 +1,17 @@
+{
+  "$id": "https://sector-vault.dev/schema/archive.schema.json",
+  "title": "Monthly archive index file (source of truth)",
+  "type": "object",
+  "required": ["submissions", "users"],
+  "properties": {
+    "submissions": {
+      "type": "array",
+      "items": { "$ref": "submission.schema.json" }
+    },
+    "users": {
+      "type": "array",
+      "items": { "$ref": "user.schema.json" }
+    }
+  },
+  "additionalProperties": false
+}

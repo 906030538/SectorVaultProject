@@ -1,0 +1,31 @@
+name: Rebuild current index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index/archive/**"
+      - "config.json"
+  schedule:
+    - cron: "0 3 1 * *" # 每月 1 日 03:00 UTC 做仓库存活清理并重建
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Rebuild current.json from archives
+        run: node scripts/rebuild.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(index): rebuild current index from archives"
+          file_pattern: index/current.json index/archive/**

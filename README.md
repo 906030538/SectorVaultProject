@@ -25,6 +25,7 @@
 └── .github/workflows/
     ├── validate.yml        # PR 格式校验门禁 + 自动合入
     └── rebuild.yml         # 合入后重建 current.json；每月定时做仓库存活清理
+├── LICENSE                 # CC BY 4.0
 ```
 
 ### 归档文件 `index/archive/YYYY-MM.json` 结构（投稿 PR 修改的目标）
@@ -75,7 +76,7 @@
 
 ### 定时任务
 
-- `rebuild.yml` 每月 1 日 03:00 UTC 运行（也可手动触发）：
+- `rebuild.yml` 每月 1 日 12:00 UTC 运行（也可手动触发）：
   1. **预生成下月归档**：确保下个月的空归档文件 `index/archive/YYYY-MM.json` 存在，投稿 PR 始终有当月文件可写。
   2. **仓库存活检查**：逐一检查用户索引中记录的仓库（GitHub/Gitee/Atomgit API）是否存在，不存在则从用户记录中删除，并重建 `current.json`。
 

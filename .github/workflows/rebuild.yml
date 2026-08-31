@@ -7,7 +7,7 @@ on:
       - "index/archive/**"
       - "config.json"
   schedule:
-    - cron: "0 3 1 * *" # 每月 1 日 03:00 UTC 做仓库存活清理并重建
+    - cron: "0 12 1 * *" # 每月 1 日 12:00 UTC 做仓库存活清理并重建
   workflow_dispatch:
 
 permissions:

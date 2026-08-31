@@ -16,12 +16,14 @@
 ├── schema/
 │   ├── current.schema.json     # 索引文件整体结构（JSON Schema draft-07）
 │   ├── submission.schema.json  # 稿件索引条目结构
-│   └── user.schema.json        # 用户索引条目结构
+│   ├── user.schema.json        # 用户索引条目结构
+│   └── config.schema.json      # 配置文件结构
+├── config.json              # 归档任务配置：运行周期（cron，UTC）与未归档索引阈值
 ├── scripts/
 │   └── archive.mjs         # 归档与仓库存活检查脚本（供定时任务调用）
 └── .github/workflows/
     ├── validate.yml        # PR 格式校验门禁 + 自动合入
-    └── archive.yml         # 定时归档任务（每月 1 日 03:00 UTC）
+    └── archive.yml         # 定时归档任务（每日触发，按 config.json 的周期执行）
 ```
 
 ### `index/current.json` 结构
@@ -75,7 +77,17 @@
 
 ### 归档（定时任务）
 
-- `archive.yml` 每月 1 日 03:00 UTC 运行（也可手动触发）：
+归档任务的**运行周期**和**阈值**在 [`config.json`](config.json) 中配置：
+
+```jsonc
+{
+  "archiveSchedule": "0 3 1 * *",    // cron（分 时 日 月 周，UTC），默认每月 1 日 03:00
+  "maxCurrentSubmissions": 1024      // current.json 未归档索引的投稿条数上限
+}
+```
+
+- `archive.yml` 每日 03:00 UTC 触发一次，脚本按 `archiveSchedule` 判断当天是否执行（GitHub Actions 的 schedule 不支持动态 cron，故由脚本自行判断）；手动触发（workflow_dispatch）则强制执行，跳过周期判断。也可用环境变量 `MAX_CURRENT` 临时覆盖阈值。
+- 每次运行：
   1. **仓库存活检查**：逐一检查用户索引中记录的仓库是否存在，不存在则删除对应记录。
   2. **归档**：`current.json` 允许与归档数据重复。非当月的投稿每次运行都写入其投稿月份对应的 `index/archive/YYYY-MM.json`（current.json 中保留）；当月数据仅当 `current.json` 超过 1024 条时，将最早的溢出条目归档并移出 `current.json`。归档同时更新 `archives` 数组——每个归档文件的投稿数与按类型（project/article）统计。
 
@@ -91,8 +103,8 @@
 | 检查项 | 说明 |
 | --- | --- |
 | JSON 语法 | `index/**/*.json` 必须是合法 JSON |
-| Schema 校验 | 使用 ajv（draft-07）按 `schema/` 下三个 schema 递归校验 |
-| 容量约束 | `submissions` 条目数 ≤ 1024 |
+| Schema 校验 | 使用 ajv（draft-07）按 `schema/` 下各 schema 校验 `index/**/*.json` 与 `config.json` |
+| 容量约束 | `submissions` 条目数 ≤ `maxCurrentSubmissions` |
 | 枚举与格式 | `platform`、`type`、`paramState` 枚举值，`submittedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
 
 校验通过后由 `gh pr merge --auto --squash` 自动合入，无需人工审核；校验失败则 PR 被阻塞，需修改后重新推送。

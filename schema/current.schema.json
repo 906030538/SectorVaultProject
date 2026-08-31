@@ -6,7 +6,6 @@
   "properties": {
     "submissions": {
       "type": "array",
-      "maxItems": 1024,
       "items": { "$ref": "submission.schema.json" }
     },
     "users": {

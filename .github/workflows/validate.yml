@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "index/**"
+      - "config.json"
 
 permissions:
   contents: write
@@ -25,6 +26,13 @@ jobs:
             -r schema/submission.schema.json \
             -r schema/user.schema.json \
             -d "index/**/*.json" --spec=draft7
+          npx --yes ajv-cli validate \
+            -s schema/config.schema.json \
+            -d config.json --spec=draft7
+          LIMIT=$(jq -r .maxCurrentSubmissions config.json)
+          COUNT=$(jq '.submissions | length' index/current.json)
+          test "$COUNT" -le "$LIMIT" \
+            || { echo "::error::current.json has $COUNT submissions, exceeds configured limit $LIMIT"; exit 1; }
       - name: Auto merge when checks pass
         if: success()
         run: gh pr merge --auto --squash "$PR_URL"

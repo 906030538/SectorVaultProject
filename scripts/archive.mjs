@@ -1,7 +1,9 @@
 // 定时任务：归档索引条目，并清理已不存在的用户仓库记录。
 // 归档规则：
 //   - 非当月数据：每次运行都写入其投稿月份对应的归档 json（current.json 中保留，允许重复）；
-//   - 当月数据：仅当 current.json 超过 1024 条时，将最早的溢出条目归档并从 current.json 移除。
+//   - 当月数据：仅当 current.json 超过阈值（config.maxCurrentSubmissions）时，将最早的溢出条目归档并从 current.json 移除。
+// 运行周期由 config.archiveSchedule（cron，UTC）控制：workflow 每日触发，脚本按 cron 判断当天是否执行；
+// 手动触发（--force 或 CI 手动事件）跳过周期判断强制执行。
 // 需要环境变量 GITHUB_TOKEN（用于检查 GitHub 仓库是否存在）。
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -10,7 +12,37 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const indexPath = join(root, "index", "current.json");
 const archiveDir = join(root, "index", "archive");
-const MAX_CURRENT = 1024;
+const force = process.argv.includes("--force") || process.env.ARCHIVE_FORCE === "1";
+const config = JSON.parse(readFileSync(join(root, "config.json"), "utf8"));
+const MAX_CURRENT = Number(process.env.MAX_CURRENT) || config.maxCurrentSubmissions;
+
+// 简易 cron 匹配：支持 * 、数字、*/n、范围和列表，精度为分钟
+function cronMatches(expr, now) {
+  const parts = expr.trim().split(/\s+/);
+  const fields = [now.getUTCMinutes(), now.getUTCHours(), now.getUTCDate(), now.getUTCMonth() + 1, now.getUTCDay()];
+  const ranges = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 6]];
+  return parts.every((part, i) => {
+    const [lo, hi] = ranges[i];
+    return part.split(",").every((tok) => {
+      let step = 1, base = tok;
+      const slash = tok.indexOf("/");
+      if (slash >= 0) { step = Number(tok.slice(slash + 1)); base = tok.slice(0, slash); }
+      let from = lo, to = hi;
+      if (base !== "*") {
+        const dash = base.indexOf("-");
+        if (dash >= 0) { from = Number(base.slice(0, dash)); to = Number(base.slice(dash + 1)); }
+        else { from = to = Number(base); if (step !== 1) to = hi; }
+      }
+      const v = fields[i];
+      return v >= from && v <= to && (v - from) % step === 0;
+    });
+  });
+}
+
+if (!force && !cronMatches(config.archiveSchedule, new Date())) {
+  console.log(`skip: ${new Date().toISOString()} does not match schedule "${config.archiveSchedule}"`);
+  process.exit(0);
+}
 
 const index = JSON.parse(readFileSync(indexPath, "utf8"));
 const now = new Date();

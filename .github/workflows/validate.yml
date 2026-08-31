@@ -2,7 +2,7 @@ name: Validate index PR
 
 on:
   pull_request:
-    branches: [main]
+    branches: [index]
     paths:
       - "index/**"
       - "config.json"

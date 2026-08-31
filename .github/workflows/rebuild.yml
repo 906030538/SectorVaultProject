@@ -2,7 +2,7 @@ name: Rebuild current index
 
 on:
   push:
-    branches: [main]
+    branches: [index]
     paths:
       - "index/archive/**"
       - "config.json"

@@ -64,7 +64,7 @@ for (const file of files) {
     merged.repos = [...repos].map((repo) => ({ repo }));
     userMap.set(key, merged);
   }
-  archives.push({ file, submissions: submissions.length, byType: countByType(submissions) });
+  archives.push({ file, byType: countByType(submissions) });
 }
 
 // 2. 用户索引中的仓库存活检查，不存在则删除记录
@@ -85,6 +85,6 @@ const submissions = [...allSubmissions.values()]
 
 writeFileSync(
   join(root, "index", "current.json"),
-  JSON.stringify({ submissions, users, archives }, null, 2) + "\n"
+  JSON.stringify({ submissions, users, userCount: users.length, archives }, null, 2) + "\n"
 );
-console.log(`rebuilt: ${submissions.length}/${allSubmissions.size} submissions from ${files.length} archives (limit ${currentLimit})`);
+console.log(`rebuilt: ${submissions.length}/${allSubmissions.size} submissions, ${users.length} users from ${files.length} archives (limit ${currentLimit})`);

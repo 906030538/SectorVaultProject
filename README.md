@@ -60,7 +60,7 @@
 }
 ```
 
-`current.json` 结构相同，额外多一个 `archives` 数组（每个归档文件的投稿数与按类型 project/article 统计），由重建任务维护。
+`current.json` 结构相同，额外多两个由重建任务维护的字段：`userCount`（总用户数，按平台+用户名合并不分仓库）和 `archives` 数组（每个归档文件按类型 project/article 的统计）。
 
 ## 工作流程
 

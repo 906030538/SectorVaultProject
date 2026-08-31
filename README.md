@@ -1,10 +1,11 @@
 # Sector Vault Project — 索引仓
 
-内容去重化储存的基于 Git 的无头 CMS（Sector Vault Project）的**索引数据仓**。本仓库只包含一系列 JSON 数据与必要的配置文件，为[主站点](../DESIGN.md)提供投稿与用户的索引服务。
+去中心储存的基于 Git 的无头 CMS（Sector Vault Project）的**索引数据仓**。本仓库只包含一系列 JSON 数据与必要的配置文件，为[主站点](https://github.com/906030538/DecentCMS)提供投稿与用户的索引服务。
 
 - 主站点与索引数据共仓库，通过不同分支管理；本目录规范即索引分支的内容。
 - 索引分支允许所有人提交 PR，门禁校验格式通过后自动合入。
-- **归档索引是事实来源**（不限长度）；`current.json` 是由 Action 生成的派生数据，最近稿件列表长度可配置。
+
+> **当前尚处于Alpha开发阶段，数据可能不保留，结构定义可能变。**
 
 ## 目录结构
 
@@ -89,14 +90,14 @@
 
 所有修改 `index/**` 的 PR 必须通过 `validate.yml`：
 
-| 检查项 | 说明 |
-| --- | --- |
-| 派生数据保护 | 禁止手改 `index/current.json`（由 Action 生成，PR 中出现该文件改动即失败） |
-| 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败 |
-| PR 范围限制 | 删除任何文件、或一次修改多个稿件（新增+改动 > 1 条）的 PR 不自动合并，评论说明原因并请求管理员审核 |
-| JSON 语法 | `index/archive/*.json` 必须是合法 JSON |
-| Schema 校验 | 使用 ajv（draft-07）按 `schema/` 下各 schema 递归校验 |
-| 枚举与格式 | `platform`、`type`、`paramState` 枚举值，`submittedAt`/`publishedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
+| 检查项         | 说明                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| 派生数据保护   | 禁止手改 `index/current.json`（由 Action 生成，PR 中出现该文件改动即失败）                         |
+| 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败                 |
+| PR 范围限制    | 删除任何文件、或一次修改多个稿件（新增+改动 > 1 条）的 PR 不自动合并，评论说明原因并请求管理员审核 |
+| JSON 语法      | `index/archive/*.json` 必须是合法 JSON                                                             |
+| Schema 校验    | 使用 ajv（draft-07）按 `schema/` 下各 schema 递归校验                                              |
+| 枚举与格式     | `platform`、`type`、`paramState` 枚举值，`submittedAt`/`publishedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
 
 校验通过且 PR 只涉及单个投稿（无文件删除、新增/改动稿件 ≤ 1 条）时，由 `gh pr merge --auto --squash` 自动合入，无需人工审核；其余情况（删除文件或同时修改多个投稿）转为人工流程：PR 会被评论标注原因并请求管理员审核。校验失败则 PR 被阻塞，需修改后重新推送。
 

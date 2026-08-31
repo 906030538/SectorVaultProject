@@ -1,12 +1,5 @@
 {
   "submissions": [],
   "users": [],
-  "archives": {
-    "totalArchived": 0,
-    "byType": {
-      "project": 0,
-      "article": 0
-    },
-    "files": []
-  }
+  "archives": []
 }

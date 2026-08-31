@@ -1,4 +1,7 @@
-// 定时任务：归档溢出的索引条目，并清理已不存在的用户仓库记录。
+// 定时任务：归档索引条目，并清理已不存在的用户仓库记录。
+// 归档规则：
+//   - 非当月数据：每次运行都写入其投稿月份对应的归档 json（current.json 中保留，允许重复）；
+//   - 当月数据：仅当 current.json 超过 1024 条时，将最早的溢出条目归档并从 current.json 移除。
 // 需要环境变量 GITHUB_TOKEN（用于检查 GitHub 仓库是否存在）。
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -11,6 +14,9 @@ const MAX_CURRENT = 1024;
 
 const index = JSON.parse(readFileSync(indexPath, "utf8"));
 const now = new Date();
+const monthKey = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+const currentMonth = monthKey(now);
+const entryKey = (s) => `${s.platform}/${s.owner}/${s.repo}/${s.slug}`;
 
 async function repoExists(platform, owner, repo) {
   const api = {
@@ -36,51 +42,61 @@ for (const user of index.users) {
   if (repos.length) users.push({ ...user, repos });
 }
 
-// 归档元数据缺失时（旧版索引）重建空结构
-index.archives ??= { totalArchived: 0, byType: { project: 0, article: 0 }, files: [] };
+// 2. 确定需要归档的条目：非当月全部；当月数据仅在被裁剪时归档
+const toArchive = new Map(); // monthKey -> entries
+const currentMonthEntries = [];
+for (const s of index.submissions) {
+  const month = monthKey(new Date(s.submittedAt));
+  if (month !== currentMonth) {
+    if (!toArchive.has(month)) toArchive.set(month, []);
+    toArchive.get(month).push(s);
+  } else {
+    currentMonthEntries.push(s);
+  }
+}
+// 超过阈值时只裁剪最早的当月条目（非当月数据保留在 current.json，与归档重复）
+if (index.submissions.length > MAX_CURRENT) {
+  const overflow = index.submissions.length - MAX_CURRENT;
+  const removed = new Set();
+  for (const s of currentMonthEntries.slice(0, overflow)) removed.add(entryKey(s));
+  if (!toArchive.has(currentMonth)) toArchive.set(currentMonth, []);
+  toArchive.get(currentMonth).push(...currentMonthEntries.filter((s) => removed.has(entryKey(s))));
+  index.submissions = index.submissions.filter((s) => !removed.has(entryKey(s)));
+}
 
+// 3. 写入各月归档 json 并更新归档元数据
 const countByType = (subs) => ({
   project: subs.filter((s) => s.type === "project").length,
   article: subs.filter((s) => s.type === "article").length,
 });
 
-// 2. 未归档索引超过 1024 条时，按月份归档溢出部分
-if (index.submissions.length > MAX_CURRENT) {
-  const overflow = index.submissions.length - MAX_CURRENT;
-  const archived = index.submissions.slice(0, overflow);
-  index.submissions = index.submissions.slice(overflow);
-
-  const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  const fileName = `${monthKey}.json`;
+const archives = [];
+mkdirSync(archiveDir, { recursive: true });
+const months = [...toArchive.keys()].sort();
+for (const month of months) {
+  const fileName = `${month}.json`;
   const archivePath = join(archiveDir, fileName);
   const prev = existsSync(archivePath)
     ? JSON.parse(readFileSync(archivePath, "utf8"))
     : { submissions: [], users: [] };
-  prev.submissions.push(...archived);
-  // 归档时同步冻结归档月份涉及的用户记录
+  // 按唯一键去重合并（current.json 与归档允许重复，但归档文件自身不重复）
+  const seen = new Set(prev.submissions.map(entryKey));
+  for (const s of toArchive.get(month)) if (!seen.has(entryKey(s))) prev.submissions.push(s);
+  prev.submissions.sort((a, b) => (a.submittedAt < b.submittedAt ? -1 : 1));
   prev.users = users;
-  mkdirSync(archiveDir, { recursive: true });
   writeFileSync(archivePath, JSON.stringify(prev, null, 2) + "\n");
-
-  // 更新归档元数据：该月文件的计数替换为归档后的实际值
-  const entry = {
+  archives.push({
     file: fileName,
     submissions: prev.submissions.length,
     byType: countByType(prev.submissions),
-  };
-  const files = index.archives.files.filter((f) => f.file !== fileName);
-  files.push(entry);
-  files.sort((a, b) => (a.file < b.file ? -1 : 1));
-  index.archives.files = files;
-  index.archives.totalArchived = files.reduce((n, f) => n + f.submissions, 0);
-  index.archives.byType = files.reduce(
-    (acc, f) => ({
-      project: acc.project + f.byType.project,
-      article: acc.article + f.byType.article,
-    }),
-    { project: 0, article: 0 }
-  );
+  });
 }
+// 未发生写入的月份保留原有元数据条目
+for (const old of index.archives ?? []) {
+  if (!months.some((m) => `${m}.json` === old.file)) archives.push(old);
+}
+archives.sort((a, b) => (a.file < b.file ? -1 : 1));
+index.archives = archives;
 
 index.users = users;
 writeFileSync(indexPath, JSON.stringify(index, null, 2) + "\n");

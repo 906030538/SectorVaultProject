@@ -1,0 +1,10 @@
+{
+  "$id": "https://sector-vault.dev/schema/config.schema.json",
+  "title": "Index repository config",
+  "type": "object",
+  "required": ["currentLimit"],
+  "properties": {
+    "currentLimit": { "type": "integer", "minimum": 1 }
+  },
+  "additionalProperties": false
+}

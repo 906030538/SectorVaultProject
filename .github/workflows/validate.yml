@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "index/**"
+      - "config.json"
 
 permissions:
   contents: write
@@ -38,6 +39,8 @@ jobs:
           else
             echo "no archive files yet, skipped"
           fi
+      - name: Validate config.json
+        run: npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
       - name: Auto merge when checks pass
         if: success()
         run: gh pr merge --auto --squash "$PR_URL"

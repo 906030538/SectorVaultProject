@@ -1,0 +1,33 @@
+name: Validate index PR
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "index/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate JSON against schemas
+        run: |
+          npx --yes ajv-cli validate \
+            -s schema/current.schema.json \
+            -r schema/submission.schema.json \
+            -r schema/user.schema.json \
+            -d "index/**/*.json" --spec=draft7
+      - name: Auto merge when checks pass
+        if: success()
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}

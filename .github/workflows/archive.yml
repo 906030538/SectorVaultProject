@@ -1,0 +1,25 @@
+name: Archive & cleanup index
+
+on:
+  schedule:
+    - cron: "0 3 1 * *" # 每月 1 日 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Archive and prune index
+        run: node scripts/archive.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(index): monthly archive & repo existence cleanup"

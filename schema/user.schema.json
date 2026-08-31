@@ -1,0 +1,25 @@
+{
+  "$id": "https://sector-vault.dev/schema/user.schema.json",
+  "title": "User index entry",
+  "type": "object",
+  "required": ["platform", "owner"],
+  "properties": {
+    "platform": { "type": "string", "enum": ["github", "gitee", "atomgit"] },
+    "owner": { "type": "string", "minLength": 1 },
+    "displayName": { "type": "string" },
+    "avatar": { "type": ["string", "null"] },
+    "pagesUrl": { "type": ["string", "null"] },
+    "repos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["repo"],
+        "properties": {
+          "repo": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

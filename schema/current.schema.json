@@ -1,0 +1,18 @@
+{
+  "$id": "https://sector-vault.dev/schema/current.schema.json",
+  "title": "Unarchived index file",
+  "type": "object",
+  "required": ["submissions", "users"],
+  "properties": {
+    "submissions": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": { "$ref": "submission.schema.json" }
+    },
+    "users": {
+      "type": "array",
+      "items": { "$ref": "user.schema.json" }
+    }
+  },
+  "additionalProperties": false
+}

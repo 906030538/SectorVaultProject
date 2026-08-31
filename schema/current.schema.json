@@ -2,7 +2,7 @@
   "$id": "https://sector-vault.dev/schema/current.schema.json",
   "title": "Unarchived index file",
   "type": "object",
-  "required": ["submissions", "users"],
+  "required": ["submissions", "users", "archives"],
   "properties": {
     "submissions": {
       "type": "array",
@@ -12,6 +12,39 @@
     "users": {
       "type": "array",
       "items": { "$ref": "user.schema.json" }
+    },
+    "archives": {
+      "type": "object",
+      "required": ["totalArchived", "byType", "files"],
+      "properties": {
+        "totalArchived": { "type": "integer", "minimum": 0 },
+        "byType": { "$ref": "#/definitions/typeCounts" },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "submissions", "byType"],
+            "properties": {
+              "file": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}\\.json$" },
+              "submissions": { "type": "integer", "minimum": 0 },
+              "byType": { "$ref": "#/definitions/typeCounts" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "typeCounts": {
+      "type": "object",
+      "required": ["project", "article"],
+      "properties": {
+        "project": { "type": "integer", "minimum": 0 },
+        "article": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

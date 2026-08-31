@@ -36,6 +36,14 @@ for (const user of index.users) {
   if (repos.length) users.push({ ...user, repos });
 }
 
+// 归档元数据缺失时（旧版索引）重建空结构
+index.archives ??= { totalArchived: 0, byType: { project: 0, article: 0 }, files: [] };
+
+const countByType = (subs) => ({
+  project: subs.filter((s) => s.type === "project").length,
+  article: subs.filter((s) => s.type === "article").length,
+});
+
 // 2. 未归档索引超过 1024 条时，按月份归档溢出部分
 if (index.submissions.length > MAX_CURRENT) {
   const overflow = index.submissions.length - MAX_CURRENT;
@@ -43,7 +51,8 @@ if (index.submissions.length > MAX_CURRENT) {
   index.submissions = index.submissions.slice(overflow);
 
   const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  const archivePath = join(archiveDir, `${monthKey}.json`);
+  const fileName = `${monthKey}.json`;
+  const archivePath = join(archiveDir, fileName);
   const prev = existsSync(archivePath)
     ? JSON.parse(readFileSync(archivePath, "utf8"))
     : { submissions: [], users: [] };
@@ -52,6 +61,25 @@ if (index.submissions.length > MAX_CURRENT) {
   prev.users = users;
   mkdirSync(archiveDir, { recursive: true });
   writeFileSync(archivePath, JSON.stringify(prev, null, 2) + "\n");
+
+  // 更新归档元数据：该月文件的计数替换为归档后的实际值
+  const entry = {
+    file: fileName,
+    submissions: prev.submissions.length,
+    byType: countByType(prev.submissions),
+  };
+  const files = index.archives.files.filter((f) => f.file !== fileName);
+  files.push(entry);
+  files.sort((a, b) => (a.file < b.file ? -1 : 1));
+  index.archives.files = files;
+  index.archives.totalArchived = files.reduce((n, f) => n + f.submissions, 0);
+  index.archives.byType = files.reduce(
+    (acc, f) => ({
+      project: acc.project + f.byType.project,
+      article: acc.article + f.byType.article,
+    }),
+    { project: 0, article: 0 }
+  );
 }
 
 index.users = users;

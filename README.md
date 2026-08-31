@@ -10,7 +10,7 @@
 ```
 .
 ├── index/
-│   ├── current.json        # 未归档索引：最近投稿（上限 1024 条）+ 用户记录
+│   ├── current.json        # 未归档索引：最近投稿（上限 1024 条）+ 用户记录 + 归档元数据（archives）
 │   └── archive/
 │       └── YYYY-MM.json    # 按月份归档的历史索引（由定时任务生成）
 ├── schema/
@@ -51,7 +51,20 @@
       "pagesUrl": null,               // 用户自部署的静态页面链接
       "repos": [{ "repo": "svp-works" }]  // 每个仓库一条记录
     }
-  ]
+  ],
+  "archives": {                       // 归档索引元数据（由定时任务维护）
+    "totalArchived": 2048,            // 所有归档文件合计投稿数
+    "byType": {                       // 合计的分类统计
+      "project": 1600, "article": 448
+    },
+    "files": [
+      {
+        "file": "2026-07.json",       // 归档文件名（YYYY-MM.json）
+        "submissions": 1024,          // 该文件投稿数
+        "byType": { "project": 800, "article": 224 }
+      }
+    ]
+  }
 }
 ```
 
@@ -70,7 +83,7 @@
 
 - `archive.yml` 每月 1 日 03:00 UTC 运行（也可手动触发）：
   1. **仓库存活检查**：逐一检查用户索引中记录的仓库是否存在，不存在则删除对应记录。
-  2. **归档**：`current.json` 超过 1024 条投稿时，将最早的溢出条目移入 `index/archive/YYYY-MM.json`（同月累加），`current.json` 只保留最近 1024 条。
+  2. **归档**：`current.json` 超过 1024 条投稿时，将最早的溢出条目移入 `index/archive/YYYY-MM.json`（同月累加），`current.json` 只保留最近 1024 条；同时更新 `current.json` 的 `archives` 字段——每个归档文件的投稿数与按类型（project/article）统计，以及全部归档的合计数。
 
 ### 阅读顺序（主站点加载）
 

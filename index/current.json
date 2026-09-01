@@ -2,5 +2,13 @@
   "submissions": [],
   "users": [],
   "userCount": 0,
-  "archives": []
+  "archives": [
+    {
+      "file": "2026-09.json",
+      "byType": {
+        "project": 0,
+        "article": 0
+      }
+    }
+  ]
 }

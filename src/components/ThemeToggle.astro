@@ -1,0 +1,39 @@
+---
+import { t } from '@/i18n';
+import type { Locale } from '@/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+---
+
+<select
+  id="theme-switcher"
+  class="input h-8 px-2 text-xs"
+  data-i18n-aria="theme.label"
+  aria-label={t(locale, 'theme.label')}
+>
+  <option value="auto" data-i18n="theme.auto">{t(locale, 'theme.auto')}</option>
+  <option value="light" data-i18n="theme.light">{t(locale, 'theme.light')}</option>
+  <option value="dark" data-i18n="theme.dark">{t(locale, 'theme.dark')}</option>
+</select>
+
+<script>
+  const select = document.getElementById('theme-switcher') as HTMLSelectElement | null;
+  if (select) {
+    const apply = (theme: string) => {
+      const dark =
+        theme === 'dark' ||
+        (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.classList.toggle('dark', dark);
+    };
+    select.value = localStorage.getItem('svp-theme') ?? 'auto';
+    select.addEventListener('change', () => {
+      if (select.value === 'auto') localStorage.removeItem('svp-theme');
+      else localStorage.setItem('svp-theme', select.value);
+      apply(select.value);
+    });
+  }
+</script>

@@ -1,0 +1,66 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+const locale = DEFAULT_LOCALE;
+---
+
+<BaseLayout titleKey="about.title">
+  <h1 class="mb-6 text-2xl font-bold" data-i18n="about.title">{t(locale, 'about.title')}</h1>
+
+  <section class="card p-6">
+    <h2 class="mb-3 text-lg font-semibold" data-i18n="about.arch">{t(locale, 'about.arch')}</h2>
+    <p class="leading-relaxed text-slate-600 dark:text-slate-300" data-i18n="about.archText">
+      {t(locale, 'about.archText')}
+    </p>
+  </section>
+
+  <section class="card mt-4 p-6">
+    <h2 class="mb-3 text-lg font-semibold" data-i18n="about.advantages">
+      {t(locale, 'about.advantages')}
+    </h2>
+    <ul class="list-inside list-disc space-y-1.5 text-slate-600 dark:text-slate-300">
+      <li data-i18n="about.advantage1">{t(locale, 'about.advantage1')}</li>
+      <li data-i18n="about.advantage2">{t(locale, 'about.advantage2')}</li>
+      <li data-i18n="about.advantage3">{t(locale, 'about.advantage3')}</li>
+      <li data-i18n="about.advantage4">{t(locale, 'about.advantage4')}</li>
+    </ul>
+  </section>
+
+  <section class="card mt-4 p-6">
+    <h2 class="mb-4 text-lg font-semibold" data-i18n="about.stats">{t(locale, 'about.stats')}</h2>
+    <div class="grid grid-cols-2 gap-4 text-center">
+      <div>
+        <div class="text-3xl font-bold text-indigo-600 dark:text-indigo-400" data-stat="submissions">
+          –
+        </div>
+        <div
+          class="mt-1 text-sm text-slate-500 dark:text-slate-400"
+          data-i18n="home.submissionCount"
+        >
+          {t(locale, 'home.submissionCount')}
+        </div>
+      </div>
+      <div>
+        <div class="text-3xl font-bold text-indigo-600 dark:text-indigo-400" data-stat="users">–</div>
+        <div class="mt-1 text-sm text-slate-500 dark:text-slate-400" data-i18n="home.userCount">
+          {t(locale, 'home.userCount')}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    import { loadMockIndex } from '@/lib/index/loader';
+
+    try {
+      const index = await loadMockIndex();
+      const submissions = document.querySelector('[data-stat="submissions"]');
+      if (submissions) submissions.textContent = String(index.submissions.length);
+      const users = document.querySelector('[data-stat="users"]');
+      if (users) users.textContent = String(new Set(index.submissions.map((s) => s.user)).size);
+    } catch {
+      /* 索引加载失败时保留占位符 */
+    }
+  </script>
+</BaseLayout>

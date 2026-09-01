@@ -1,0 +1,36 @@
+---
+import { DEFAULT_LOCALE, t } from '@/i18n';
+import type { MessageKey } from '@/i18n';
+
+const filters: { key: string; labelKey: MessageKey }[] = [
+  { key: 'track', labelKey: 'filter.track' },
+  { key: 'engine', labelKey: 'filter.engine' },
+  { key: 'voicebank', labelKey: 'filter.voicebank' },
+  { key: 'songLanguage', labelKey: 'filter.songLanguage' },
+];
+---
+
+<!-- 每个筛选器为可自定义输入的下拉框；候选项由客户端脚本从索引数据动态填充 -->
+<!-- 文案以默认语言渲染，客户端按语言偏好经 data-i18n-ph/data-i18n-aria 重译 -->
+<div class="flex flex-wrap gap-2" data-component="filters">
+  {
+    filters.map((f) => (
+      <div class="relative" data-filter-wrap={f.key}>
+        <input
+          type="text"
+          class="input w-40 text-sm"
+          data-filter={f.key}
+          placeholder={t(DEFAULT_LOCALE, f.labelKey)}
+          aria-label={t(DEFAULT_LOCALE, f.labelKey)}
+          data-i18n-ph={f.labelKey}
+          data-i18n-aria={f.labelKey}
+          autocomplete="off"
+        />
+        <div
+          class="absolute z-20 mt-1 hidden max-h-56 w-48 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          data-role="filter-options"
+        ></div>
+      </div>
+    ))
+  }
+</div>

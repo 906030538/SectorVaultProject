@@ -1,0 +1,31 @@
+---
+import { LOCALES } from '@/i18n';
+import type { Locale } from '@/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+---
+
+<select id="lang-switcher" class="input h-8 px-2 text-xs" aria-label="Language">
+  {
+    LOCALES.map((l) => (
+      <option value={l.code} selected={l.code === locale}>
+        {l.label}
+      </option>
+    ))
+  }
+</select>
+
+<script>
+  import { LOCALE_STORAGE_KEY } from '@/lib/i18n-client';
+
+  // 语言偏好保存在 localStorage（不体现在路由中），切换后整页重载以重译全部内容
+  const select = document.getElementById('lang-switcher') as HTMLSelectElement | null;
+  select?.addEventListener('change', () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, select.value);
+    location.reload();
+  });
+</script>

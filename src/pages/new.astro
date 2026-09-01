@@ -1,0 +1,25 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+---
+
+<BaseLayout titleKey="new.title">
+  <h1 class="mb-6 text-2xl font-bold" data-i18n="new.title">{t(DEFAULT_LOCALE, 'new.title')}</h1>
+
+  <div data-role="editor-root"></div>
+
+  <script>
+    import { initEditor, type EditorConfig } from '@/lib/views/editor';
+    import { buildEditorLabels, buildLicenseOptions } from '@/lib/labels';
+    import { getClientLocale } from '@/lib/i18n-client';
+
+    try {
+      const locale = getClientLocale();
+      const config: EditorConfig = { mode: 'new', licenseOptions: buildLicenseOptions(locale) };
+      const labels = buildEditorLabels(locale);
+      await initEditor(config, labels, document.querySelector('[data-role="editor-root"]')!);
+    } catch (error) {
+      console.error('[editor] init failed:', error);
+    }
+  </script>
+</BaseLayout>

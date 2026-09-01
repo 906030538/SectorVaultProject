@@ -1,0 +1,100 @@
+---
+import { SITE_NAME } from '@/config';
+import { t } from '@/i18n';
+import type { Locale, MessageKey } from '@/i18n';
+import LanguageSwitcher from '@/components/LanguageSwitcher.astro';
+import ThemeToggle from '@/components/ThemeToggle.astro';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const path = Astro.url.pathname;
+
+const navItems: { key: MessageKey; href: string }[] = [
+  { key: 'nav.projects', href: '/project' },
+  { key: 'nav.articles', href: '/article' },
+  { key: 'nav.discussions', href: '/discussions' },
+  { key: 'nav.faq', href: '/faq' },
+  { key: 'nav.about', href: '/about' },
+];
+
+function isActive(href: string): boolean {
+  return path === href || path.startsWith(`${href}/`);
+}
+---
+
+<header
+  class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90"
+>
+  <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+    <a href="/" class="flex shrink-0 items-center gap-2 font-bold">
+      <img src="/favicon.svg" alt={SITE_NAME} class="h-7 w-7" />
+      <span class="hidden md:inline">{SITE_NAME}</span>
+    </a>
+
+    <nav class="flex items-center gap-1 overflow-x-auto text-sm">
+      {
+        navItems.map((item) => (
+          <a
+            href={item.href}
+            data-i18n={item.key}
+            class:list={[
+              'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900',
+              'dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white',
+              { 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white': isActive(item.href) },
+            ]}
+          >
+            {t(locale, item.key)}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="ml-auto flex shrink-0 items-center gap-2">
+      <LanguageSwitcher locale={locale} />
+      <ThemeToggle locale={locale} />
+      <div id="user-area" class="flex items-center gap-2 text-sm">
+        <button class="btn" type="button" data-i18n="nav.login">{t(locale, 'nav.login')}</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<script>
+  import { openAuthDialog } from '@/lib/auth-dialog';
+  import { buildAuthLabels } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+
+  // 已登录时以头像 + 用户名替换登录按钮（登录态保存在 localStorage）
+  const area = document.getElementById('user-area');
+  if (area) {
+    try {
+      const raw = localStorage.getItem('svp-session');
+      const session = raw ? JSON.parse(raw) : null;
+      if (session?.login && session?.avatarUrl) {
+        area.textContent = '';
+        const link = document.createElement('a');
+        link.href = `/user/${encodeURIComponent(session.login)}`;
+        link.className = 'flex items-center gap-2';
+        const img = document.createElement('img');
+        img.src = session.avatarUrl;
+        img.alt = session.login;
+        img.className = 'h-7 w-7 rounded-full';
+        const name = document.createElement('span');
+        name.textContent = session.name ?? session.login;
+        link.append(img, name);
+        area.appendChild(link);
+      }
+    } catch {
+      /* 忽略损坏的会话数据 */
+    }
+    const loginBtn = area.querySelector('button');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', () => {
+        void openAuthDialog(buildAuthLabels(getClientLocale()));
+      });
+    }
+  }
+</script>

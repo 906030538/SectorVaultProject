@@ -1,0 +1,14 @@
+---
+import { t } from '@/i18n';
+import type { Locale } from '@/i18n';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+---
+
+<footer class="border-t border-slate-200 py-6 text-center text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+  <span data-i18n="footer.powered">{t(locale, 'footer.powered')}</span> · {new Date().getFullYear()}
+</footer>

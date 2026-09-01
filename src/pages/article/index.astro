@@ -1,0 +1,121 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import LoadingBlock from '@/components/LoadingBlock.astro';
+import Pagination from '@/components/Pagination.astro';
+import { PAGE_SIZE } from '@/config';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+const locale = DEFAULT_LOCALE;
+---
+
+<BaseLayout titleKey="article.title">
+  <h1 class="mb-6 text-2xl font-bold" data-i18n="article.title">{t(locale, 'article.title')}</h1>
+
+  <div class="mb-4 flex items-center gap-2">
+    <input
+      type="search"
+      class="input w-56"
+      data-role="search-input"
+      placeholder={t(locale, 'project.searchPlaceholder')}
+      data-i18n-ph="project.searchPlaceholder"
+    />
+    <button type="button" class="btn btn-primary" data-action="search" data-i18n="common.search">
+      {t(locale, 'common.search')}
+    </button>
+  </div>
+
+  <div class="flex flex-col gap-3" data-component="list"></div>
+  <p class="py-8 text-center text-slate-400" data-role="empty" data-i18n="common.noResults" hidden>
+    {t(locale, 'common.noResults')}
+  </p>
+  <LoadingBlock locale={locale} />
+  <Pagination locale={locale} />
+
+  <script is:inline type="application/json" id="list-config" set:html={JSON.stringify({ pageSize: PAGE_SIZE })} />
+
+  <script>
+    import { loadMockIndex } from '@/lib/index/loader';
+    import { renderCard } from '@/lib/ui';
+    import { buildCardLabels } from '@/lib/labels';
+    import { getClientLocale } from '@/lib/i18n-client';
+    import type { SubmissionEntry } from '@/types';
+
+    const locale = getClientLocale();
+    const labels = buildCardLabels(locale);
+    const config = JSON.parse(
+      document.getElementById('list-config')!.textContent!,
+    ) as { pageSize: number };
+
+    const listEl = document.querySelector('[data-component="list"]')!;
+    const emptyEl = document.querySelector<HTMLElement>('[data-role="empty"]')!;
+    const loadingEl = document.querySelector<HTMLElement>('[data-component="loading"]')!;
+    const pageInfo = document.querySelector<HTMLElement>('[data-role="page-info"]')!;
+    const prevBtn = document.querySelector<HTMLButtonElement>('[data-action="prev"]')!;
+    const nextBtn = document.querySelector<HTMLButtonElement>('[data-action="next"]')!;
+    const cancelBtn = document.querySelector<HTMLButtonElement>('[data-action="cancel"]')!;
+    const searchInput = document.querySelector<HTMLInputElement>('[data-role="search-input"]')!;
+    const searchBtn = document.querySelector<HTMLButtonElement>('[data-action="search"]')!;
+
+    let filtered: SubmissionEntry[] = [];
+    let page = 0;
+    let keyword = '';
+
+    function applyAndRender(): void {
+      page = 0;
+      renderPage();
+    }
+
+    function renderPage(): void {
+      let visible = filtered;
+      if (keyword) {
+        const kw = keyword.toLowerCase();
+        visible = visible.filter((e) =>
+          `${e.title} ${e.user}`.toLowerCase().includes(kw),
+        );
+      }
+      const totalPages = Math.max(1, Math.ceil(visible.length / config.pageSize));
+      page = Math.min(page, totalPages - 1);
+      const slice = visible.slice(page * config.pageSize, (page + 1) * config.pageSize);
+
+      listEl.textContent = '';
+      for (const entry of slice)
+        listEl.appendChild(renderCard(entry, locale, labels, { compact: true }));
+      emptyEl.hidden = slice.length > 0;
+      pageInfo.textContent = `${page + 1} / ${totalPages}`;
+      prevBtn.disabled = page === 0;
+      nextBtn.disabled = page >= totalPages - 1;
+    }
+
+    prevBtn.addEventListener('click', () => {
+      page -= 1;
+      renderPage();
+    });
+    nextBtn.addEventListener('click', () => {
+      page += 1;
+      renderPage();
+    });
+    searchBtn.addEventListener('click', () => {
+      keyword = searchInput.value.trim();
+      applyAndRender();
+    });
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') searchBtn.click();
+    });
+    cancelBtn.addEventListener('click', () => {
+      loadingEl.hidden = true;
+    });
+
+    loadingEl.hidden = false;
+    try {
+      const index = await loadMockIndex();
+      filtered = index.submissions
+        .filter((e) => e.type === 'article')
+        .sort((a, b) => b.date.localeCompare(a.date));
+      applyAndRender();
+    } catch {
+      emptyEl.hidden = false;
+    } finally {
+      loadingEl.hidden = true;
+    }
+  </script>
+</BaseLayout>

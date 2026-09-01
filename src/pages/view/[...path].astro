@@ -1,0 +1,182 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Pagination from '@/components/Pagination.astro';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+import mockIndex from '../../../public/mock/index.json';
+
+const locale = DEFAULT_LOCALE;
+
+/**
+ * 动态路由 /view/:name/:repo 与 /view/:name/:repo/:slug，由客户端按段数区分：
+ * 2 段 = 集合详情，3 段 = 稿件详情。
+ * 演示期基于本地索引为每个集合与稿件生成示例路径，保证静态部署下可导航、可测试；
+ * 接入真实索引仓后需为任意路径配置 SPA 回退或改用 SSR 适配器。
+ */
+export function getStaticPaths() {
+  const paths = new Set<string>();
+  for (const user of mockIndex.users) paths.add(`${user.user}/${user.repo}`);
+  for (const sub of mockIndex.submissions) paths.add(`${sub.user}/${sub.repo}/${sub.slug}`);
+  return Array.from(paths).map((path) => ({ params: { path } }));
+}
+
+const segments = (Astro.params.path ?? '').split('/').filter(Boolean);
+const [userName, repoName, slug] = segments;
+const isDetail = segments.length >= 3;
+---
+
+<BaseLayout title={isDetail ? `${slug} · ${repoName}` : repoName ?? ''}>
+  {
+    isDetail ? (
+      /* 稿件详情页骨架：客户端按索引/内容仓数据填充 */
+      <article class="mx-auto max-w-3xl">
+        <header>
+          <h1 class="text-3xl font-bold" data-role="title">
+            {slug}
+          </h1>
+          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400" data-role="date">–</p>
+          <div class="mt-4" data-role="meta"></div>
+        </header>
+
+        <section class="prose-svp mt-8" data-role="body"></section>
+
+        <div class="mt-6 flex flex-wrap gap-2" data-role="tags"></div>
+
+        <section class="mt-8">
+          <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.media">
+            {t(locale, 'detail.media')}
+          </h2>
+          <div data-role="media"></div>
+        </section>
+
+        <section class="card mt-8 flex items-center gap-3 p-4" data-role="author">
+          <span class="text-sm text-slate-400">
+            {userName}/{repoName}
+          </span>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.files">
+            {t(locale, 'detail.files')}
+          </h2>
+          <div data-role="files"></div>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.release">
+            {t(locale, 'detail.release')}
+          </h2>
+          <div data-role="release"></div>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.comments">
+            {t(locale, 'detail.comments')}
+          </h2>
+          <div data-role="issues"></div>
+        </section>
+      </article>
+    ) : (
+      /* 集合详情页骨架 */
+      <div>
+        <header class="mb-6">
+          <div class="flex flex-wrap items-center gap-3">
+            <h1 class="text-2xl font-bold" data-role="repo-name">
+              {repoName}
+            </h1>
+            <div class="ml-auto flex gap-2" data-role="actions"></div>
+          </div>
+          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400" data-role="repo-meta">
+            <span data-i18n="label.user">{t(locale, 'label.user')}</span>: {userName}
+          </p>
+        </header>
+
+        <div class="mb-4 flex gap-2" data-role="tabs">
+          <button type="button" class="btn btn-primary" data-tab="project" data-i18n="type.project">
+            {t(locale, 'type.project')}
+          </button>
+          <button type="button" class="btn" data-tab="article" data-i18n="type.article">
+            {t(locale, 'type.article')}
+          </button>
+        </div>
+
+        <div class="flex flex-col gap-3" data-component="list"></div>
+        <p
+          class="py-8 text-center text-slate-400"
+          data-role="empty"
+          data-i18n="common.noResults"
+          hidden
+        >
+          {t(locale, 'common.noResults')}
+        </p>
+        <Pagination locale={locale} />
+      </div>
+    )
+  }
+
+  <script is:inline type="application/json" id="view-config" set:html={JSON.stringify({
+    user: userName,
+    repo: repoName,
+    slug: slug ?? null,
+    isDetail,
+  })} />
+
+  <script>
+    import { initCollection } from '@/lib/views/collection';
+    import { initDetail } from '@/lib/views/detail';
+    import { buildCollectionLabels, buildDetailLabels } from '@/lib/labels';
+    import { getClientLocale } from '@/lib/i18n-client';
+
+    const config = JSON.parse(
+      document.getElementById('view-config')!.textContent!,
+    ) as { user: string; repo: string; slug: string | null; isDetail: boolean };
+    const locale = getClientLocale();
+
+    try {
+      if (config.isDetail && config.slug) {
+        const labels = buildDetailLabels(locale);
+        const pick = (role: string) =>
+          document.querySelector<HTMLElement>(`[data-role="${role}"]`)!;
+        await initDetail({
+          user: config.user,
+          repo: config.repo,
+          slug: config.slug,
+          locale,
+          labels,
+          els: {
+            title: pick('title'),
+            date: pick('date'),
+            meta: pick('meta'),
+            body: pick('body'),
+            tags: pick('tags'),
+            media: pick('media'),
+            author: pick('author'),
+            files: pick('files'),
+            release: pick('release'),
+            issues: pick('issues'),
+          },
+        });
+      } else {
+        const labels = buildCollectionLabels(locale);
+        await initCollection({
+          user: config.user,
+          repo: config.repo,
+          locale,
+          labels,
+          els: {
+            repoName: document.querySelector('[data-role="repo-name"]')!,
+            meta: document.querySelector('[data-role="repo-meta"]')!,
+            actions: document.querySelector('[data-role="actions"]')!,
+            tabs: document.querySelector('[data-role="tabs"]')!,
+            list: document.querySelector('[data-component="list"]')!,
+            empty: document.querySelector<HTMLElement>('[data-role="empty"]')!,
+            pageInfo: document.querySelector('[data-role="page-info"]')!,
+            prev: document.querySelector<HTMLButtonElement>('[data-action="prev"]')!,
+            next: document.querySelector<HTMLButtonElement>('[data-action="next"]')!,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('[view] init failed:', error);
+    }
+  </script>
+</BaseLayout>

@@ -55,6 +55,7 @@ export interface EditorLabels {
   schemeEncrypt: string;
   attachments: string;
   attachmentChoose: string;
+  summary: string;
   existing: string;
   license: string;
   authRequired: string;
@@ -117,6 +118,7 @@ interface EditorState {
   body: string;
   tags: string[];
   license: string;
+  summary: string;
   cover: File | null;
   coverName: string;
   coverRemoved: boolean;
@@ -474,6 +476,25 @@ function renderFileControl(labels: EditorLabels, state: EditorState): HTMLElemen
   return box;
 }
 
+/** 发布简介：默认单行，输入换行时自动增高；新建投稿时写入 release 正文 */
+function renderSummaryControl(labels: EditorLabels, state: EditorState): HTMLElement {
+  const box = el('div', 'flex flex-col gap-1');
+  box.appendChild(el('label', 'text-xs text-slate-500', labels.summary));
+  const input = el('textarea', 'input resize-none');
+  input.rows = 1;
+  input.setAttribute('data-field', 'summary');
+  const resize = (): void => {
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight}px`;
+  };
+  input.addEventListener('input', () => {
+    state.summary = input.value;
+    resize();
+  });
+  box.appendChild(input);
+  return box;
+}
+
 function renderAttachmentControl(
   labels: EditorLabels,
   state: EditorState,
@@ -654,6 +675,7 @@ function buildDraft(state: EditorState): SubmissionDraft {
     body: state.body,
     tags: state.tags,
     license: state.license,
+    summary: state.summary,
     cover: state.cover,
     files: state.files,
     attachments: state.attachments,
@@ -665,8 +687,7 @@ function validate(state: EditorState, labels: EditorLabels, mode: 'new' | 'edit'
   if (!state.title.trim()) errors.push(labels.errTitle);
   if (mode === 'new') {
     if (!state.repo) errors.push(labels.errRepo);
-    if (!(state.slug.length === 6 && Array.from(state.slug).every((c) => c >= '0' && c <= '9')))
-      errors.push(labels.errSlug);
+    if (!state.slug) errors.push(labels.errSlug);
   }
   if (state.cover && !state.cover.type.startsWith('image/')) errors.push(labels.errCoverType);
   for (const file of state.files) {
@@ -715,6 +736,7 @@ export async function initEditor(
     body: '',
     tags: [],
     license: '',
+    summary: '',
     cover: null,
     coverName: '',
     coverRemoved: false,
@@ -730,7 +752,18 @@ export async function initEditor(
   let entryForCtx: SubmissionEntry | null = null;
   let oldCoverAttr: string | undefined;
 
-  // ---- 仓库 / slug ----
+  // ---- slug 回退值：当前 6 位日期 + 标题；用户输入后以输入为准 ----
+  const dateSlug = todaySlug();
+  const slugFallback = (): string => {
+    const title = state.title.trim();
+    return title ? `${dateSlug}-${title}` : dateSlug;
+  };
+  const resolveSlug = (): string => {
+    if (isEdit) return state.slug;
+    return slugInput.value.trim() || slugFallback();
+  };
+
+  // ---- 仓库 / slug / 类型（同一行） ----
   const row1 = el('div', 'flex flex-wrap items-end gap-3');
   const repoBox = el('div', 'flex flex-col gap-1');
   repoBox.appendChild(el('label', 'text-xs text-slate-500', labels.repo));
@@ -741,15 +774,19 @@ export async function initEditor(
 
   const slugBox = el('div', 'flex flex-col gap-1');
   slugBox.appendChild(el('label', 'text-xs text-slate-500', labels.slug));
-  const slugInput = el('input', 'input w-32');
-  slugInput.value = state.slug;
+  const slugInput = el('input', 'input w-44');
   slugInput.setAttribute('data-field', 'slug');
-  if (isEdit) slugInput.readOnly = true;
+  if (isEdit) {
+    slugInput.value = state.slug;
+    slugInput.readOnly = true;
+  } else {
+    slugInput.value = '';
+    slugInput.placeholder = slugFallback();
+  }
   slugInput.addEventListener('input', () => {
     state.slug = slugInput.value.trim();
   });
   slugBox.appendChild(slugInput);
-  row1.append(repoBox, slugBox);
   form.appendChild(row1);
 
   interface RepoOption {
@@ -785,9 +822,11 @@ export async function initEditor(
       const index = await loadMockIndex();
       const seen = new Set<string>();
       for (const u of index.users) {
-        if (seen.has(u.repo)) continue;
-        seen.add(u.repo);
-        repoOptions.push({ user: u.user, repo: u.repo, platform: u.platform });
+        for (const ref of u.repos ?? []) {
+          if (seen.has(ref.repo)) continue;
+          seen.add(ref.repo);
+          repoOptions.push({ user: u.owner, repo: ref.repo, platform: u.platform });
+        }
       }
     } else {
       const session = loadSession();
@@ -809,12 +848,12 @@ export async function initEditor(
     }
   };
 
-  // ---- 类型 + 标题 ----
-  const row2 = el('div', 'flex items-end gap-3');
+  // ---- 类型 + 标题：按钮并入仓库/slug 行，标题独占一整行 ----
   const typeBox = el('div', 'flex flex-col gap-1');
   typeBox.appendChild(el('label', 'text-xs text-slate-500', labels.typeLabel));
   const typeControls = el('div', 'flex gap-2');
   typeBox.appendChild(typeControls);
+  row1.append(repoBox, slugBox, typeBox);
 
   const projectBtn = el('button', 'btn btn-primary', labels.typeProject);
   const articleBtn = el('button', 'btn', labels.typeArticle);
@@ -834,17 +873,17 @@ export async function initEditor(
   const typeChip = el('span', 'chip hidden');
   typeChip.setAttribute('data-role', 'type-chip');
 
-  const titleBox = el('div', 'flex flex-1 flex-col gap-1');
+  const titleBox = el('div', 'flex flex-col gap-1');
   titleBox.appendChild(el('label', 'text-xs text-slate-500', labels.titleLabel));
   const titleInput = el('input', 'input w-full');
   titleInput.placeholder = labels.titlePh;
   titleInput.setAttribute('data-field', 'title');
   titleInput.addEventListener('input', () => {
     state.title = titleInput.value;
+    if (!isEdit) slugInput.placeholder = slugFallback();
   });
   titleBox.appendChild(titleInput);
-  row2.append(typeBox, titleBox);
-  form.appendChild(row2);
+  form.appendChild(titleBox);
 
   // ---- 工程专属区块（article 时隐藏） ----
   const projectOnly: HTMLElement[] = [];
@@ -907,6 +946,9 @@ export async function initEditor(
   licenseBox.appendChild(licenseSelect);
   form.appendChild(licenseBox);
 
+  // 发布简介（仅新建：随 release 正文发布）
+  if (!isEdit) form.appendChild(renderSummaryControl(labels, state));
+
   const { box: attachmentControl, refresh: refreshAttachments } = renderAttachmentControl(
     labels,
     state,
@@ -951,15 +993,14 @@ export async function initEditor(
     state.type = entry.type;
     state.title = entry.title;
     titleInput.value = entry.title;
-    state.params = entry.params ?? 'with-params';
+    state.params = entry.paramState ?? 'with-params';
     const radio = paramsRow.querySelector<HTMLInputElement>(`input[value="${state.params}"]`);
     if (radio) radio.checked = true;
     state.lists.videos = [];
-    state.lists.tracks = entry.tracks ?? [];
+    state.lists.tracks = entry.songs ?? [];
     state.lists.engines = entry.engines ?? [];
     state.lists.voicebanks = entry.voicebanks ?? [];
-    state.lists.songLanguages = entry.songLanguages ?? [];
-    state.tags = entry.tags ?? [];
+    state.lists.songLanguages = entry.languages ?? [];
 
     try {
       const content = await loadSubmissionContent(entry.platform, config.user!, config.repo!, config.slug!);
@@ -972,6 +1013,8 @@ export async function initEditor(
       oldFiles = content.parsed.files;
       const videosAttr = content.parsed.attrs.videos;
       if (videosAttr) state.lists.videos = videosAttr.split(',').map((v) => v.trim()).filter(Boolean);
+      const tagsAttr = content.parsed.attrs.tags;
+      if (tagsAttr) state.tags = tagsAttr.split(',').map((v) => v.trim()).filter(Boolean);
       state.files = oldFiles.map((f) => ({
         id: newEditorFileId(),
         file: null,
@@ -1049,6 +1092,8 @@ export async function initEditor(
 
   form.addEventListener('submit', async () => {
     validation.textContent = '';
+    // 新建模式：slug 未输入时回退为 日期-标题
+    if (config.mode === 'new') state.slug = resolveSlug();
     const errors = validate(state, labels, config.mode);
     if (errors.length) {
       validation.classList.remove('hidden');

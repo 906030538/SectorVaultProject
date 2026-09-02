@@ -2,21 +2,18 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import Pagination from '@/components/Pagination.astro';
 import { DEFAULT_LOCALE, t } from '@/i18n';
-import mockIndex from '../../../public/mock/index.json';
+import { viewStaticPaths } from '@/lib/paths';
 
 const locale = DEFAULT_LOCALE;
 
 /**
  * 动态路由 /view/:name/:repo 与 /view/:name/:repo/:slug，由客户端按段数区分：
  * 2 段 = 集合详情，3 段 = 稿件详情。
- * 演示期基于本地索引为每个集合与稿件生成示例路径，保证静态部署下可导航、可测试；
+ * 演示期基于本地索引（current + 归档）为每个集合与稿件生成示例路径，保证静态部署下可导航、可测试；
  * 接入真实索引仓后需为任意路径配置 SPA 回退或改用 SSR 适配器。
  */
 export function getStaticPaths() {
-  const paths = new Set<string>();
-  for (const user of mockIndex.users) paths.add(`${user.user}/${user.repo}`);
-  for (const sub of mockIndex.submissions) paths.add(`${sub.user}/${sub.repo}/${sub.slug}`);
-  return Array.from(paths).map((path) => ({ params: { path } }));
+  return viewStaticPaths();
 }
 
 const segments = (Astro.params.path ?? '').split('/').filter(Boolean);

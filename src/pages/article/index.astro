@@ -70,7 +70,7 @@ const locale = DEFAULT_LOCALE;
       if (keyword) {
         const kw = keyword.toLowerCase();
         visible = visible.filter((e) =>
-          `${e.title} ${e.user}`.toLowerCase().includes(kw),
+          `${e.title} ${e.owner}`.toLowerCase().includes(kw),
         );
       }
       const totalPages = Math.max(1, Math.ceil(visible.length / config.pageSize));
@@ -110,7 +110,7 @@ const locale = DEFAULT_LOCALE;
       const index = await loadMockIndex();
       filtered = index.submissions
         .filter((e) => e.type === 'article')
-        .sort((a, b) => b.date.localeCompare(a.date));
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
       applyAndRender();
     } catch {
       emptyEl.hidden = false;

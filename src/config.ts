@@ -12,16 +12,27 @@ export const PAGE_SIZE = 10;
 /** 未归档索引最大条数 */
 export const INDEX_MAX_ACTIVE = 1024;
 
-/** 索引仓：与主站点共仓库，通过不同分支管理 */
-export const INDEX_REPO = {
-  owner: 'SectorVault',
-  name: 'sectorvault.github.io',
-  branch: 'index',
-  /** 未归档索引文件 */
-  activeFile: 'index.json',
-  /** 已归档索引文件命名：index-<YYYY-MM>.json */
-  archivePrefix: 'index-',
-};
+/** 索引数据源：一个索引 = 一个 git 仓库分支 */
+export interface IndexSource {
+  platform: Platform;
+  owner: string;
+  repo: string;
+  branch: string;
+}
+
+/** 默认索引数据源：主站索引仓的 index 分支（部署配置缺失时的回退） */
+export const DEFAULT_INDEX_SOURCES: IndexSource[] = [
+  { platform: 'github', owner: '906030538', repo: 'SectorVaultProject', branch: 'index' },
+];
+
+/** 索引仓内固定路径：未归档索引与按月归档目录 */
+export const INDEX_PATHS = {
+  current: 'index/current.json',
+  archiveDir: 'index/archive',
+} as const;
+
+/** 部署配置文件：其 indexes 字段覆盖默认索引源，允许配置多个索引 */
+export const DEPLOYMENT_CONFIG_URL = '/deployment.json';
 
 /** 主站点仓库（discussions / wiki 来源） */
 export const MAIN_REPO = {
@@ -64,8 +75,9 @@ export const EDITOR_LIMITS = {
 /** 演示模式发布管线每步模拟耗时（毫秒） */
 export const MOCK_PIPELINE_STEP_DELAY = 200;
 
-/** 开发期使用的本地模拟索引 */
-export const MOCK_INDEX_URL = '/mock/index.json';
+/** 开发期使用的本地模拟索引（结构同真实索引仓：current + 按月归档） */
+export const MOCK_INDEX_URL = '/mock/index/current.json';
+export const MOCK_ARCHIVE_BASE = '/mock/index/archive';
 
 /** 开发期使用的本地模拟内容（正文/目录/Release/Issue） */
 export const MOCK_CONTENT_URL = '/mock/content.json';

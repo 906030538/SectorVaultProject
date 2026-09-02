@@ -1,0 +1,100 @@
+{
+  "submissions": [
+    {
+      "platform": "github",
+      "owner": "demo",
+      "repo": "svp-demo",
+      "slug": "260726",
+      "title": "失重城市",
+      "type": "project",
+      "submittedAt": "2026-07-26T20:00:00+08:00",
+      "publishedAt": "2026-07-26T20:00:00+08:00",
+      "cover": "cover.jpg",
+      "paramState": "with-params",
+      "songs": [
+        "失重城市"
+      ],
+      "engines": [
+        "ACE Studio"
+      ],
+      "voicebanks": [
+        "洛天依"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "platform": "gitee",
+      "owner": "mirai",
+      "repo": "svp-mirai",
+      "slug": "260718",
+      "title": "Glassy Melody",
+      "type": "project",
+      "submittedAt": "2026-07-18T12:00:00+09:00",
+      "publishedAt": "2026-07-18T12:00:00+09:00",
+      "paramState": "no-params",
+      "songs": [
+        "Glassy Melody"
+      ],
+      "engines": [
+        "OpenUtau"
+      ],
+      "voicebanks": [
+        "闇音レンリ"
+      ],
+      "languages": [
+        "en"
+      ]
+    },
+    {
+      "platform": "github",
+      "owner": "demo",
+      "repo": "svp-demo",
+      "slug": "260710",
+      "title": "纸飞机",
+      "type": "project",
+      "submittedAt": "2026-07-10T15:20:00+08:00",
+      "publishedAt": "2026-07-10T15:20:00+08:00",
+      "cover": "paper-plane.png",
+      "paramState": "tuned",
+      "songs": [
+        "纸飞机"
+      ],
+      "engines": [
+        "UTAU"
+      ],
+      "voicebanks": [
+        "重音テト"
+      ],
+      "languages": [
+        "ja",
+        "zh"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "platform": "github",
+      "owner": "demo",
+      "displayName": "演示用户",
+      "avatar": null,
+      "repos": [
+        {
+          "repo": "svp-demo"
+        }
+      ]
+    },
+    {
+      "platform": "gitee",
+      "owner": "mirai",
+      "displayName": "ミライ",
+      "avatar": null,
+      "repos": [
+        {
+          "repo": "svp-mirai"
+        }
+      ]
+    }
+  ]
+}

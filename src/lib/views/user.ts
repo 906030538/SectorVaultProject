@@ -69,17 +69,17 @@ function sleep(ms: number): Promise<void> {
 
 async function loadIndex(): Promise<IndexFile> {
   if (await isMockAvailable()) return loadMockIndex();
-  return loadActiveIndex(await getAdapterAsync('github'));
+  return loadActiveIndex();
 }
 
 async function loadUserEntries(name: string): Promise<SubmissionEntry[]> {
   if (await isMockAvailable()) {
-    return (await loadMockIndex()).submissions.filter((e) => e.user === name);
+    return (await loadMockIndex()).submissions.filter((e) => e.owner === name);
   }
-  // 与集合页相同的口径：真实模式遍历索引仓
+  // 与集合页相同的口径：真实模式遍历全部索引源
   const all: SubmissionEntry[] = [];
-  for await (const entry of iterateAllSubmissions(await getAdapterAsync('github'))) {
-    if (entry.user === name) all.push(entry);
+  for await (const entry of iterateAllSubmissions()) {
+    if (entry.owner === name) all.push(entry);
   }
   return all;
 }
@@ -94,7 +94,7 @@ function formatDate(date: string, locale: string): string {
 
 function miniCard(entry: SubmissionEntry, locale: string): HTMLElement {
   const link = el('a', 'card block w-40 shrink-0 overflow-hidden p-0');
-  link.href = `/view/${entry.user}/${entry.repo}/${entry.slug}`;
+  link.href = `/view/${entry.owner}/${entry.repo}/${entry.slug}`;
   link.dataset.role = 'mini-card';
 
   if (entry.cover?.startsWith('http')) {
@@ -116,7 +116,7 @@ function miniCard(entry: SubmissionEntry, locale: string): HTMLElement {
   const body = el('div', 'flex flex-col gap-0.5 p-2.5');
   body.appendChild(el('p', 'truncate text-sm font-medium', entry.title));
   body.appendChild(
-    el('p', 'text-xs text-slate-400 dark:text-slate-500', formatDate(entry.date, locale)),
+    el('p', 'text-xs text-slate-400 dark:text-slate-500', formatDate(entry.submittedAt, locale)),
   );
   link.appendChild(body);
   return link;
@@ -274,7 +274,7 @@ export async function initUser(init: UserInit): Promise<void> {
 
   const [index, entries] = await Promise.all([loadIndex(), loadUserEntries(name)]);
 
-  const records = index.users.filter((u) => u.user === name);
+  const records = index.users.filter((u) => u.owner === name);
   const platforms = [...new Set(records.map((u) => u.platform))];
   if (!platforms.length) {
     els.projectCollections.appendChild(el('p', 'text-sm text-slate-400', labels.noRepos));
@@ -305,7 +305,7 @@ export async function initUser(init: UserInit): Promise<void> {
     els.avatar.appendChild(img);
   }
 
-  const site = records.find((u) => u.platform === platform && u.site)?.site;
+  const site = records.find((u) => u.platform === platform)?.pagesUrl;
   if (site) {
     const link = el('a', 'btn', labels.site);
     link.href = site;
@@ -323,13 +323,13 @@ export async function initUser(init: UserInit): Promise<void> {
     els.actions.appendChild(button);
   }
 
-  const repos = records
-    .filter((u) => u.platform === platform && u.repo.startsWith(CONTENT_REPO_PREFIX))
-    .map((u) => u.repo);
+  const repos = (records.find((u) => u.platform === platform)?.repos ?? [])
+    .map((r) => r.repo)
+    .filter((repo) => repo.startsWith(CONTENT_REPO_PREFIX));
   const byRepo = new Map<string, SubmissionEntry[]>();
   for (const entry of entries
     .filter((e) => e.platform === platform)
-    .sort((a, b) => b.date.localeCompare(a.date))) {
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))) {
     const list = byRepo.get(entry.repo);
     if (list) list.push(entry);
     else byRepo.set(entry.repo, [entry]);

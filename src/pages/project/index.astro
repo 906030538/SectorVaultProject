@@ -96,10 +96,10 @@ const locale = DEFAULT_LOCALE;
           .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
           .map(([value]) => value);
       };
-      candidates.track = collect((e) => e.tracks);
+      candidates.track = collect((e) => e.songs);
       candidates.engine = collect((e) => e.engines);
       candidates.voicebank = collect((e) => e.voicebanks);
-      candidates.songLanguage = collect((e) => e.songLanguages);
+      candidates.songLanguage = collect((e) => e.languages);
     }
 
     function hidePanels(except?: HTMLElement): void {
@@ -160,7 +160,7 @@ const locale = DEFAULT_LOCALE;
       if (keyword) {
         const kw = keyword.toLowerCase();
         filtered = filtered.filter((e) =>
-          [e.title, e.user, ...(e.tracks ?? []), ...(e.tags ?? [])]
+          [e.title, e.owner, ...(e.songs ?? [])]
             .join(' ')
             .toLowerCase()
             .includes(kw),
@@ -207,7 +207,7 @@ const locale = DEFAULT_LOCALE;
       const index = await loadMockIndex();
       entries = index.submissions
         .filter((e) => e.type === 'project')
-        .sort((a, b) => b.date.localeCompare(a.date));
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
       populateFilterOptions();
       applyAndRender();
     } catch {

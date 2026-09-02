@@ -8,25 +8,33 @@ export type SubmissionType = 'project' | 'article';
 export type ParamStatus = 'with-params' | 'tuned' | 'no-params';
 
 /**
- * 用户索引记录：记录用户所在平台、投稿的仓库、静态页面链接，每个仓库一条记录。
+ * 用户索引记录（schema/user.schema.json）：
+ * 按平台+用户名合并，repos 数组记录投稿的仓库。
  */
-export interface UserRecord {
-  user: string;
-  platform: Platform;
+export interface UserRepoRef {
   repo: string;
+}
+
+export interface UserRecord {
+  platform: Platform;
+  owner: string;
+  displayName?: string;
+  avatar?: string | null;
   /** 用户自行部署的静态页面链接 */
-  site?: string;
+  pagesUrl?: string | null;
+  repos?: UserRepoRef[];
 }
 
 /**
- * 稿件索引条目：记录投稿用户、标题、封面链接、投稿时间、
- * 关联曲目、合成引擎、使用声库、歌曲语言、有无参数。
+ * 稿件索引条目（schema/submission.schema.json）：
+ * 投稿用户、标题、封面、投稿/发布时间、关联曲目、合成引擎、
+ * 使用声库、歌曲语言、有无参数。
  */
 export interface SubmissionEntry {
   /** 稿件在内容仓中的目录名 */
   slug: string;
   /** 所属用户 */
-  user: string;
+  owner: string;
   /** 所属仓库 */
   repo: string;
   /** 稿件平台（继承自用户索引） */
@@ -34,29 +42,38 @@ export interface SubmissionEntry {
   type: SubmissionType;
   title: string;
   /** 封面链接（相对仓库路径或完整 URL） */
-  cover?: string;
+  cover?: string | null;
   /** 投稿时间 ISO 8601 */
-  date: string;
+  submittedAt: string;
+  /** 发布时间 ISO 8601 */
+  publishedAt?: string;
+  /** 有无参数 */
+  paramState?: ParamStatus;
   /** 关联曲目（多值） */
-  tracks?: string[];
+  songs?: string[];
   /** 合成引擎（多值） */
   engines?: string[];
   /** 使用声库（多值） */
   voicebanks?: string[];
   /** 歌曲语言（多值） */
-  songLanguages?: string[];
-  /** 有无参数 */
-  params?: ParamStatus;
-  /** 标签 */
-  tags?: string[];
-  /** 正文中除封面外的图片媒体 */
-  media?: string[];
+  languages?: string[];
+}
+
+/** 归档索引引用：current.json 的 archives 清单项 */
+export interface IndexArchiveRef {
+  /** 归档文件名（相对 index/archive/，如 2026-09.json） */
+  file: string;
+  byType?: Partial<Record<SubmissionType, number>>;
 }
 
 /** 索引文件：同一个文件中记录稿件与关联用户 */
 export interface IndexFile {
   submissions: SubmissionEntry[];
   users: UserRecord[];
+  /** current.json 额外字段：用户总数 */
+  userCount?: number;
+  /** current.json 额外字段：归档文件清单（按月） */
+  archives?: IndexArchiveRef[];
 }
 
 /** 投稿列表筛选条件 */

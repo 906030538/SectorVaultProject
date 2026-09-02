@@ -1,84 +1,171 @@
-import { INDEX_REPO, MOCK_INDEX_URL } from '@/config';
-import type { FilterState, IndexFile, SubmissionEntry } from '@/types';
-import type { GitPlatformAdapter } from '@/lib/adapters/types';
+import {
+  INDEX_PATHS,
+  MOCK_ARCHIVE_BASE,
+  MOCK_INDEX_URL,
+  type IndexSource,
+} from '@/config';
+import type { FilterState, IndexFile, SubmissionEntry, UserRecord } from '@/types';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
+import { getIndexSources } from '@/lib/index/sources';
 import { isMockAvailable } from '@/lib/content';
 
 /** 已加载索引缓存，避免重复请求（设计：缓存已加载的索引） */
 const indexCache = new Map<string, IndexFile>();
 
-function cacheKey(ref: string, path: string): string {
-  return `${INDEX_REPO.owner}/${INDEX_REPO.name}@${ref}:${path}`;
+function cacheKey(source: IndexSource, path: string): string {
+  return `${source.platform}:${source.owner}/${source.repo}@${source.branch}:${path}`;
 }
 
 async function readIndexFile(
-  adapter: GitPlatformAdapter,
+  source: IndexSource,
   path: string,
   signal?: AbortSignal,
 ): Promise<IndexFile> {
-  const key = cacheKey(INDEX_REPO.branch, path);
+  const key = cacheKey(source, path);
   const cached = indexCache.get(key);
   if (cached) return cached;
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const raw = await adapter.readFile(INDEX_REPO.owner, INDEX_REPO.name, path, INDEX_REPO.branch);
+  const adapter = await getAdapterAsync(source.platform);
+  const raw = await adapter.readFile(source.owner, source.repo, path, source.branch);
   const parsed = JSON.parse(raw) as IndexFile;
   indexCache.set(key, parsed);
   return parsed;
 }
 
-/** 未归档索引（最近 1024 条） */
-export async function loadActiveIndex(
-  adapter: GitPlatformAdapter,
-  signal?: AbortSignal,
-): Promise<IndexFile> {
-  return readIndexFile(adapter, INDEX_REPO.activeFile, signal);
-}
-
 /**
- * 已归档索引文件名列表（index-<YYYY-MM>.json），按月份倒序。
- * 归档完成前默认索引可能尚未遍历完，调用方应先消费默认索引。
+ * 归档文件名列表（按月份倒序）：
+ * 优先使用 current.json 的 archives 清单，缺失时列归档目录兜底。
  */
-export async function listArchiveFiles(
-  adapter: GitPlatformAdapter,
+async function listArchiveFiles(
+  source: IndexSource,
+  current: IndexFile,
   signal?: AbortSignal,
 ): Promise<string[]> {
-  const files = await adapter.listDir(INDEX_REPO.owner, INDEX_REPO.name, '', INDEX_REPO.branch);
+  const manifest = (current.archives ?? [])
+    .map((a) => a.file)
+    .filter((file) => file.endsWith('.json'));
+  if (manifest.length > 0) return [...manifest].sort().reverse();
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  const adapter = await getAdapterAsync(source.platform);
+  const files = await adapter.listDir(source.owner, source.repo, INDEX_PATHS.archiveDir, source.branch);
   return files
     .map((f) => f.name)
-    .filter((name) => name.startsWith(INDEX_REPO.archivePrefix) && name.endsWith('.json'))
+    .filter((name) => name.endsWith('.json'))
     .sort()
     .reverse();
 }
 
+function submissionKey(entry: SubmissionEntry): string {
+  return `${entry.platform}:${entry.owner}/${entry.repo}/${entry.slug}`;
+}
+
+/** 用户记录合并（同 rebuild.mjs：按平台+用户名合并，repos 取并集） */
+function mergeUserRecords(target: UserRecord[], incoming: UserRecord[]): void {
+  for (const user of incoming) {
+    const existing = target.find((u) => u.platform === user.platform && u.owner === user.owner);
+    if (!existing) {
+      target.push({ ...user, repos: (user.repos ?? []).map((r) => ({ ...r })) });
+      continue;
+    }
+    const repos = new Set((existing.repos ?? []).map((r) => r.repo));
+    for (const ref of user.repos ?? []) repos.add(ref.repo);
+    existing.repos = [...repos].map((repo) => ({ repo }));
+    existing.displayName = existing.displayName ?? user.displayName;
+    existing.avatar = existing.avatar ?? user.avatar;
+    existing.pagesUrl = existing.pagesUrl ?? user.pagesUrl;
+  }
+}
+
+/** 合并多个索引文件：稿件按唯一键去重（先到先得），用户记录合并 */
+function mergeIndexFiles(files: IndexFile[]): IndexFile {
+  const merged: IndexFile = { submissions: [], users: [] };
+  const seen = new Set<string>();
+  for (const file of files) {
+    for (const submission of file.submissions) {
+      const key = submissionKey(submission);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.submissions.push(submission);
+    }
+    mergeUserRecords(merged.users, file.users);
+  }
+  return merged;
+}
+
+/** 单源加载失败时跳过该源（多源部署下单个坏源不阻断整站） */
+function warnSourceFailure(source: IndexSource, error: unknown): void {
+  console.warn(
+    `[index] 源不可用，已跳过 ${source.platform}:${source.owner}/${source.repo}@${source.branch}:`,
+    error,
+  );
+}
+
+/** 未归档索引：全部索引源的 current.json 合并（按配置顺序，跨源去重） */
+export async function loadActiveIndex(signal?: AbortSignal): Promise<IndexFile> {
+  const parts: IndexFile[] = [];
+  for (const source of await getIndexSources()) {
+    try {
+      parts.push(await readIndexFile(source, INDEX_PATHS.current, signal));
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      warnSourceFailure(source, error);
+    }
+  }
+  return mergeIndexFiles(parts);
+}
+
+/** 主索引源的 current.json（编辑器索引 PR 的写入基准） */
+export async function loadPrimaryIndex(
+  signal?: AbortSignal,
+): Promise<{ source: IndexSource; index: IndexFile }> {
+  const source = (await getIndexSources())[0]!;
+  return { source, index: await readIndexFile(source, INDEX_PATHS.current, signal) };
+}
+
 /**
- * 按设计顺序遍历全部稿件：先未归档索引，再依次加载按月归档的索引。
+ * 按设计顺序遍历全部稿件：各索引源先 current.json 再按月归档，跨源去重。
  * 支持 AbortSignal 取消（对应列表页的取消按钮）。
  */
 export async function* iterateAllSubmissions(
-  adapter: GitPlatformAdapter,
   signal?: AbortSignal,
 ): AsyncGenerator<SubmissionEntry, void, unknown> {
-  const active = await loadActiveIndex(adapter, signal);
-  yield* active.submissions;
+  const seen = new Set<string>();
+  for (const source of await getIndexSources()) {
+    try {
+      const current = await readIndexFile(source, INDEX_PATHS.current, signal);
+      for (const entry of current.submissions) {
+        const key = submissionKey(entry);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        yield entry;
+      }
 
-  const archives = await listArchiveFiles(adapter, signal);
-  for (const file of archives) {
-    const index = await readIndexFile(adapter, file, signal);
-    yield* index.submissions;
+      const archives = await listArchiveFiles(source, current, signal);
+      for (const file of archives) {
+        const index = await readIndexFile(source, `${INDEX_PATHS.archiveDir}/${file}`, signal);
+        for (const entry of index.submissions) {
+          const key = submissionKey(entry);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          yield entry;
+        }
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      warnSourceFailure(source, error);
+    }
   }
 }
 
 /** 关键字搜索：遍历全部索引直至命中足够结果或遍历完毕 */
 export async function searchSubmissions(
-  adapter: GitPlatformAdapter,
   keyword: string,
   { limit = 50, signal }: { limit?: number; signal?: AbortSignal } = {},
 ): Promise<SubmissionEntry[]> {
   const kw = keyword.trim().toLowerCase();
   const results: SubmissionEntry[] = [];
-  for await (const entry of iterateAllSubmissions(adapter, signal)) {
-    const haystack = [entry.title, entry.user, ...(entry.tracks ?? []), ...(entry.tags ?? [])]
+  for await (const entry of iterateAllSubmissions(signal)) {
+    const haystack = [entry.title, entry.owner, ...(entry.songs ?? [])]
       .join(' ')
       .toLowerCase();
     if (haystack.includes(kw)) {
@@ -94,23 +181,46 @@ export function applyFilters(
   filters: FilterState,
 ): SubmissionEntry[] {
   return entries.filter((entry) => {
-    if (filters.track && !(entry.tracks ?? []).includes(filters.track)) return false;
+    if (filters.track && !(entry.songs ?? []).includes(filters.track)) return false;
     if (filters.engine && !(entry.engines ?? []).includes(filters.engine)) return false;
     if (filters.voicebank && !(entry.voicebanks ?? []).includes(filters.voicebank)) return false;
-    if (filters.songLanguage && !(entry.songLanguages ?? []).includes(filters.songLanguage))
+    if (filters.songLanguage && !(entry.languages ?? []).includes(filters.songLanguage))
       return false;
     return true;
   });
 }
 
-/** 开发期从本地 mock 索引加载 */
+let mockIndexPromise: Promise<IndexFile> | undefined;
+
+/**
+ * 开发期加载本地模拟索引：读 current.json 并按其 archives 清单
+ * 合并全部归档，得到与 iterateAllSubmissions 相同口径的完整集合。
+ */
 export async function loadMockIndex(): Promise<IndexFile> {
-  const response = await fetch(MOCK_INDEX_URL);
-  if (!response.ok) throw new Error(`Failed to load mock index: ${response.status}`);
-  return (await response.json()) as IndexFile;
+  mockIndexPromise ??= (async () => {
+    const response = await fetch(MOCK_INDEX_URL);
+    if (!response.ok) throw new Error(`Failed to load mock index: ${response.status}`);
+    const current = (await response.json()) as IndexFile;
+    const files = [...(current.archives ?? [])]
+      .map((a) => a.file)
+      .filter((file) => file.endsWith('.json'))
+      .sort()
+      .reverse();
+    const parts: IndexFile[] = [current];
+    for (const file of files) {
+      try {
+        const res = await fetch(`${MOCK_ARCHIVE_BASE}/${file}`);
+        if (res.ok) parts.push((await res.json()) as IndexFile);
+      } catch {
+        /* 归档缺失时仅用 current */
+      }
+    }
+    return mergeIndexFiles(parts);
+  })();
+  return mockIndexPromise;
 }
 
-/** 按 user/repo/slug 定位索引条目（详情页与编辑页共用） */
+/** 按 owner/repo/slug 定位索引条目（详情页与编辑页共用） */
 export async function findEntry(
   user: string,
   repo: string,
@@ -119,12 +229,12 @@ export async function findEntry(
   if (await isMockAvailable()) {
     const index = await loadMockIndex();
     return (
-      index.submissions.find((e) => e.user === user && e.repo === repo && e.slug === slug) ??
+      index.submissions.find((e) => e.owner === user && e.repo === repo && e.slug === slug) ??
       null
     );
   }
-  for await (const entry of iterateAllSubmissions(await getAdapterAsync('github'))) {
-    if (entry.user === user && entry.repo === repo && entry.slug === slug) return entry;
+  for await (const entry of iterateAllSubmissions()) {
+    if (entry.owner === user && entry.repo === repo && entry.slug === slug) return entry;
   }
   return null;
 }

@@ -122,6 +122,8 @@ export interface ReadmeInput {
   license?: string;
   /** 视频站链接，逗号连接写入 videos 属性 */
   videos?: string[];
+  /** 标签，逗号连接写入 tags 属性（索引 schema 不含标签，随稿件内容存储） */
+  tags?: string[];
   body: string;
   files: ProjectFile[];
 }
@@ -132,6 +134,7 @@ export function generateReadme(input: ReadmeInput): string {
   if (input.cover) header.push(`cover: ${input.cover}`);
   if (input.license) header.push(`license: ${input.license}`);
   if (input.videos?.length) header.push(`videos: ${input.videos.join(', ')}`);
+  if (input.tags?.length) header.push(`tags: ${input.tags.join(', ')}`);
 
   const fileList = input.files.map((f) => {
     const stars = f.encrypted ? '**' : f.compressed ? '*' : '';
@@ -283,7 +286,7 @@ export async function loadEngagements(
     const issues = mock.issues[repoKey(user, repo)] ?? [];
     const releases = mock.releases[repoKey(user, repo)] ?? [];
     for (const entry of entries) {
-      const key = slugKey(entry.user, entry.repo, entry.slug);
+      const key = slugKey(entry.owner, entry.repo, entry.slug);
       const cached = engagementCache.get(key);
       if (cached) {
         results.set(key, cached);
@@ -302,8 +305,8 @@ export async function loadEngagements(
   const fromStats = await fetchEngagementForEntries(await getAdapterAsync(platform), entries);
   for (const entry of entries) {
     results.set(
-      slugKey(entry.user, entry.repo, entry.slug),
-      fromStats.get(`${entry.platform}:${entry.user}/${entry.repo}#${entry.slug}`) ?? {
+      slugKey(entry.owner, entry.repo, entry.slug),
+      fromStats.get(`${entry.platform}:${entry.owner}/${entry.repo}#${entry.slug}`) ?? {
         comments: 0,
         reactions: 0,
       },

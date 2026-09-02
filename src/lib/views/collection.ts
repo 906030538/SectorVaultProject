@@ -1,5 +1,4 @@
 import { LICENSE_OPTIONS, PAGE_SIZE } from '@/config';
-import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { isMockAvailable, loadEngagements, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadMockIndex } from '@/lib/index/loader';
 import { loadSession } from '@/lib/auth';
@@ -44,13 +43,12 @@ async function loadRepoEntries(user: string, repo: string): Promise<SubmissionEn
   if (await isMockAvailable()) {
     all = (await loadMockIndex()).submissions;
   } else {
-    const platform = 'github';
     all = [];
-    for await (const entry of iterateAllSubmissions(await getAdapterAsync(platform))) all.push(entry);
+    for await (const entry of iterateAllSubmissions()) all.push(entry);
   }
   return all
-    .filter((e) => e.user === user && e.repo === repo)
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .filter((e) => e.owner === user && e.repo === repo)
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }
 
 function dialogShell(title: string): { overlay: HTMLElement; body: HTMLElement } {

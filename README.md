@@ -20,4 +20,19 @@
 
 使用Git作为内容数据托管，天然支持版本管理，数据也能平滑迁移到任意git托管平台。
 
+## 部署配置
+
+索引数据源通过 `public/deployment.json` 配置，允许配置多个索引（按配置顺序合并，跨源按 平台+用户+仓库+slug 去重）：
+
+```json
+{
+  "indexes": [
+    { "platform": "github", "owner": "906030538", "repo": "SectorVaultProject", "branch": "index" },
+    { "platform": "gitee", "owner": "example", "repo": "svp-index", "branch": "index" }
+  ]
+}
+```
+
+各索引源读取其 `index/current.json`（未归档）与 `index/archive/YYYY-MM.json`（按月归档）；编辑器发布的索引 PR 提交到第一个源。配置文件缺失或损坏时回退内置默认源。
+
 详细设计参考[设计文档](./DESIGN.md)

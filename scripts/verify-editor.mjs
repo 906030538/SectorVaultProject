@@ -79,7 +79,7 @@ console.log('\n[new] 表单结构与校验');
   assert('repo 下拉含 4 个演示仓库', optionTexts.length === 4 && optionTexts.includes('demo/svp-demo'));
 
   const slugInput = doc.querySelector('[data-field="slug"]');
-  assert('slug 默认今日 6 位日期', slugInput.value === todaySlug());
+  assert('slug 新建时空值且占位为今日日期', slugInput.value === '' && slugInput.placeholder.startsWith(todaySlug()));
 
   assert('五个列表输入组存在', ['videos', 'tracks', 'engines', 'voicebanks', 'songLanguages']
     .every((k) => doc.querySelector(`[data-role="list-${k}"]`)));
@@ -153,6 +153,13 @@ console.log('\n[new] 表单结构与校验');
   assert('加密方案显示密码框', !passwordInput.classList.contains('hidden'));
   doc.querySelector('[data-field="title"]').value = '校验测试';
   doc.querySelector('[data-field="title"]').dispatchEvent(new page.mainFrame.window.Event('input', { bubbles: true }));
+  assert('标题更新 slug 占位为日期-标题', slugInput.placeholder === `${todaySlug()}-校验测试`);
+  assert('发布简介输入框位于附件前', (() => {
+    const summary = doc.querySelector('[data-field="summary"]');
+    const attachments = doc.querySelector('[data-field="attachments"]');
+    const FOLLOWING = page.mainFrame.window.Node.DOCUMENT_POSITION_FOLLOWING;
+    return summary && attachments && summary.compareDocumentPosition(attachments) & FOLLOWING;
+  })());
   doc.querySelector('[data-action="submit"]').dispatchEvent(new page.mainFrame.window.MouseEvent('click', { bubbles: true }));
   await sleep(200);
   assert('空密码加密文件校验报错', doc.querySelector('[data-role="validation"]').textContent.includes('加密文件需要密码'));

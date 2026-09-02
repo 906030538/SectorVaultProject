@@ -5,7 +5,7 @@ import type { GitPlatformAdapter } from '@/lib/adapters/types';
 const engagementCache = new Map<string, EngagementStats>();
 
 function key(entry: SubmissionEntry): string {
-  return `${entry.platform}:${entry.user}/${entry.repo}#${entry.slug}`;
+  return `${entry.platform}:${entry.owner}/${entry.repo}#${entry.slug}`;
 }
 
 /** 通过关联的 issue 与 release 统计评论数和点赞数 */
@@ -17,8 +17,8 @@ export async function fetchEngagement(
   if (cached) return cached;
 
   const [issues, releases] = await Promise.all([
-    adapter.listIssues(entry.user, entry.repo).catch(() => []),
-    adapter.listReleases(entry.user, entry.repo).catch(() => []),
+    adapter.listIssues(entry.owner, entry.repo).catch(() => []),
+    adapter.listReleases(entry.owner, entry.repo).catch(() => []),
   ]);
 
   const issue = issues.find((i) => i.title === entry.title);

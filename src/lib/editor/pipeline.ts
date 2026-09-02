@@ -1,8 +1,8 @@
-import { INDEX_REPO, MOCK_PIPELINE_STEP_DELAY } from '@/config';
+import { INDEX_PATHS, MOCK_PIPELINE_STEP_DELAY } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import type { FileChange } from '@/lib/adapters/types';
 import { generateReadme, type ProjectFile } from '@/lib/content';
-import { loadActiveIndex, loadMockIndex } from '@/lib/index/loader';
+import { loadMockIndex, loadPrimaryIndex } from '@/lib/index/loader';
 import type {
   IndexFile,
   ParamStatus,
@@ -34,6 +34,8 @@ export interface SubmissionDraft {
   body: string;
   tags: string[];
   license: string;
+  /** 发布简介：新建时写入 release 正文 */
+  summary: string;
   cover: File | null;
   /** 编辑模式下含 existing 行（file 为 null） */
   files: EditorFile[];
@@ -87,72 +89,88 @@ export function buildReadmeText(
     cover: coverName || undefined,
     license: draft.license || undefined,
     videos: draft.videos.filter(Boolean),
+    tags: draft.tags,
     body: draft.body,
     files: draftFilesToProjectFiles(draft.files),
   });
 }
 
-/** Release 正文：主站详情链接 +（若部署了用户空间静态页）用户空间链接 */
+/** Release 正文：发布简介 + 主站详情链接 +（若部署了用户空间静态页）用户空间链接 */
 export function buildReleaseBody(
   user: string,
   repo: string,
   slug: string,
   site?: string,
+  summary?: string,
 ): string {
-  const lines = [
+  const links = [
     `${window.location.origin}/view/${user}/${repo}/${slug}`,
   ];
   if (site) {
     let base = site;
     while (base.endsWith('/')) base = base.slice(0, -1);
-    lines.push(`${base}/view/${repo}/${slug}`);
+    links.push(`${base}/view/${repo}/${slug}`);
   }
-  return lines.join('\n');
+  const note = summary?.trim();
+  return note ? `${note}\n\n${links.join('\n')}` : links.join('\n');
 }
 
-async function loadIndex(mock: boolean, platform: Platform): Promise<IndexFile> {
-  return mock ? loadMockIndex() : loadActiveIndex(await getAdapterAsync(platform));
+async function loadIndex(mock: boolean): Promise<IndexFile> {
+  // 索引 PR 始终以主索引源为写入目标
+  return mock ? loadMockIndex() : (await loadPrimaryIndex()).index;
 }
 
-/** 构造索引仓变更：未归档索引按 user+repo+slug upsert，并确保 users 记录 */
+/** 构造索引仓变更：按 user+repo+slug upsert 到投稿月份的归档文件，并确保 users 记录 */
 export async function buildIndexChange(entry: SubmissionEntry, mock: boolean): Promise<FileChange> {
-  const index = await loadIndex(mock, entry.platform);
+  const index = await loadIndex(mock);
   const next: IndexFile = JSON.parse(JSON.stringify(index)) as IndexFile;
   const at = next.submissions.findIndex(
-    (s) => s.user === entry.user && s.repo === entry.repo && s.slug === entry.slug,
+    (s) => s.owner === entry.owner && s.repo === entry.repo && s.slug === entry.slug,
   );
   if (at >= 0) next.submissions[at] = entry;
   else next.submissions.push(entry);
-  if (!next.users.some((u) => u.user === entry.user && u.repo === entry.repo)) {
-    next.users.push({ user: entry.user, platform: entry.platform, repo: entry.repo });
+  let user = next.users.find((u) => u.platform === entry.platform && u.owner === entry.owner);
+  if (!user) {
+    user = { platform: entry.platform, owner: entry.owner, repos: [] };
+    next.users.push(user);
   }
+  if (!(user.repos ?? []).some((r) => r.repo === entry.repo)) {
+    user.repos = [...(user.repos ?? []), { repo: entry.repo }];
+  }
+  // 归档是事实来源：投稿 PR 写入该稿投稿月份的归档文件，current.json 由索引仓 CI 重建
+  const month = entry.submittedAt.slice(0, 7);
   return {
-    path: INDEX_REPO.activeFile,
+    path: `${INDEX_PATHS.archiveDir}/${month}.json`,
     content: `${JSON.stringify(next, null, 2)}\n`,
     encoding: 'utf-8',
   };
 }
 
-/** 由表单构造索引条目；编辑时 date 沿用原值 */
-export function buildIndexEntry(draft: SubmissionDraft, date: string, cover?: string): SubmissionEntry {
+/** 由表单构造索引条目；编辑时 submittedAt/publishedAt 沿用原值 */
+export function buildIndexEntry(
+  draft: SubmissionDraft,
+  date: string,
+  cover?: string,
+  publishedAt?: string,
+): SubmissionEntry {
   const base: SubmissionEntry = {
     slug: draft.slug,
-    user: draft.user,
+    owner: draft.user,
     repo: draft.repo,
     platform: draft.platform,
     type: draft.type,
     title: draft.title,
-    date,
+    submittedAt: date,
+    publishedAt: publishedAt ?? date,
   };
   if (cover) base.cover = cover;
   if (draft.type === 'project') {
-    base.params = draft.params;
-    base.tracks = draft.tracks.filter(Boolean);
+    base.paramState = draft.params;
+    base.songs = draft.tracks.filter(Boolean);
     base.engines = draft.engines.filter(Boolean);
     base.voicebanks = draft.voicebanks.filter(Boolean);
-    base.songLanguages = draft.songLanguages.filter(Boolean);
+    base.languages = draft.songLanguages.filter(Boolean);
   }
-  if (draft.tags.length) base.tags = draft.tags;
   return base;
 }
 
@@ -166,10 +184,10 @@ async function fileChange(
   return { path, content: processed.content, encoding: processed.encoding };
 }
 
-async function findUserSite(user: string, mock: boolean, platform: Platform): Promise<string | undefined> {
+async function findUserSite(user: string, mock: boolean): Promise<string | undefined> {
   try {
-    const index = await loadIndex(mock, platform);
-    return index.users.find((u) => u.user === user)?.site;
+    const index = await loadIndex(mock);
+    return index.users.find((u) => u.owner === user)?.pagesUrl ?? undefined;
   } catch {
     return undefined;
   }
@@ -186,7 +204,7 @@ async function tryIndexPr(
     const change = await buildIndexChange(entry, mock);
     if (!mock) {
       if (!token) throw new Error('missing token');
-      await (await getAdapterAsync(entry.platform)).openIndexPr(token, `index: +${entry.user}/${entry.repo}/${entry.slug}`, [change]);
+      await (await getAdapterAsync(entry.platform)).openIndexPr(token, `index: +${entry.owner}/${entry.repo}/${entry.slug}`, [change]);
     } else {
       await sleep(MOCK_PIPELINE_STEP_DELAY);
     }
@@ -247,8 +265,8 @@ export async function publishSubmission(
       releaseId = 1;
       return;
     }
-    const site = await findUserSite(user, mock, draft.platform);
-    releaseId = await (await adapter()).createRelease(token!, user, repo, slug, buildReleaseBody(user, repo, slug, site));
+    const site = await findUserSite(user, mock);
+    releaseId = await (await adapter()).createRelease(token!, user, repo, slug, buildReleaseBody(user, repo, slug, site, draft.summary));
   });
 
   await runStep('assets', mock, onStep, async () => {
@@ -311,8 +329,7 @@ export async function updateSubmission(
     if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} files`, changes);
   });
 
-  const readme = buildReadmeText(draft, ctx.issue, currentCover);
-  await runStep('readme', mock, onStep, async () => {
+  const readme = buildReadmeText(draft, ctx.issue, currentCover);  await runStep('readme', mock, onStep, async () => {
     if (!mock) {
       await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} README`, [
         { path: `${slug}/README.md`, content: readme, encoding: 'utf-8' },
@@ -344,16 +361,20 @@ export async function updateSubmission(
   const indexChanged =
     draft.title !== entry.title ||
     currentCover !== entry.cover ||
-    draft.params !== entry.params ||
-    !sameList(draft.tracks, entry.tracks) ||
+    draft.params !== entry.paramState ||
+    !sameList(draft.tracks, entry.songs) ||
     !sameList(draft.engines, entry.engines) ||
     !sameList(draft.voicebanks, entry.voicebanks) ||
-    !sameList(draft.songLanguages, entry.songLanguages) ||
-    !sameList(draft.tags, entry.tags);
+    !sameList(draft.songLanguages, entry.languages);
 
   if (indexChanged) {
     // 投稿时间不变更
-    await tryIndexPr(token, mock, buildIndexEntry(draft, entry.date, currentCover), onStep);
+    await tryIndexPr(
+      token,
+      mock,
+      buildIndexEntry(draft, entry.submittedAt, currentCover, entry.publishedAt),
+      onStep,
+    );
   } else {
     onStep('index', 'done');
   }

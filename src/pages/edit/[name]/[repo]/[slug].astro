@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { DEFAULT_LOCALE, t } from '@/i18n';
-import mockIndex from '../../../../../public/mock/index.json';
+import { editStaticPaths } from '@/lib/paths';
 
 /**
  * 动态路由 /edit/:name/:repo/:slug。
@@ -9,9 +9,7 @@ import mockIndex from '../../../../../public/mock/index.json';
  * 接入真实索引仓后需为任意用户名配置 SPA 回退或改用 SSR 适配器。
  */
 export function getStaticPaths() {
-  return mockIndex.submissions.map((sub) => ({
-    params: { name: sub.user, repo: sub.repo, slug: sub.slug },
-  }));
+  return editStaticPaths();
 }
 
 const { name, repo, slug } = Astro.params;

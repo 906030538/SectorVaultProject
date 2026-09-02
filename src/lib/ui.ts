@@ -33,7 +33,7 @@ export function renderCard(
   article.className = 'card flex gap-4 p-4';
 
   const coverLink = document.createElement('a');
-  coverLink.href = `/view/${entry.user}/${entry.repo}/${entry.slug}`;
+  coverLink.href = `/view/${entry.owner}/${entry.repo}/${entry.slug}`;
   coverLink.className = 'block w-32 shrink-0';
   if (entry.cover?.startsWith('http')) {
     const img = document.createElement('img');
@@ -64,12 +64,12 @@ export function renderCard(
   const meta = document.createElement('p');
   meta.className = 'mt-1 text-sm text-slate-500 dark:text-slate-400';
   const userLink = document.createElement('a');
-  userLink.href = `/user/${entry.user}`;
+  userLink.href = `/user/${entry.owner}`;
   userLink.className = 'hover:text-indigo-600 dark:hover:text-indigo-400';
-  userLink.textContent = entry.user;
+  userLink.textContent = entry.owner;
   const date = document.createElement('time');
-  date.dateTime = entry.date;
-  date.textContent = new Date(entry.date).toLocaleDateString(locale, {
+  date.dateTime = entry.submittedAt;
+  date.textContent = new Date(entry.submittedAt).toLocaleDateString(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -84,15 +84,15 @@ export function renderCard(
   if (!opts.compact) {
     const chips = document.createElement('div');
     chips.className = 'mt-2 flex flex-wrap gap-1.5';
-    for (const v of entry.tracks ?? []) chips.appendChild(chip(`♪ ${v}`));
+    for (const v of entry.songs ?? []) chips.appendChild(chip(`♪ ${v}`));
     for (const v of entry.engines ?? []) chips.appendChild(chip(v));
     for (const v of entry.voicebanks ?? []) chips.appendChild(chip(v));
-    for (const v of entry.songLanguages ?? []) chips.appendChild(chip(v));
+    for (const v of entry.languages ?? []) chips.appendChild(chip(v));
     if (entry.type === 'project') {
       const paramsChip = chip(
-        entry.params === 'with-params'
+        entry.paramState === 'with-params'
           ? labels.paramsWith
-          : entry.params === 'tuned'
+          : entry.paramState === 'tuned'
             ? labels.paramsTuned
             : labels.paramsNone,
       );
@@ -114,7 +114,7 @@ export function renderCard(
     const actions = document.createElement('div');
     actions.className = 'mt-2 flex gap-2';
     const editBtn = document.createElement('a');
-    editBtn.href = `/edit/${entry.user}/${entry.repo}/${entry.slug}`;
+    editBtn.href = `/edit/${entry.owner}/${entry.repo}/${entry.slug}`;
     editBtn.className =
       'rounded-md border border-slate-300 px-2 py-0.5 text-xs hover:border-indigo-500 hover:text-indigo-600 dark:border-slate-600';
     editBtn.dataset.action = 'edit-submission';

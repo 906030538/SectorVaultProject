@@ -79,12 +79,12 @@ const locale = DEFAULT_LOCALE;
       const submissions = document.querySelector('[data-stat="submissions"]');
       if (submissions) submissions.textContent = String(index.submissions.length);
       const users = document.querySelector('[data-stat="users"]');
-      if (users) users.textContent = String(new Set(index.submissions.map((s) => s.user)).size);
+      if (users) users.textContent = String(new Set(index.submissions.map((s) => s.owner)).size);
 
       const list = document.querySelector('[data-component="latest-list"]');
       if (list) {
         const latest = [...index.submissions]
-          .sort((a, b) => b.date.localeCompare(a.date))
+          .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
           .slice(0, 5);
         for (const entry of latest) list.appendChild(renderCard(entry, locale, labels));
       }

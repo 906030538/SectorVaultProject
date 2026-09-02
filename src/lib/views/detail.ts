@@ -23,6 +23,7 @@ export interface DetailLabels {
   engines: string;
   voicebanks: string;
   songLanguages: string;
+  videos: string;
   media: string;
   files: string;
   release: string;
@@ -61,9 +62,9 @@ export interface DetailInit {
   els: DetailElements;
 }
 
-function renderTags(entry: SubmissionEntry, els: DetailElements): void {
+function renderTags(tags: string[], els: DetailElements): void {
   els.tags.textContent = '';
-  for (const tag of entry.tags ?? []) {
+  for (const tag of tags) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className =
@@ -337,7 +338,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   }
 
   els.title.textContent = entry.title;
-  els.date.textContent = new Date(entry.date).toLocaleDateString(locale, {
+  els.date.textContent = new Date(entry.submittedAt).toLocaleDateString(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -351,16 +352,24 @@ export async function initDetail(init: DetailInit): Promise<void> {
     loadIssues(platform, user, repo),
   ]);
 
-  // 元数据列表
+  // 元数据列表（视频链接来自稿件 README 头部，逗号分隔）
   els.meta.textContent = '';
-  const metaList = buildMetaList(entry, labels);
+  const videos = (content.parsed.attrs.videos ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+  const metaList = buildMetaList(entry, labels, videos);
   els.meta.appendChild(metaList);
 
   // 正文（不含文件头属性）
   const html = await marked.parse(content.parsed.body);
   els.body.innerHTML = DOMPurify.sanitize(html) as string;
 
-  renderTags(entry, els);
+  const tags = (content.parsed.attrs.tags ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+  renderTags(tags, els);
   renderMedia(content.media, els);
 
   // 作者卡 + 许可证（稿件级优先，缺省仓库级）
@@ -375,7 +384,11 @@ export async function initDetail(init: DetailInit): Promise<void> {
   renderIssues(issue, labels, els);
 }
 
-function buildMetaList(entry: SubmissionEntry, labels: DetailLabels): HTMLUListElement {
+function buildMetaList(
+  entry: SubmissionEntry,
+  labels: DetailLabels,
+  videos: string[],
+): HTMLUListElement {
   const list = document.createElement('ul');
   list.className = 'flex flex-col gap-1.5 text-sm';
   const row = (label: string, values: string[] | undefined): void => {
@@ -389,18 +402,41 @@ function buildMetaList(entry: SubmissionEntry, labels: DetailLabels): HTMLUListE
     li.append(strong, span);
     list.appendChild(li);
   };
-  row(labels.tracks, entry.tracks);
+  row(labels.tracks, entry.songs);
   row(labels.engines, entry.engines);
   row(labels.voicebanks, entry.voicebanks);
-  row(labels.songLanguages, entry.songLanguages);
-  if (entry.params) {
+  row(labels.songLanguages, entry.languages);
+  if (entry.paramState) {
     const label =
-      entry.params === 'with-params'
+      entry.paramState === 'with-params'
         ? labels.paramsWith
-        : entry.params === 'tuned'
+        : entry.paramState === 'tuned'
           ? labels.paramsTuned
           : labels.paramsNone;
     row(' ', [label]);
+  }
+  if (videos.length > 0) {
+    const li = document.createElement('li');
+    const strong = document.createElement('span');
+    strong.className = 'mr-2 font-medium text-slate-500 dark:text-slate-400';
+    strong.textContent = labels.videos;
+    li.appendChild(strong);
+    videos.forEach((url, index) => {
+      if (index > 0) li.appendChild(document.createTextNode('、'));
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.title = url;
+      link.className = 'text-indigo-600 hover:underline dark:text-indigo-400';
+      try {
+        link.textContent = new URL(url).hostname;
+      } catch {
+        link.textContent = url;
+      }
+      li.appendChild(link);
+    });
+    list.appendChild(li);
   }
   return list;
 }
@@ -417,15 +453,15 @@ function renderAuthor(
   const avatar = document.createElement('div');
   avatar.className =
     'flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300';
-  avatar.textContent = entry.user.slice(0, 1).toUpperCase();
+  avatar.textContent = entry.owner.slice(0, 1).toUpperCase();
 
   const info = document.createElement('div');
   info.className = 'flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-sm';
 
   const userLink = document.createElement('a');
-  userLink.href = `/user/${entry.user}`;
+  userLink.href = `/user/${entry.owner}`;
   userLink.className = 'font-medium hover:text-indigo-600 dark:hover:text-indigo-400';
-  userLink.textContent = entry.user;
+  userLink.textContent = entry.owner;
   info.appendChild(userLink);
 
   if (repoInfo?.htmlUrl) {
@@ -434,7 +470,7 @@ function renderAuthor(
     repoLink.target = '_blank';
     repoLink.rel = 'noopener';
     repoLink.className = 'text-slate-500 hover:text-indigo-600 dark:text-slate-400';
-    repoLink.textContent = `${entry.user}/${entry.repo}`;
+    repoLink.textContent = `${entry.owner}/${entry.repo}`;
     info.appendChild(repoLink);
   }
 

@@ -7,6 +7,9 @@ const ja: Record<MessageKey, string> = {
   'nav.faq': 'よくある質問',
   'nav.about': 'サイト紹介',
   'nav.login': 'ログイン',
+  'nav.submit': '投稿',
+  'nav.menu': 'メニュー',
+  'nav.more': 'その他',
   'auth.title': '認証してログイン',
   'auth.intro': 'データホスティングプラットフォームを選択し、アカウントを登録してトークンを作成し、本サイトがコンテンツリポジトリにアクセスすることを許可してください。',
   'auth.stepRegister': 'プラットフォームのアカウントを登録',
@@ -156,6 +159,8 @@ const ja: Record<MessageKey, string> = {
   'editor.schemeEncrypt': '暗号化',
   'editor.attachments': '添付ファイル',
   'editor.summary': 'リリース概要',
+  'editor.submittedAt': '投稿日時（任意、既定は公開時刻）',
+  'editor.publishedAt': '公開日時（任意、既定は公開時刻）',
   'editor.attachmentChoose': '添付ファイルを選択',
   'editor.existing': '既存ファイル',
   'editor.authRequired': '投稿・編集にはログインが必要です',
@@ -173,7 +178,12 @@ const ja: Record<MessageKey, string> = {
   'editor.stepAssets': '添付ファイルをアップロード',
   'editor.stepIndex': 'インデックス PR を送信',
   'editor.stepCover': 'カバーを更新',
-  'editor.stepSkipped': 'スキップ（アダプタ未実装）',
+  'editor.stepSkipped': 'スキップ済み',
+  'editor.retry': '再試行',
+  'editor.skipStep': 'スキップ',
+  'editor.redirectIn': '秒後に詳細ページへ自動移動…',
+  'editor.goNow': '今すぐ移動',
+  'editor.cancelRedirect': 'このページに残る',
   'editor.doneNew': '公開が完了しました',
   'editor.doneEdit': '変更を保存しました',
   'editor.gotoCollection': 'コレクションを見る',
@@ -185,7 +195,7 @@ const ja: Record<MessageKey, string> = {
   'editor.errCoverType': 'カバーは画像である必要があります',
   'editor.errLoad': '作品の読み込みに失敗しました',
 
-  'footer.powered': 'Powered by Sector Vault Project',
+  'footer.powered': 'Powered by DecentCMS',
 };
 
 export default ja;

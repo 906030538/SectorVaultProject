@@ -7,6 +7,9 @@ const en: Record<MessageKey, string> = {
   'nav.faq': 'FAQ',
   'nav.about': 'About',
   'nav.login': 'Sign in',
+  'nav.submit': 'Submit',
+  'nav.menu': 'Menu',
+  'nav.more': 'More',
   'auth.title': 'Authorize & sign in',
   'auth.intro': 'Choose your data hosting platform, register an account and create a token so this site can access your content repositories.',
   'auth.stepRegister': 'Register a platform account',
@@ -156,6 +159,8 @@ const en: Record<MessageKey, string> = {
   'editor.schemeEncrypt': 'Encrypt',
   'editor.attachments': 'Attachments',
   'editor.summary': 'Release summary',
+  'editor.submittedAt': 'Submitted at (optional, defaults to publish time)',
+  'editor.publishedAt': 'Published at (optional, defaults to publish time)',
   'editor.attachmentChoose': 'Choose attachments',
   'editor.existing': 'Existing file',
   'editor.authRequired': 'Sign in to submit or edit',
@@ -173,7 +178,12 @@ const en: Record<MessageKey, string> = {
   'editor.stepAssets': 'Upload attachments',
   'editor.stepIndex': 'Open index PR',
   'editor.stepCover': 'Update cover',
-  'editor.stepSkipped': 'Skipped (adapter not implemented)',
+  'editor.stepSkipped': 'Skipped',
+  'editor.retry': 'Retry',
+  'editor.skipStep': 'Skip',
+  'editor.redirectIn': 'seconds until automatic redirect to the submission…',
+  'editor.goNow': 'Go now',
+  'editor.cancelRedirect': 'Stay on this page',
   'editor.doneNew': 'Published',
   'editor.doneEdit': 'Changes saved',
   'editor.gotoCollection': 'View collection',
@@ -185,7 +195,7 @@ const en: Record<MessageKey, string> = {
   'editor.errCoverType': 'Cover must be an image',
   'editor.errLoad': 'Failed to load submission content',
 
-  'footer.powered': 'Powered by Sector Vault Project',
+  'footer.powered': 'Powered by DecentCMS',
 };
 
 export default en;

@@ -5,6 +5,9 @@ const zhCN = {
   'nav.faq': '常见问题',
   'nav.about': '网站介绍',
   'nav.login': '登录',
+  'nav.submit': '投稿',
+  'nav.menu': '菜单',
+  'nav.more': '更多',
   'auth.title': '授权登录',
   'auth.intro': '选择数据托管平台，注册账号并创建令牌，授权本站访问你的内容仓库。',
   'auth.stepRegister': '注册平台账号',
@@ -153,6 +156,8 @@ const zhCN = {
   'editor.schemeEncrypt': '加密',
   'editor.attachments': '附件',
   'editor.summary': '发布简介',
+  'editor.submittedAt': '投稿时间（可选，默认发布时刻）',
+  'editor.publishedAt': '发布时间（可选，默认发布时刻）',
   'editor.attachmentChoose': '选择附件',
   'editor.existing': '现有文件',
   'editor.authRequired': '需要登录后才能投稿或编辑',
@@ -170,7 +175,12 @@ const zhCN = {
   'editor.stepAssets': '上传附件',
   'editor.stepIndex': '提交索引 PR',
   'editor.stepCover': '更新封面',
-  'editor.stepSkipped': '已跳过（适配器未实现）',
+  'editor.stepSkipped': '已跳过',
+  'editor.retry': '重试',
+  'editor.skipStep': '跳过',
+  'editor.redirectIn': '秒后自动跳转到详情页…',
+  'editor.goNow': '立即跳转',
+  'editor.cancelRedirect': '留在此页',
   'editor.doneNew': '发布完成',
   'editor.doneEdit': '修改已保存',
   'editor.gotoCollection': '查看集合',
@@ -182,7 +192,7 @@ const zhCN = {
   'editor.errCoverType': '封面必须是图片',
   'editor.errLoad': '稿件内容加载失败',
 
-  'footer.powered': 'Powered by Sector Vault Project',
+  'footer.powered': 'Powered by DecentCMS',
 };
 
 export type MessageKey = keyof typeof zhCN;

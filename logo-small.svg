@@ -1,6 +1,7 @@
 <svg viewBox="0 0 204 84" width="204" height="84" xmlns="http://www.w3.org/2000/svg">
-  <def>
-    <rect id="c0" width="10" height="10" rx="3" fill="#eff2f5" stroke="#1f23280d" stroke-width="0.4" />
+  <defs>
+    <rect id="c0" width="10" height="10" rx="3" fill="#82868c30" stroke="#1f23280d"
+      stroke-width="0.4" />
     <rect id="c1" width="10" height="10" rx="3" fill="#aceebb" stroke="#1f23280d" stroke-width="0.4" />
     <rect id="c2" width="10" height="10" rx="3" fill="#4ac26b" stroke="#1f23280d" stroke-width="0.4" />
     <rect id="c3" width="10" height="10" rx="3" fill="#2da44e" stroke="#1f23280d" stroke-width="0.4" />
@@ -156,7 +157,7 @@
         <use href="#c0" x="48" y="72" />
       </g>
     </g>
-  </def>
+  </defs>
 
   <use href="#c_S" x="1" />
   <use href="#|" x="61" />

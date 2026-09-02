@@ -7,6 +7,9 @@ const zhTW: Record<MessageKey, string> = {
   'nav.faq': '常見問題',
   'nav.about': '網站介紹',
   'nav.login': '登入',
+  'nav.submit': '投稿',
+  'nav.menu': '選單',
+  'nav.more': '更多',
   'auth.title': '授權登入',
   'auth.intro': '選擇資料託管平台，註冊帳號並創建權杖，授權本站存取你的內容倉庫。',
   'auth.stepRegister': '註冊平台帳號',
@@ -155,6 +158,8 @@ const zhTW: Record<MessageKey, string> = {
   'editor.schemeEncrypt': '加密',
   'editor.attachments': '附件',
   'editor.summary': '發布簡介',
+  'editor.submittedAt': '投稿時間（可選，預設發布時刻）',
+  'editor.publishedAt': '發布時間（可選，預設發布時刻）',
   'editor.attachmentChoose': '選擇附件',
   'editor.existing': '現有檔案',
   'editor.authRequired': '需登入後才能投稿或編輯',
@@ -172,7 +177,12 @@ const zhTW: Record<MessageKey, string> = {
   'editor.stepAssets': '上傳附件',
   'editor.stepIndex': '提交索引 PR',
   'editor.stepCover': '更新封面',
-  'editor.stepSkipped': '已略過（適配器未實作）',
+  'editor.stepSkipped': '已略過',
+  'editor.retry': '重試',
+  'editor.skipStep': '跳過',
+  'editor.redirectIn': '秒後自動跳轉到詳情頁…',
+  'editor.goNow': '立即跳轉',
+  'editor.cancelRedirect': '留在此頁',
   'editor.doneNew': '發布完成',
   'editor.doneEdit': '修改已儲存',
   'editor.gotoCollection': '檢視集合',
@@ -184,7 +194,7 @@ const zhTW: Record<MessageKey, string> = {
   'editor.errCoverType': '封面必須是圖片',
   'editor.errLoad': '稿件內容載入失敗',
 
-  'footer.powered': 'Powered by Sector Vault Project',
+  'footer.powered': 'Powered by DecentCMS',
 };
 
 export default zhTW;

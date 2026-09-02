@@ -57,7 +57,7 @@ export function renderCard(
   h3.className = 'truncate font-medium';
   const titleLink = document.createElement('a');
   titleLink.href = coverLink.href;
-  titleLink.className = 'hover:text-indigo-600 dark:hover:text-indigo-400';
+  titleLink.className = 'hover:text-emerald-600 dark:hover:text-emerald-400';
   titleLink.textContent = entry.title;
   h3.appendChild(titleLink);
 
@@ -65,7 +65,7 @@ export function renderCard(
   meta.className = 'mt-1 text-sm text-slate-500 dark:text-slate-400';
   const userLink = document.createElement('a');
   userLink.href = `/user/${entry.owner}`;
-  userLink.className = 'hover:text-indigo-600 dark:hover:text-indigo-400';
+  userLink.className = 'hover:text-emerald-600 dark:hover:text-emerald-400';
   userLink.textContent = entry.owner;
   const date = document.createElement('time');
   date.dateTime = entry.submittedAt;
@@ -96,7 +96,7 @@ export function renderCard(
             ? labels.paramsTuned
             : labels.paramsNone,
       );
-      paramsChip.classList.add('font-medium', 'text-indigo-600', 'dark:text-indigo-400');
+      paramsChip.classList.add('font-medium', 'text-emerald-600', 'dark:text-emerald-400');
       chips.appendChild(paramsChip);
     }
     body.appendChild(chips);
@@ -116,7 +116,7 @@ export function renderCard(
     const editBtn = document.createElement('a');
     editBtn.href = `/edit/${entry.owner}/${entry.repo}/${entry.slug}`;
     editBtn.className =
-      'rounded-md border border-slate-300 px-2 py-0.5 text-xs hover:border-indigo-500 hover:text-indigo-600 dark:border-slate-600';
+      'rounded-md border border-slate-300 px-2 py-0.5 text-xs hover:border-emerald-500 hover:text-emerald-600 dark:border-slate-600';
     editBtn.dataset.action = 'edit-submission';
     editBtn.textContent = opts.owner.editLabel;
     const deleteBtn = document.createElement('button');

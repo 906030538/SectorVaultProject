@@ -135,7 +135,7 @@ async function renderRepoCollection(
   card.dataset.repo = repo;
 
   const header = el('div', 'flex flex-wrap items-center gap-2');
-  const repoLink = el('a', 'font-semibold hover:text-indigo-600 dark:hover:text-indigo-400', repo);
+  const repoLink = el('a', 'font-semibold hover:text-emerald-600 dark:hover:text-emerald-400', repo);
   repoLink.href = `/view/${name}/${repo}`;
   header.appendChild(repoLink);
   const info = await loadRepoInfo(platform, name, repo).catch(() => null);
@@ -217,7 +217,7 @@ function openCreateDialog(init: UserInit, platform: Platform): void {
   };
 
   const error = el('p', 'hidden text-sm text-rose-600');
-  const status = el('p', 'hidden text-sm text-emerald-600');
+  const status = el('p', 'hidden text-sm text-indigo-600');
 
   const buttons = el('div', 'mt-4 flex justify-end gap-2');
   const cancel = el('button', 'btn', labels.cancel);
@@ -292,7 +292,7 @@ export async function initUser(init: UserInit): Promise<void> {
       const chip = el('a', 'chip', p);
       chip.href = `/user/${name}?git=${p}`;
       chip.dataset.platform = p;
-      if (p === platform) chip.classList.add('font-semibold', 'text-indigo-600', 'dark:text-indigo-400');
+      if (p === platform) chip.classList.add('font-semibold', 'text-emerald-600', 'dark:text-emerald-400');
       els.platforms.appendChild(chip);
     }
   }

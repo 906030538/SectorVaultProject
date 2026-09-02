@@ -1,50 +1,17 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { DEFAULT_LOCALE, t } from '@/i18n';
+import EditRoute from '@/components/routes/EditRoute.astro';
 import { editStaticPaths } from '@/lib/paths';
 
 /**
  * 动态路由 /edit/:name/:repo/:slug。
- * 演示期从 mock 索引派生静态路径（与 view 页一致）；
- * 接入真实索引仓后需为任意用户名配置 SPA 回退或改用 SSR 适配器。
+ * 索引内已知稿件构建期预渲染；其余稿件由 404 SPA 回退客户端渲染。
  */
 export async function getStaticPaths() {
   return await editStaticPaths();
 }
-
-const { name, repo, slug } = Astro.params;
 ---
 
-<BaseLayout title={`${t(DEFAULT_LOCALE, 'edit.title')} · ${slug}`}>
-  <h1 class="mb-2 text-2xl font-bold" data-i18n="edit.title">{t(DEFAULT_LOCALE, 'edit.title')}</h1>
-  <p class="mb-6 text-sm text-slate-500 dark:text-slate-400">
-    {name}/{repo}/{slug}
-  </p>
-
-  <div data-role="editor-root"></div>
-
-  <script is:inline type="application/json" id="editor-config" set:html={JSON.stringify({
-    mode: 'edit',
-    user: name,
-    repo,
-    slug,
-  })} />
-
-  <script>
-    import { initEditor, type EditorConfig } from '@/lib/views/editor';
-    import { buildEditorLabels, buildLicenseOptions } from '@/lib/labels';
-    import { getClientLocale } from '@/lib/i18n-client';
-
-    try {
-      const locale = getClientLocale();
-      const base = JSON.parse(
-        document.getElementById('editor-config')!.textContent!,
-      ) as Omit<EditorConfig, 'licenseOptions'>;
-      const config: EditorConfig = { ...base, licenseOptions: buildLicenseOptions(locale) };
-      const labels = buildEditorLabels(locale);
-      await initEditor(config, labels, document.querySelector('[data-role="editor-root"]')!);
-    } catch (error) {
-      console.error('[editor] init failed:', error);
-    }
-  </script>
+<BaseLayout>
+  <EditRoute />
 </BaseLayout>

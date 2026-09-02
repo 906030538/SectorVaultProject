@@ -68,7 +68,7 @@ function renderTags(tags: string[], els: DetailElements): void {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className =
-      'rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600 hover:bg-indigo-100 hover:text-indigo-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700';
+      'rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700';
     btn.textContent = `#${tag}`;
     els.tags.appendChild(btn);
   }
@@ -262,7 +262,7 @@ function renderRelease(release: ReleaseInfo | null, labels: DetailLabels, els: D
   link.href = release.htmlUrl;
   link.target = '_blank';
   link.rel = 'noopener';
-  link.className = 'text-indigo-600 hover:underline dark:text-indigo-400';
+  link.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
   link.textContent = release.name || release.tag;
   h.appendChild(link);
   box.appendChild(h);
@@ -286,7 +286,7 @@ function renderRelease(release: ReleaseInfo | null, labels: DetailLabels, els: D
       a.href = asset.downloadUrl;
       a.target = '_blank';
       a.rel = 'noopener';
-      a.className = 'text-indigo-600 hover:underline dark:text-indigo-400';
+      a.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
       a.textContent = asset.name;
       const size = document.createElement('span');
       size.className = 'ml-2 text-xs text-slate-400';
@@ -317,7 +317,7 @@ function renderIssues(issue: IssueInfo | null, labels: DetailLabels, els: Detail
     link.target = '_blank';
     link.rel = 'noopener';
     link.className =
-      'mt-2 inline-flex items-center gap-2 text-sm text-indigo-600 hover:underline dark:text-indigo-400';
+      'mt-2 inline-flex items-center gap-2 text-sm text-emerald-600 hover:underline dark:text-emerald-400';
     link.textContent = `#${issue.number} ${issue.title}`;
     const count = document.createElement('span');
     count.className = 'text-xs text-slate-400';
@@ -429,7 +429,7 @@ function buildMetaList(
       link.target = '_blank';
       link.rel = 'noopener';
       link.title = url;
-      link.className = 'text-indigo-600 hover:underline dark:text-indigo-400';
+      link.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
       try {
         link.textContent = new URL(url).hostname;
       } catch {
@@ -453,7 +453,7 @@ function renderAuthor(
 
   const avatar = document.createElement('div');
   avatar.className =
-    'flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300';
+    'flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-600 dark:bg-emerald-900 dark:text-emerald-300';
   avatar.textContent = entry.owner.slice(0, 1).toUpperCase();
 
   const info = document.createElement('div');
@@ -461,7 +461,7 @@ function renderAuthor(
 
   const userLink = document.createElement('a');
   userLink.href = `/user/${entry.owner}`;
-  userLink.className = 'font-medium hover:text-indigo-600 dark:hover:text-indigo-400';
+  userLink.className = 'font-medium hover:text-emerald-600 dark:hover:text-emerald-400';
   userLink.textContent = entry.owner;
   info.appendChild(userLink);
 
@@ -470,7 +470,7 @@ function renderAuthor(
     repoLink.href = repoInfo.htmlUrl;
     repoLink.target = '_blank';
     repoLink.rel = 'noopener';
-    repoLink.className = 'text-slate-500 hover:text-indigo-600 dark:text-slate-400';
+    repoLink.className = 'text-slate-500 hover:text-emerald-600 dark:text-slate-400';
     repoLink.textContent = `${entry.owner}/${entry.repo}`;
     info.appendChild(repoLink);
   }

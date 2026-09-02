@@ -1,0 +1,96 @@
+---
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+/**
+ * /user/:name 的路由组件：配置由客户端解析 URL 得到，
+ * 兼容静态预渲染页与 404 SPA 回退。
+ */
+const locale = DEFAULT_LOCALE;
+---
+
+<div data-route-component="user">
+  <div class="mb-6 flex flex-wrap items-center gap-4">
+    <div
+      data-role="avatar"
+      class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200 text-2xl font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+    >
+    </div>
+    <div>
+      <h1 class="text-2xl font-bold" data-role="name"></h1>
+      <p data-i18n="user.title" class="text-sm text-slate-500 dark:text-slate-400">
+        {t(locale, 'user.title')}
+      </p>
+    </div>
+    <div class="ml-auto flex flex-wrap items-center gap-2">
+      <span data-role="site" class="flex gap-2"></span>
+      <span data-role="actions" class="flex gap-2"></span>
+    </div>
+  </div>
+
+  <div class="mb-6 flex gap-2" data-role="platforms"></div>
+
+  <section class="mb-8 hidden" data-role="about">
+    <h2 data-i18n="user.about" class="mb-3 border-l-4 border-emerald-600 pl-3 text-xl font-semibold">
+      {t(locale, 'user.about')}
+    </h2>
+    <div class="card prose-svp p-5" data-role="about-body"></div>
+  </section>
+
+  <section>
+    <h2 data-i18n="user.projects" class="mb-4 border-l-4 border-emerald-600 pl-3 text-xl font-semibold">
+      {t(locale, 'user.projects')}
+    </h2>
+    <div class="flex flex-col gap-6" data-component="project-collections"></div>
+  </section>
+
+  <section class="mt-10">
+    <h2 data-i18n="user.articles" class="mb-4 border-l-4 border-emerald-600 pl-3 text-xl font-semibold">
+      {t(locale, 'user.articles')}
+    </h2>
+    <div class="flex flex-col gap-6" data-component="article-collections"></div>
+  </section>
+</div>
+
+<script>
+  import { initUser } from '@/lib/views/user';
+  import { buildUserLabels } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { t } from '@/i18n';
+  import { SITE_NAME } from '@/config';
+
+  // 路由匹配：/user/:name（严格两段）；不匹配时不激活
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  const name = segments[1];
+  if (segments[0] === 'user' && segments.length === 2 && name) {
+    const root = document.querySelector<HTMLElement>('[data-route-component="user"]')!;
+    const host = root.closest<HTMLElement>('[data-route-host]');
+    if (host) host.hidden = false;
+    document.querySelector<HTMLElement>('[data-role="not-found"]')?.setAttribute('hidden', '');
+
+    const locale = getClientLocale();
+    document.title = `${name} · ${t(locale, 'user.title')} - ${SITE_NAME}`;
+    // 预渲染页原由构建参数填充的部分，回退模式在激活时补齐
+    root.querySelector('[data-role="name"]')!.textContent = name;
+    root.querySelector('[data-role="avatar"]')!.textContent = name.charAt(0).toUpperCase();
+
+    try {
+      await initUser({
+        name,
+        locale,
+        labels: buildUserLabels(locale),
+        els: {
+          avatar: root.querySelector('[data-role="avatar"]')!,
+          site: root.querySelector('[data-role="site"]')!,
+          platforms: root.querySelector('[data-role="platforms"]')!,
+          actions: root.querySelector('[data-role="actions"]')!,
+          about: root.querySelector<HTMLElement>('[data-role="about"]')!,
+          aboutBody: root.querySelector('[data-role="about-body"]')!,
+          projectCollections: root.querySelector('[data-component="project-collections"]')!,
+          articleCollections: root.querySelector('[data-component="article-collections"]')!,
+        },
+      });
+    } catch (error) {
+      console.error('[user] init failed:', error);
+    }
+  }
+</script>

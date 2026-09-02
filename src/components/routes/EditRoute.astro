@@ -1,0 +1,51 @@
+---
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+/**
+ * /edit/:name/:repo/:slug 的路由组件：配置由客户端解析 URL 得到，
+ * 兼容静态预渲染页与 404 SPA 回退。
+ */
+const locale = DEFAULT_LOCALE;
+---
+
+<div data-route-component="edit">
+  <h1 class="mb-2 text-2xl font-bold" data-i18n="edit.title">{t(locale, 'edit.title')}</h1>
+  <p class="mb-6 text-sm text-slate-500 dark:text-slate-400" data-role="edit-path"></p>
+
+  <div data-role="editor-root"></div>
+</div>
+
+<script>
+  import { initEditor, type EditorConfig } from '@/lib/views/editor';
+  import { buildEditorLabels, buildLicenseOptions } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { t } from '@/i18n';
+  import { SITE_NAME } from '@/config';
+
+  // 路由匹配：/edit/:name/:repo/:slug（严格四段）；不匹配时不激活
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  const [name, repo, slug] = segments.slice(1);
+  if (segments[0] === 'edit' && segments.length === 4 && name && repo && slug) {
+    const root = document.querySelector<HTMLElement>('[data-route-component="edit"]')!;
+    const host = root.closest<HTMLElement>('[data-route-host]');
+    if (host) host.hidden = false;
+    document.querySelector<HTMLElement>('[data-role="not-found"]')?.setAttribute('hidden', '');
+
+    const locale = getClientLocale();
+    document.title = `${t(locale, 'edit.title')} · ${slug} - ${SITE_NAME}`;
+    root.querySelector('[data-role="edit-path"]')!.textContent = `${name}/${repo}/${slug}`;
+
+    try {
+      const config: EditorConfig = {
+        mode: 'edit',
+        user: name,
+        repo,
+        slug,
+        licenseOptions: buildLicenseOptions(locale),
+      };
+      await initEditor(config, buildEditorLabels(locale), root.querySelector('[data-role="editor-root"]')!);
+    } catch (error) {
+      console.error('[editor] init failed:', error);
+    }
+  }
+</script>

@@ -613,8 +613,8 @@ function renderProgress(labels: EditorLabels, steps: StepId[]): HTMLElement {
 
 const DOT_COLOR: Record<string, string> = {
   pending: 'bg-slate-300',
-  running: 'bg-indigo-500 animate-pulse',
-  done: 'bg-emerald-500',
+  running: 'bg-emerald-500 animate-pulse',
+  done: 'bg-indigo-500',
   warning: 'bg-amber-500',
   error: 'bg-rose-500',
 };

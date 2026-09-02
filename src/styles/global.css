@@ -38,11 +38,11 @@ body {
 }
 
 .btn-primary {
-  @apply border-transparent bg-indigo-600 text-white hover:bg-indigo-500;
+  @apply border-transparent bg-emerald-600 text-white hover:bg-emerald-500;
 }
 
 .dark .btn-primary {
-  @apply border-transparent bg-indigo-600 text-white hover:bg-indigo-500;
+  @apply border-transparent bg-emerald-600 text-white hover:bg-emerald-500;
 }
 
 .btn-danger {
@@ -62,7 +62,7 @@ body {
 }
 
 .input {
-  @apply rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30;
+  @apply rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30;
 }
 
 .dark .input {
@@ -105,5 +105,5 @@ body {
 }
 
 .prose-svp a {
-  @apply text-indigo-600 underline dark:text-indigo-400;
+  @apply text-emerald-600 underline dark:text-emerald-400;
 }

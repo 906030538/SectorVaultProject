@@ -10,8 +10,8 @@ const locale = DEFAULT_LOCALE;
  * 演示期基于本地索引为每个用户生成静态页；
  * 接入真实索引仓后需为任意用户名配置 SPA 回退或改用 SSR 适配器。
  */
-export function getStaticPaths() {
-  return userStaticPaths();
+export async function getStaticPaths() {
+  return await userStaticPaths();
 }
 
 const name = Astro.params.name ?? '';

@@ -65,7 +65,7 @@ const locale = DEFAULT_LOCALE;
   </section>
 
   <script>
-    import { loadMockIndex } from '@/lib/index/loader';
+    import { loadActiveIndex } from '@/lib/index/loader';
     import { renderCard } from '@/lib/ui';
     import { buildCardLabels } from '@/lib/labels';
     import { getClientLocale } from '@/lib/i18n-client';
@@ -74,7 +74,7 @@ const locale = DEFAULT_LOCALE;
     const labels = buildCardLabels(locale);
 
     try {
-      const index = await loadMockIndex();
+      const index = await loadActiveIndex();
 
       const submissions = document.querySelector('[data-stat="submissions"]');
       if (submissions) submissions.textContent = String(index.submissions.length);

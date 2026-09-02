@@ -163,7 +163,7 @@ function renderAuthGate(root: HTMLElement, labels: EditorLabels): void {
 
   const platformSelect = el('select', 'input w-full');
   platformSelect.setAttribute('data-field', 'platform');
-  for (const platform of SUPPORTED_PLATFORMS.filter((p) => p !== 'atomgit')) {
+  for (const platform of SUPPORTED_PLATFORMS) {
     const option = el('option', undefined, platform);
     option.value = platform;
     platformSelect.appendChild(option);

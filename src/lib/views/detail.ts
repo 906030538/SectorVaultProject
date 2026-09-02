@@ -345,11 +345,12 @@ export async function initDetail(init: DetailInit): Promise<void> {
   });
 
   const platform: Platform = entry.platform;
+  // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
   const [content, repoInfo, releases, issues] = await Promise.all([
     loadSubmissionContent(platform, user, repo, slug),
-    loadRepoInfo(platform, user, repo),
-    loadReleases(platform, user, repo),
-    loadIssues(platform, user, repo),
+    loadRepoInfo(platform, user, repo).catch(() => null),
+    loadReleases(platform, user, repo).catch(() => []),
+    loadIssues(platform, user, repo).catch(() => []),
   ]);
 
   // 元数据列表（视频链接来自稿件 README 头部，逗号分隔）

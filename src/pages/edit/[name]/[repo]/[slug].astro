@@ -8,8 +8,8 @@ import { editStaticPaths } from '@/lib/paths';
  * 演示期从 mock 索引派生静态路径（与 view 页一致）；
  * 接入真实索引仓后需为任意用户名配置 SPA 回退或改用 SSR 适配器。
  */
-export function getStaticPaths() {
-  return editStaticPaths();
+export async function getStaticPaths() {
+  return await editStaticPaths();
 }
 
 const { name, repo, slug } = Astro.params;

@@ -155,7 +155,8 @@ export async function initCollection(init: CollectionInit): Promise<void> {
 
   const entries = await loadRepoEntries(user, repo);
   const platform: Platform = entries[0]?.platform ?? 'github';
-  let repoInfo = await loadRepoInfo(platform, user, repo);
+  // 部分平台仓库详情接口匿名受限：拉取失败时降级为无 stars/许可证展示
+  let repoInfo = await loadRepoInfo(platform, user, repo).catch(() => null);
 
   function renderHeader(): void {
     els.repoName.textContent = repo;

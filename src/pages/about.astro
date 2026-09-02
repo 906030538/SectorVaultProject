@@ -56,10 +56,10 @@ const locale = DEFAULT_LOCALE;
   </section>
 
   <script>
-    import { loadMockIndex } from '@/lib/index/loader';
+    import { loadActiveIndex } from '@/lib/index/loader';
 
     try {
-      const index = await loadMockIndex();
+      const index = await loadActiveIndex();
       const submissions = document.querySelector('[data-stat="submissions"]');
       if (submissions) submissions.textContent = String(index.submissions.length);
       const users = document.querySelector('[data-stat="users"]');

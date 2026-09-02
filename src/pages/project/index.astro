@@ -38,7 +38,7 @@ const locale = DEFAULT_LOCALE;
   <script is:inline type="application/json" id="list-config" set:html={JSON.stringify({ pageSize: PAGE_SIZE })} />
 
   <script>
-    import { applyFilters, loadMockIndex } from '@/lib/index/loader';
+    import { applyFilters, iterateAllSubmissions } from '@/lib/index/loader';
     import { renderCard } from '@/lib/ui';
     import { buildCardLabels } from '@/lib/labels';
     import { getClientLocale } from '@/lib/i18n-client';
@@ -204,10 +204,11 @@ const locale = DEFAULT_LOCALE;
     loadingEl.hidden = false;
     aborter = new AbortController();
     try {
-      const index = await loadMockIndex();
-      entries = index.submissions
-        .filter((e) => e.type === 'project')
-        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+      const all: SubmissionEntry[] = [];
+      for await (const entry of iterateAllSubmissions()) {
+        if (entry.type === 'project') all.push(entry);
+      }
+      entries = all.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
       populateFilterOptions();
       applyAndRender();
     } catch {

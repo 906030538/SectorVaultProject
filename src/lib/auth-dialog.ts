@@ -19,9 +19,10 @@ export interface AuthLabels {
   cancel: string;
 }
 
-const PLATFORM_LINKS: Record<'github' | 'gitee', { signup: string; tokens: string }> = {
+const PLATFORM_LINKS: Record<Platform, { signup: string; tokens: string }> = {
   github: { signup: 'https://github.com/signup', tokens: 'https://github.com/settings/tokens' },
   gitee: { signup: 'https://gitee.com/signup', tokens: 'https://gitee.com/personal_access_tokens' },
+  atomgit: { signup: 'https://atomgit.com/login', tokens: 'https://atomgit.com/-/settings/tokens' },
 };
 
 const MOCK_AVATAR = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -57,7 +58,7 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
   platformRow.dataset.role = 'auth-platforms';
   let platform: Platform = 'github';
   const chips = new Map<Platform, HTMLElement>();
-  for (const p of ['github', 'gitee'] as const) {
+  for (const p of ['github', 'gitee', 'atomgit'] as const) {
     const chip = el('button', 'btn', p);
     chip.type = 'button';
     chip.dataset.platform = p;

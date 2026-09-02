@@ -12,8 +12,8 @@ const locale = DEFAULT_LOCALE;
  * 演示期基于本地索引（current + 归档）为每个集合与稿件生成示例路径，保证静态部署下可导航、可测试；
  * 接入真实索引仓后需为任意路径配置 SPA 回退或改用 SSR 适配器。
  */
-export function getStaticPaths() {
-  return viewStaticPaths();
+export async function getStaticPaths() {
+  return await viewStaticPaths();
 }
 
 const segments = (Astro.params.path ?? '').split('/').filter(Boolean);

@@ -60,6 +60,7 @@ export const LICENSE_OPTIONS: { value: string; label?: string; labelKey?: Messag
 export const REPO_TEMPLATES: Partial<Record<Platform, { owner: string; repo: string }[]>> = {
   github: [{ owner: 'SectorVault', repo: 'svp-template' }],
   gitee: [{ owner: 'SectorVault', repo: 'svp-template' }],
+  atomgit: [{ owner: 'SectorVault', repo: 'svp-template' }],
 };
 
 /** 内容仓正文头部固定标识 */

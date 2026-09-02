@@ -138,7 +138,7 @@ async function renderRepoCollection(
   const repoLink = el('a', 'font-semibold hover:text-indigo-600 dark:hover:text-indigo-400', repo);
   repoLink.href = `/view/${name}/${repo}`;
   header.appendChild(repoLink);
-  const info = await loadRepoInfo(platform, name, repo);
+  const info = await loadRepoInfo(platform, name, repo).catch(() => null);
   if (info) header.appendChild(el('span', 'text-sm text-slate-400', `★ ${info.stars}`));
   const more = el('a', 'btn ml-auto', labels.more);
   more.href = `/view/${name}/${repo}`;

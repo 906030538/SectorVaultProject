@@ -43,6 +43,8 @@
       "cover": "https://.../cover.webp",
       "submittedAt": "2026-08-31T00:00:00Z",   // 投稿日期（一经写入不可修改，门禁强制）
       "publishedAt": "2026-08-31T12:00:00Z",   // 发布日期（可与投稿日期不同，允许更新）
+      "issue": 42,                             // 关联 issue 编号（投稿时创建的标题同名 issue）
+      "release": "250831",                     // 关联 release 标签名（与 slug 同名），无则为 null
       "type": "project",              // project | article
       "paramState": "with-param",     // with-param | tuned | no-param
       "songs": [], "engines": [], "voicebanks": [], "languages": []

@@ -7,6 +7,7 @@ const ja: Record<MessageKey, string> = {
   'nav.faq': 'よくある質問',
   'nav.about': 'サイト紹介',
   'nav.login': 'ログイン',
+  'nav.logout': 'ログアウト',
   'nav.submit': '投稿',
   'nav.menu': 'メニュー',
   'nav.more': 'その他',

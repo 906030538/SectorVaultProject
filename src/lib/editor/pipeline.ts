@@ -1,6 +1,6 @@
 import { INDEX_PATHS, MOCK_PIPELINE_STEP_DELAY } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
-import type { FileChange } from '@/lib/adapters/types';
+import type { FileChange, GitPlatformAdapter } from '@/lib/adapters/types';
 import { generateReadme, type ProjectFile } from '@/lib/content';
 import { loadMockIndex, loadPrimaryIndex } from '@/lib/index/loader';
 import type {
@@ -36,6 +36,10 @@ export interface SubmissionDraft {
   license: string;
   /** 发布简介：新建时写入 release 正文 */
   summary: string;
+  /** 投稿时间（ISO）：编辑器指定；缺省为发布点击时刻。编辑模式忽略（沿用原值） */
+  submittedAt?: string;
+  /** 发布时间（ISO）：编辑器指定；新建缺省为发布点击时刻 */
+  publishedAt?: string;
   cover: File | null;
   /** 编辑模式下含 existing 行（file 为 null） */
   files: EditorFile[];
@@ -215,30 +219,103 @@ async function tryIndexPr(
   }
 }
 
-/** 新建投稿：issue → 文件 → README → release → 附件 → 索引 PR */
+/**
+ * 新建投稿的可续传进度：已成功步骤的结果记录于此（编辑器持久化到
+ * localStorage），重试时跳过已完成步骤，避免重复创建 issue / release。
+ */
+export interface PublishProgress {
+  /** 进度归属（user/repo/slug 任一变化即视为新投稿，进度作废） */
+  user?: string;
+  repo?: string;
+  slug?: string;
+  issue?: number;
+  filesDone?: boolean;
+  releaseId?: number;
+  assetsDone?: boolean;
+  indexDone?: boolean;
+  /** 用户主动跳过的步骤（不再重试） */
+  skipped?: string[];
+}
+
+/** 空仓库检测：GitHub/Gitee 列目录时对空仓库返回 Git Repository is empty. */
+function isRepoEmptyError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /git repository is empty/i.test(message);
+}
+
+/** 确保内容仓库可写入：空仓库先初始化基础结构（README + 本地索引） */
+async function ensureRepoInitialized(
+  token: string | null,
+  user: string,
+  repo: string,
+  adapter: () => Promise<GitPlatformAdapter>,
+): Promise<void> {
+  try {
+    await (await adapter()).listDir(user, repo);
+  } catch (error) {
+    if (!isRepoEmptyError(error)) throw error;
+    await (await adapter()).commitFiles(token!, user, repo, 'Initialize Sector Vault repository', [
+      {
+        path: 'README.md',
+        content: `# ${repo}\n\n*Powered by Sector Vault Project*\n`,
+        encoding: 'utf-8',
+      },
+      {
+        path: 'svp-archive.json',
+        content: `${JSON.stringify({ submissions: [] }, null, 2)}\n`,
+        encoding: 'utf-8',
+      },
+    ]);
+  }
+}
+
+/** 新建投稿：issue → 文件（内联媒体+README 一个提交） → release → 附件 → 索引 PR（支持断点续传与跳步） */
 export async function publishSubmission(
   draft: SubmissionDraft,
   token: string | null,
   mock: boolean,
   onStep: OnStep,
+  progress: PublishProgress = {},
 ): Promise<{ issue: number; releaseId: number }> {
   const { user, repo, slug } = draft;
-  let issue = 0;
-  let releaseId = 0;
+  let issue = progress.issue ?? 0;
+  let releaseId = progress.releaseId ?? 0;
+  const skipped = new Set(progress.skipped ?? []);
+  const isSkipped = (id: string): boolean => skipped.has(id);
   // 惰性加载适配器：演示模式全程不触碰平台 SDK 代码
   let adapterPromise: ReturnType<typeof getAdapterAsync> | null = null;
   const adapter = async () => (adapterPromise ??= getAdapterAsync(draft.platform));
 
-  await runStep('issue', mock, onStep, async () => {
+  // 步骤执行骨架：已跳过 → warning；已完成 → done；否则执行并记录进度
+  async function resumeStep(
+    id: StepId,
+    done: boolean,
+    work: () => Promise<void>,
+  ): Promise<void> {
+    if (isSkipped(id)) {
+      onStep(id, 'warning');
+      return;
+    }
+    if (done) {
+      onStep(id, 'done');
+      return;
+    }
+    await runStep(id, mock, onStep, work);
+  }
+
+  await resumeStep('issue', progress.issue !== undefined, async () => {
     if (mock) {
       issue = 13;
       return;
     }
     if (!token) throw new Error('missing token');
     issue = await (await adapter()).createIssue(token, user, repo, draft.title, '');
+    progress.issue = issue;
   });
 
-  await runStep('files', mock, onStep, async () => {
+  await resumeStep('files', progress.filesDone === true, async () => {
+    if (!mock) await ensureRepoInitialized(token, user, repo, adapter);
+    // 内联媒体（封面 + 工程文件）与 README 合并为一个提交
     const changes: FileChange[] = [];
     if (draft.cover) {
       changes.push(await fileChange(`${slug}/${draft.cover.name}`, draft.cover, 'raw'));
@@ -247,36 +324,64 @@ export async function publishSubmission(
       if (!f.file) continue;
       changes.push(await fileChange(`${slug}/${f.name}`, f.file, f.scheme, f.password));
     }
-    if (!changes.length) return;
+    changes.push({
+      path: `${slug}/README.md`,
+      content: buildReadmeText(draft, issue, draft.cover?.name),
+      encoding: 'utf-8',
+    });
     if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes);
+    progress.filesDone = true;
   });
 
-  const readme = buildReadmeText(draft, issue, draft.cover?.name);
-  await runStep('readme', mock, onStep, async () => {
-    if (!mock) {
-      await (await adapter()).commitFiles(token!, user, repo, `Add ${slug} README`, [
-        { path: `${slug}/README.md`, content: readme, encoding: 'utf-8' },
-      ]);
-    }
-  });
-
-  await runStep('release', mock, onStep, async () => {
+  await resumeStep('release', progress.releaseId !== undefined, async () => {
     if (mock) {
       releaseId = 1;
       return;
     }
     const site = await findUserSite(user, mock);
-    releaseId = await (await adapter()).createRelease(token!, user, repo, slug, buildReleaseBody(user, repo, slug, site, draft.summary));
+    releaseId = await (await adapter()).createRelease(
+      token!,
+      user,
+      repo,
+      slug,
+      buildReleaseBody(user, repo, slug, site, draft.summary),
+    );
+    progress.releaseId = releaseId;
   });
 
-  await runStep('assets', mock, onStep, async () => {
-    for (const attachment of draft.attachments) {
-      if (!mock) await (await adapter()).uploadReleaseAsset(token!, user, repo, releaseId, attachment, attachment.name);
-    }
-  });
+  if (isSkipped('assets')) {
+    onStep('assets', 'warning');
+  } else if (progress.assetsDone || !draft.attachments.length) {
+    onStep('assets', 'done');
+  } else if (!releaseId) {
+    // release 被跳过或未创建时无法上传附件；release 补建后重试仍会进入此步
+    onStep('assets', 'warning');
+  } else {
+    await runStep('assets', mock, onStep, async () => {
+      for (const attachment of draft.attachments) {
+        if (!mock) {
+          await (await adapter()).uploadReleaseAsset(token!, user, repo, releaseId, attachment, attachment.name);
+        }
+      }
+      progress.assetsDone = true;
+    });
+  }
 
-  const date = new Date().toISOString();
-  await tryIndexPr(token, mock, buildIndexEntry(draft, date, draft.cover?.name), onStep);
+  if (isSkipped('index')) {
+    onStep('index', 'warning');
+  } else if (progress.indexDone) {
+    onStep('index', 'done');
+  } else {
+    // 投稿/发布时间缺省取发布点击时刻（投稿时间可由编辑器指定，决定归档月份与 slug 日期）
+    const now = new Date().toISOString();
+    await tryIndexPr(
+      token,
+      mock,
+      buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now),
+      onStep,
+    );
+    progress.indexDone = true;
+  }
 
   return { issue, releaseId };
 }
@@ -358,10 +463,16 @@ export async function updateSubmission(
   }
 
   const entry = ctx.entry;
+  // 发布时间编辑器可改（未改动时沿用原值）；投稿时间不变更
+  const nextPublishedAt = draft.publishedAt ?? entry.publishedAt ?? entry.submittedAt;
+  const publishedAtChanged =
+    draft.publishedAt !== undefined &&
+    new Date(draft.publishedAt).getTime() !== new Date(entry.publishedAt ?? entry.submittedAt).getTime();
   const indexChanged =
     draft.title !== entry.title ||
     currentCover !== entry.cover ||
     draft.params !== entry.paramState ||
+    publishedAtChanged ||
     !sameList(draft.tracks, entry.songs) ||
     !sameList(draft.engines, entry.engines) ||
     !sameList(draft.voicebanks, entry.voicebanks) ||
@@ -372,7 +483,7 @@ export async function updateSubmission(
     await tryIndexPr(
       token,
       mock,
-      buildIndexEntry(draft, entry.submittedAt, currentCover, entry.publishedAt),
+      buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt),
       onStep,
     );
   } else {

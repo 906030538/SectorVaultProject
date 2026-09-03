@@ -5,6 +5,7 @@ const zhCN = {
   'nav.faq': '常见问题',
   'nav.about': '网站介绍',
   'nav.login': '登录',
+  'nav.logout': '登出',
   'nav.submit': '投稿',
   'nav.menu': '菜单',
   'nav.more': '更多',

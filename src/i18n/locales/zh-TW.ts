@@ -7,6 +7,7 @@ const zhTW: Record<MessageKey, string> = {
   'nav.faq': '常見問題',
   'nav.about': '網站介紹',
   'nav.login': '登入',
+  'nav.logout': '登出',
   'nav.submit': '投稿',
   'nav.menu': '選單',
   'nav.more': '更多',

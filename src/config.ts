@@ -73,6 +73,38 @@ export const EDITOR_LIMITS = {
   fileSoftLimitBytes: 10 * 1024 * 1024,
 };
 
+/**
+ * 列表输入的下拉候选（可按部署配置；datalist 不限制自由输入）。
+ * 仅合成引擎 / 使用声库 / 歌曲语言提供建议。
+ */
+export const LIST_CANDIDATES: Partial<Record<'engines' | 'voicebanks' | 'songLanguages', string[]>> = {
+  engines: [
+    'Synthesizer V Studio Pro',
+    'Synthesizer V Studio Basic',
+    'VOCALOID6',
+    'VOCALOID5',
+    'VOCALOID4',
+    'UTAU',
+    'OpenUtau',
+    'ACE Studio',
+    'CeVIO AI',
+    'piapro studio',
+  ],
+  voicebanks: [
+    '初音ミク',
+    '初音ミク AI',
+    '重音テト',
+    '星尘',
+    '星尘 Infinity',
+    '洛天依',
+    '乐正绫',
+    '诗岸',
+    '闇音レンリ',
+    'IA',
+  ],
+  songLanguages: ['zh', 'ja', 'en', 'ko'],
+};
+
 /** 演示模式发布管线每步模拟耗时（毫秒） */
 export const MOCK_PIPELINE_STEP_DELAY = 200;
 

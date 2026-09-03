@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, SUPPORTED_PLATFORMS } from '@/config';
+import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SUPPORTED_PLATFORMS } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSession, saveSession, setToken } from '@/lib/auth';
 import { isMockAvailable, loadReleases, loadSubmissionContent, type ProjectFile } from '@/lib/content';
@@ -18,6 +18,7 @@ import {
   updateSubmission,
   type EditContext,
   type OnStep,
+  type PublishProgress,
   type StepId,
   type SubmissionDraft,
 } from '@/lib/editor/pipeline';
@@ -56,6 +57,8 @@ export interface EditorLabels {
   attachments: string;
   attachmentChoose: string;
   summary: string;
+  submittedAt: string;
+  publishedAt: string;
   existing: string;
   license: string;
   authRequired: string;
@@ -74,6 +77,11 @@ export interface EditorLabels {
   stepIndex: string;
   stepCover: string;
   stepSkipped: string;
+  retry: string;
+  skipStep: string;
+  redirectIn: string;
+  goNow: string;
+  cancelRedirect: string;
   doneNew: string;
   doneEdit: string;
   gotoCollection: string;
@@ -119,6 +127,8 @@ interface EditorState {
   tags: string[];
   license: string;
   summary: string;
+  submittedAt: string;
+  publishedAt: string;
   cover: File | null;
   coverName: string;
   coverRemoved: boolean;
@@ -208,23 +218,57 @@ function renderListInput(
   const rows = el('div', 'flex flex-col gap-1');
   box.appendChild(rows);
 
-  const addBtn = el('button', 'btn self-start', `+ ${labels.add}`);
-  addBtn.type = 'button';
-  addBtn.setAttribute('data-action', 'add');
+  // 候选下拉（datalist）：不限制输入，仅提供建议
+  const candidates = LIST_CANDIDATES[kind];
+  if (candidates) {
+    const datalist = el('datalist');
+    datalist.id = `svp-candidates-${kind}`;
+    for (const value of candidates) {
+      const option = document.createElement('option');
+      option.value = value;
+      datalist.appendChild(option);
+    }
+    box.appendChild(datalist);
+  }
+
+  // 超限提示：仅在尝试添加超过上限时短暂显示
+  const hint = el('p', 'hidden text-xs text-amber-600', labels.limitHint);
+  let hintTimer = 0;
+  const showLimitHint = (): void => {
+    hint.classList.remove('hidden');
+    window.clearTimeout(hintTimer);
+    hintTimer = window.setTimeout(() => hint.classList.add('hidden'), 3000);
+  };
 
   const sync = (): void => {
     const inputs = rows.querySelectorAll<HTMLInputElement>('input');
     state.lists[kind] = Array.from(inputs).map((input) => input.value);
-    addBtn.disabled = inputs.length >= EDITOR_LIMITS.listValues;
   };
+
+  // 添加按钮跟随最后一行，与删除按钮同排
+  const addBtn = el('button', 'btn px-2.5', '+');
+  addBtn.type = 'button';
+  addBtn.title = labels.add;
+  addBtn.setAttribute('aria-label', labels.add);
+  addBtn.setAttribute('data-action', 'add');
+  addBtn.addEventListener('click', () => {
+    if (rows.children.length >= EDITOR_LIMITS.listValues) {
+      showLimitHint();
+      return;
+    }
+    addRow();
+    const inputs = rows.querySelectorAll('input');
+    inputs[inputs.length - 1]?.focus();
+  });
 
   const addRow = (value = ''): void => {
     if (rows.children.length >= EDITOR_LIMITS.listValues) return;
     const row = el('div', 'flex gap-2');
     const input = el('input', 'input flex-1');
+    if (candidates) input.setAttribute('list', `svp-candidates-${kind}`);
     input.value = value;
     input.addEventListener('input', sync);
-    const removeBtn = el('button', 'btn', '×');
+    const removeBtn = el('button', 'btn px-2.5', '×');
     removeBtn.type = 'button';
     removeBtn.setAttribute('data-action', 'remove');
     removeBtn.addEventListener('click', () => {
@@ -234,18 +278,20 @@ function renderListInput(
     });
     row.append(input, removeBtn);
     rows.appendChild(row);
+    row.appendChild(addBtn);
     sync();
   };
 
-  addBtn.addEventListener('click', () => addRow());
   for (const value of state.lists[kind]) addRow(value);
   if (rows.children.length === 0) addRow();
-  box.appendChild(addBtn);
-  box.appendChild(el('p', 'text-xs text-slate-400', labels.limitHint));
+  box.appendChild(hint);
   return box;
 }
 
-function renderTagEditor(labels: EditorLabels, state: EditorState): HTMLElement {
+function renderTagEditor(
+  labels: EditorLabels,
+  state: EditorState,
+): { box: HTMLElement; refresh: () => void } {
   const box = el('div', 'flex flex-col gap-1');
   box.appendChild(el('label', 'text-xs text-slate-500', labels.tagsLabel));
   const chips = el('div', 'flex flex-wrap gap-2');
@@ -280,7 +326,7 @@ function renderTagEditor(labels: EditorLabels, state: EditorState): HTMLElement 
   });
 
   box.append(input, chips);
-  return box;
+  return { box, refresh: render };
 }
 
 /** 可视化 Markdown 编辑器：工具栏 + 编写/预览双 tab */
@@ -639,8 +685,104 @@ function makeOnStep(progress: HTMLElement, labels: EditorLabels): { onStep: OnSt
   return { onStep, fail };
 }
 
-function renderDone(root: HTMLElement, labels: EditorLabels, config: EditorConfig, mode: 'new' | 'edit'): void {
-  const panel = el('div', 'card flex flex-col gap-3 p-6');
+/** 新投稿草稿与发布断点的 localStorage 键 */
+const DRAFT_KEY = 'svp-draft-new';
+const PROGRESS_KEY = 'svp-publish-progress';
+
+/** 草稿快照：可序列化的表单状态（文件与附件不可序列化，不保存） */
+interface DraftSnapshot {
+  platform: Platform;
+  user: string;
+  repo: string;
+  slug: string;
+  type: SubmissionType;
+  title: string;
+  params: ParamStatus;
+  lists: Record<ListKind, string[]>;
+  body: string;
+  tags: string[];
+  license: string;
+  summary: string;
+  submittedAt: string;
+  publishedAt: string;
+}
+
+function readDraft(): DraftSnapshot | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Partial<DraftSnapshot>;
+    return {
+      platform: d.platform ?? 'github',
+      user: d.user ?? '',
+      repo: d.repo ?? '',
+      slug: d.slug ?? '',
+      type: d.type === 'article' ? 'article' : 'project',
+      title: d.title ?? '',
+      params: d.params ?? 'with-params',
+      lists: {
+        videos: d.lists?.videos ?? [],
+        tracks: d.lists?.tracks ?? [],
+        engines: d.lists?.engines ?? [],
+        voicebanks: d.lists?.voicebanks ?? [],
+        songLanguages: d.lists?.songLanguages ?? [],
+      },
+      body: d.body ?? '',
+      tags: d.tags ?? [],
+      license: d.license ?? '',
+      summary: d.summary ?? '',
+      submittedAt: d.submittedAt ?? '',
+      publishedAt: d.publishedAt ?? '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** 发布成功提示框：5 秒倒计时后跳转详情页，可取消（取消后展示完成链接面板） */
+function showSuccessDialog(labels: EditorLabels, href: string, onCancel: () => void): void {
+  const overlay = el('div', 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4');
+  overlay.dataset.role = 'success-dialog';
+  const card = el('div', 'card w-full max-w-sm p-6');
+  card.appendChild(el('h2', 'text-lg font-semibold', labels.doneNew));
+  const hint = el('p', 'mt-1 text-sm text-slate-500 dark:text-slate-400');
+  card.appendChild(hint);
+  const buttons = el('div', 'mt-4 flex justify-end gap-2');
+  const cancel = el('button', 'btn', labels.cancelRedirect);
+  cancel.type = 'button';
+  cancel.dataset.action = 'cancel-redirect';
+  const goNow = el('a', 'btn btn-primary', labels.goNow);
+  goNow.href = href;
+  goNow.dataset.action = 'goto-submission';
+  buttons.append(cancel, goNow);
+  card.appendChild(buttons);
+  overlay.appendChild(card);
+
+  let seconds = 5;
+  let timer = 0;
+  const tick = (): void => {
+    hint.textContent = `${seconds} ${labels.redirectIn}`;
+  };
+  const stop = (): void => {
+    window.clearInterval(timer);
+    overlay.remove();
+    onCancel();
+  };
+  cancel.addEventListener('click', stop);
+  tick();
+  timer = window.setInterval(() => {
+    seconds -= 1;
+    if (seconds <= 0) {
+      window.clearInterval(timer);
+      window.location.href = href;
+      return;
+    }
+    tick();
+  }, 1000);
+  document.body.appendChild(overlay);
+}
+
+function renderDone(root: HTMLElement, labels: EditorLabels, config: EditorConfig, mode: 'new' | 'edit'): void {  const panel = el('div', 'card flex flex-col gap-3 p-6');
   panel.setAttribute('data-role', 'done');
   panel.appendChild(el('h2', 'text-lg font-semibold', mode === 'new' ? labels.doneNew : labels.doneEdit));
   const links = el('div', 'flex gap-2');
@@ -656,6 +798,18 @@ function renderDone(root: HTMLElement, labels: EditorLabels, config: EditorConfi
   root.textContent = '';
   if (progress) root.appendChild(progress);
   root.appendChild(panel);
+}
+
+/** ISO 时间 → datetime-local 输入值（本地时区，分钟精度） */
+function toLocalInputValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** datetime-local 输入值 → ISO 时间；空值返回 undefined */
+function inputValueToIso(value: string): string | undefined {
+  return value ? new Date(value).toISOString() : undefined;
 }
 
 function buildDraft(state: EditorState): SubmissionDraft {
@@ -676,6 +830,8 @@ function buildDraft(state: EditorState): SubmissionDraft {
     tags: state.tags,
     license: state.license,
     summary: state.summary,
+    submittedAt: inputValueToIso(state.submittedAt),
+    publishedAt: inputValueToIso(state.publishedAt),
     cover: state.cover,
     files: state.files,
     attachments: state.attachments,
@@ -737,6 +893,8 @@ export async function initEditor(
     tags: [],
     license: '',
     summary: '',
+    submittedAt: '',
+    publishedAt: '',
     cover: null,
     coverName: '',
     coverRemoved: false,
@@ -745,6 +903,9 @@ export async function initEditor(
     removedAssets: [],
   };
 
+  // 草稿恢复时期望选中的仓库（fillRepoOptions 加载后应用；须在其定义前初始化避免 TDZ）
+  let pendingRepoChoice = '';
+
   let oldFiles: ProjectFile[] = [];
   let oldAssets: ReleaseAsset[] = [];
   let issueAttr = '';
@@ -752,18 +913,38 @@ export async function initEditor(
   let entryForCtx: SubmissionEntry | null = null;
   let oldCoverAttr: string | undefined;
 
-  // ---- slug 回退值：当前 6 位日期 + 标题；用户输入后以输入为准 ----
+  // ---- 投稿时间（新建可选：留空取发布点击时刻；编辑时隐藏不可变） ----
+  const submittedAtBox = el('div', 'flex flex-col gap-1');
+  submittedAtBox.appendChild(el('label', 'text-xs text-slate-500', labels.submittedAt));
+  const submittedAtInput = el('input', 'input w-52');
+  submittedAtInput.type = 'datetime-local';
+  submittedAtInput.setAttribute('data-field', 'submittedAt');
+  if (isEdit) submittedAtBox.hidden = true;
+  submittedAtInput.addEventListener('input', () => {
+    state.submittedAt = submittedAtInput.value;
+    if (!isEdit) slugInput.placeholder = slugFallback();
+  });
+  submittedAtBox.appendChild(submittedAtInput);
+
+  // ---- slug 回退值：投稿时间的日期 + 标题（未填投稿时间则今天）；用户输入后以输入为准 ----
   const dateSlug = todaySlug();
+  const submittedSlug = (): string => {
+    const value = submittedAtInput.value;
+    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+      return `${value.slice(2, 4)}${value.slice(5, 7)}${value.slice(8, 10)}`;
+    }
+    return dateSlug;
+  };
   const slugFallback = (): string => {
     const title = state.title.trim();
-    return title ? `${dateSlug}-${title}` : dateSlug;
+    return title ? `${submittedSlug()}-${title}` : submittedSlug();
   };
   const resolveSlug = (): string => {
     if (isEdit) return state.slug;
     return slugInput.value.trim() || slugFallback();
   };
 
-  // ---- 仓库 / slug / 类型（同一行） ----
+  // ---- 仓库 / 投稿时间 / slug / 类型（同一行） ----
   const row1 = el('div', 'flex flex-wrap items-end gap-3');
   const repoBox = el('div', 'flex flex-col gap-1');
   repoBox.appendChild(el('label', 'text-xs text-slate-500', labels.repo));
@@ -781,12 +962,12 @@ export async function initEditor(
     slugInput.readOnly = true;
   } else {
     slugInput.value = '';
-    slugInput.placeholder = slugFallback();
   }
   slugInput.addEventListener('input', () => {
     state.slug = slugInput.value.trim();
   });
   slugBox.appendChild(slugInput);
+  if (!isEdit) slugInput.placeholder = slugFallback();
   form.appendChild(row1);
 
   interface RepoOption {
@@ -843,7 +1024,12 @@ export async function initEditor(
       repoSelect.appendChild(node);
     }
     if (repoOptions.length) {
-      repoSelect.value = `${repoOptions[0].user}/${repoOptions[0].repo}`;
+      const first = `${repoOptions[0].user}/${repoOptions[0].repo}`;
+      const wanted =
+        pendingRepoChoice && repoOptions.some((o) => `${o.user}/${o.repo}` === pendingRepoChoice)
+          ? pendingRepoChoice
+          : first;
+      repoSelect.value = wanted;
       applyRepoSelection();
     }
   };
@@ -853,7 +1039,7 @@ export async function initEditor(
   typeBox.appendChild(el('label', 'text-xs text-slate-500', labels.typeLabel));
   const typeControls = el('div', 'flex gap-2');
   typeBox.appendChild(typeControls);
-  row1.append(repoBox, slugBox, typeBox);
+  row1.append(repoBox, submittedAtBox, slugBox, typeBox);
 
   const projectBtn = el('button', 'btn btn-primary', labels.typeProject);
   const articleBtn = el('button', 'btn', labels.typeArticle);
@@ -885,9 +1071,7 @@ export async function initEditor(
   titleBox.appendChild(titleInput);
   form.appendChild(titleBox);
 
-  // ---- 工程专属区块（article 时隐藏） ----
-  const projectOnly: HTMLElement[] = [];
-
+  // ---- 参数状态 + 发布时间（同一行；发布时间新建留空取发布点击时刻，编辑可修改） ----
   const paramsBox = el('div', 'flex flex-col gap-1');
   paramsBox.appendChild(el('label', 'text-xs text-slate-500', labels.params));
   const paramsRow = el('div', 'flex gap-4 text-sm');
@@ -911,9 +1095,24 @@ export async function initEditor(
     paramsRow.appendChild(item);
   }
   paramsBox.appendChild(paramsRow);
-  projectOnly.push(paramsBox);
 
-  form.append(...projectOnly);
+  const publishedAtBox = el('div', 'flex flex-col gap-1');
+  publishedAtBox.appendChild(el('label', 'text-xs text-slate-500', labels.publishedAt));
+  const publishedAtInput = el('input', 'input w-52');
+  publishedAtInput.type = 'datetime-local';
+  publishedAtInput.setAttribute('data-field', 'publishedAt');
+  publishedAtInput.addEventListener('input', () => {
+    state.publishedAt = publishedAtInput.value;
+  });
+  publishedAtBox.appendChild(publishedAtInput);
+
+  const metaRow = el('div', 'flex flex-wrap items-end gap-3');
+  metaRow.append(paramsBox, publishedAtBox);
+  form.appendChild(metaRow);
+
+  // ---- 工程专属区块（article 时隐藏；paramsBox 已随 metaRow 挂载，仅参与隐藏切换） ----
+  const projectOnly: HTMLElement[] = [];
+  projectOnly.push(paramsBox);
 
   const listContainer = el('div', 'grid gap-3 sm:grid-cols-2');
   projectOnly.push(listContainer);
@@ -929,7 +1128,8 @@ export async function initEditor(
 
   // ---- 正文 / 标签 / 许可证 / 附件 ----
   form.appendChild(renderMarkdownEditor(labels, state));
-  form.appendChild(renderTagEditor(labels, state));
+  const { box: tagBox, refresh: refreshTags } = renderTagEditor(labels, state);
+  form.appendChild(tagBox);
 
   const licenseBox = el('div', 'flex flex-col gap-1');
   licenseBox.appendChild(el('label', 'text-xs text-slate-500', labels.license));
@@ -1001,6 +1201,11 @@ export async function initEditor(
     state.lists.engines = entry.engines ?? [];
     state.lists.voicebanks = entry.voicebanks ?? [];
     state.lists.songLanguages = entry.languages ?? [];
+    // 发布时间回填（可修改）；投稿时间编辑时不可变，输入框已隐藏
+    if (entry.publishedAt ?? entry.submittedAt) {
+      publishedAtInput.value = toLocalInputValue(entry.publishedAt ?? entry.submittedAt);
+      state.publishedAt = publishedAtInput.value;
+    }
 
     try {
       const content = await loadSubmissionContent(entry.platform, config.user!, config.repo!, config.slug!);
@@ -1072,7 +1277,11 @@ export async function initEditor(
     setType(state.type);
     setTypeChip();
   } else {
+    // 新建模式：恢复上次未发布的草稿（发布成功时清除）
+    const restored = restoreDraftIntoState();
+    applyRestoredInputs(restored);
     buildListInputs();
+    setupDraftAutosave();
   }
   await fillRepoOptions();
 
@@ -1090,7 +1299,132 @@ export async function initEditor(
     }
   }
 
-  form.addEventListener('submit', async () => {
+  // ---- 新投稿草稿：自动保存 / 恢复 / 发布成功清除 ----
+
+  function restoreDraftIntoState(): DraftSnapshot | null {
+    const draft = readDraft();
+    if (!draft) return null;
+    state.type = draft.type;
+    state.title = draft.title;
+    state.params = draft.params;
+    state.slug = draft.slug;
+    state.license = draft.license;
+    state.summary = draft.summary;
+    state.body = draft.body;
+    state.submittedAt = draft.submittedAt;
+    state.publishedAt = draft.publishedAt;
+    state.tags = [...draft.tags];
+    for (const kind of LIST_KINDS) state.lists[kind] = [...draft.lists[kind]];
+    return draft;
+  }
+
+  function applyRestoredInputs(draft: DraftSnapshot | null): void {
+    if (!draft) return;
+    titleInput.value = draft.title;
+    slugInput.value = draft.slug;
+    submittedAtInput.value = draft.submittedAt;
+    publishedAtInput.value = draft.publishedAt;
+    licenseSelect.value = draft.license;
+    const radio = paramsRow.querySelector<HTMLInputElement>(`input[value="${draft.params}"]`);
+    if (radio) radio.checked = true;
+    const bodyArea = form.querySelector<HTMLTextAreaElement>('[data-field="body"]');
+    if (bodyArea) bodyArea.value = draft.body;
+    setType(draft.type);
+    refreshTags();
+    slugInput.placeholder = slugFallback();
+    pendingRepoChoice = `${draft.user}/${draft.repo}`;
+  }
+
+  function collectDraft(): DraftSnapshot {
+    return {
+      platform: state.platform,
+      user: state.user,
+      repo: state.repo,
+      slug: slugInput.value.trim(),
+      type: state.type,
+      title: state.title,
+      params: state.params,
+      lists: { ...state.lists },
+      body: state.body,
+      tags: [...state.tags],
+      license: state.license,
+      summary: state.summary,
+      submittedAt: state.submittedAt,
+      publishedAt: state.publishedAt,
+    };
+  }
+
+  function setupDraftAutosave(): void {
+    let timer = 0;
+    const save = (): void => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft()));
+        } catch {
+          /* 存储配额不足时放弃本次保存 */
+        }
+      }, 500);
+    };
+    form.addEventListener('input', save);
+    form.addEventListener('change', save);
+    form.addEventListener('click', save);
+  }
+
+  // ---- 发布断点：进度持久化 + 失败步骤重试/跳过 ----
+
+  let progressCard: HTMLElement | null = null;
+  let currentProgress: PublishProgress | null = null;
+
+  function persistProgress(): void {
+    if (!currentProgress) return;
+    currentProgress.user = state.user;
+    currentProgress.repo = state.repo;
+    currentProgress.slug = state.slug;
+    try {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(currentProgress));
+    } catch {
+      /* 忽略存储失败 */
+    }
+  }
+
+  function loadProgress(): PublishProgress {
+    try {
+      const raw = localStorage.getItem(PROGRESS_KEY);
+      if (!raw) return {};
+      const saved = JSON.parse(raw) as PublishProgress;
+      if (saved.user === state.user && saved.repo === state.repo && saved.slug === state.slug) {
+        return saved;
+      }
+    } catch {
+      /* 损坏的进度视为无进度 */
+    }
+    return {};
+  }
+
+  function attachStepControls(row: HTMLElement): void {
+    if (row.querySelector('[data-action="retry-step"]')) return;
+    const retry = el('button', 'btn px-2 py-0.5 text-xs', labels.retry);
+    retry.type = 'button';
+    retry.dataset.action = 'retry-step';
+    retry.addEventListener('click', () => {
+      void runPublish();
+    });
+    const skip = el('button', 'btn px-2 py-0.5 text-xs', labels.skipStep);
+    skip.type = 'button';
+    skip.dataset.action = 'skip-step';
+    skip.addEventListener('click', () => {
+      const failed = progressCard?.querySelector('[data-state="error"]')?.getAttribute('data-step');
+      if (failed && currentProgress) {
+        currentProgress.skipped = [...new Set([...(currentProgress.skipped ?? []), failed])];
+        persistProgress();
+      }
+      void runPublish();
+    });
+    row.append(retry, skip);
+  }
+
+  async function runPublish(): Promise<void> {
     validation.textContent = '';
     // 新建模式：slug 未输入时回退为 日期-标题
     if (config.mode === 'new') state.slug = resolveSlug();
@@ -1109,12 +1443,23 @@ export async function initEditor(
 
     const steps: StepId[] = isEdit
       ? ['cover', 'files', 'readme', 'assets', 'index']
-      : ['issue', 'files', 'readme', 'release', 'assets', 'index'];
-    const progress = renderProgress(labels, steps);
-    form.appendChild(progress);
-    const { onStep, fail } = makeOnStep(progress, labels);
+      : ['issue', 'files', 'release', 'assets', 'index'];
+    if (!progressCard) {
+      progressCard = renderProgress(labels, steps);
+      form.appendChild(progressCard);
+    }
+    progressCard
+      .querySelectorAll('[data-action="retry-step"], [data-action="skip-step"]')
+      .forEach((node) => node.remove());
+    const { onStep: onStepInner, fail } = makeOnStep(progressCard, labels);
+    // 步骤落定（done/warning）时持久化断点，重试时从失败处续传
+    const onStep: OnStep = (id, stateName, detail) => {
+      onStepInner(id, stateName, detail);
+      if (stateName === 'done' || stateName === 'warning') persistProgress();
+    };
     const draft = buildDraft(state);
     const token = mock ? null : getToken(state.platform);
+    if (!isEdit) currentProgress = loadProgress();
 
     try {
       if (isEdit) {
@@ -1128,17 +1473,37 @@ export async function initEditor(
           removedAssets: state.removedAssets,
         };
         await updateSubmission(draft, ctx, token, mock, onStep);
+        config.user = draft.user;
+        config.repo = draft.repo;
+        config.slug = draft.slug;
+        renderDone(root, labels, config, config.mode);
       } else {
-        await publishSubmission(draft, token, mock, onStep);
+        await publishSubmission(draft, token, mock, onStep, currentProgress ?? {});
+        config.user = draft.user;
+        config.repo = draft.repo;
+        config.slug = draft.slug;
+        // 发布成功：清除草稿与断点进度，弹 5 秒跳转提示
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+          localStorage.removeItem(PROGRESS_KEY);
+        } catch {
+          /* 忽略清除失败 */
+        }
+        currentProgress = null;
+        showSuccessDialog(labels, `/view/${draft.user}/${draft.repo}/${draft.slug}`, () => {
+          renderDone(root, labels, config, 'new');
+        });
       }
-      config.user = draft.user;
-      config.repo = draft.repo;
-      config.slug = draft.slug;
-      renderDone(root, labels, config, config.mode);
     } catch (error) {
       fail(error instanceof Error ? error.message : String(error));
+      const failedRow = progressCard.querySelector<HTMLElement>('[data-state="error"]');
+      if (failedRow) attachStepControls(failedRow);
       submitBtn.disabled = false;
       submitBtn.textContent = isEdit ? labels.save : labels.submit;
     }
+  }
+
+  form.addEventListener('submit', () => {
+    void runPublish();
   });
 }

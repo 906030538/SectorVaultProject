@@ -7,6 +7,7 @@ const en: Record<MessageKey, string> = {
   'nav.faq': 'FAQ',
   'nav.about': 'About',
   'nav.login': 'Sign in',
+  'nav.logout': 'Sign out',
   'nav.submit': 'Submit',
   'nav.menu': 'Menu',
   'nav.more': 'More',

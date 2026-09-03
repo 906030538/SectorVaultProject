@@ -13,12 +13,37 @@ interface Props {
 const { locale } = Astro.props;
 const path = Astro.url.pathname;
 
-const navItems: { key: MessageKey; href: string }[] = [
-  { key: 'nav.projects', href: '/project' },
-  { key: 'nav.articles', href: '/article' },
-  { key: 'nav.discussions', href: '/discussions' },
-  { key: 'nav.faq', href: '/faq' },
-  { key: 'nav.about', href: '/about' },
+const navItems: { key: MessageKey; href: string; fold: 460 | 560 | 700 | 800 | 900 }[] = [
+  { key: 'nav.projects', href: '/project', fold: 460 },
+  { key: 'nav.articles', href: '/article', fold: 560 },
+  { key: 'nav.discussions', href: '/discussions', fold: 700 },
+  { key: 'nav.faq', href: '/faq', fold: 800 },
+  { key: 'nav.about', href: '/about', fold: 900 },
+];
+
+/**
+ * 左导航逐项折叠（从最右项开始）：宽度低于该项阈值时，
+ * 内联项隐藏、下拉面板中的对应项显示（字面量类保证被 Tailwind 扫描）。
+ */
+const FOLD_INLINE = {
+  460: 'max-[460px]:hidden',
+  560: 'max-[560px]:hidden',
+  700: 'max-[700px]:hidden',
+  800: 'max-[800px]:hidden',
+  900: 'max-[900px]:hidden',
+} as const;
+
+const FOLD_PANEL = {
+  460: 'max-[460px]:flex',
+  560: 'max-[560px]:flex',
+  700: 'max-[700px]:flex',
+  800: 'max-[800px]:flex',
+  900: 'max-[900px]:flex',
+} as const;
+
+const linkClasses = [
+  'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900',
+  'dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white',
 ];
 
 function isActive(href: string): boolean {
@@ -29,22 +54,29 @@ function isActive(href: string): boolean {
 <header
   class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90"
 >
-  <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+  <div class="relative flex h-14 items-center gap-3 px-4">
     <a href="/" class="flex shrink-0 items-center font-bold">
       <img src={logoSmallUrl} alt={SITE_NAME} class="h-8 w-auto" />
     </a>
 
-    <nav class="flex items-center gap-1 overflow-x-auto text-sm">
+    <!-- 窄屏：左侧导航折叠开关（首个左导航项折叠时出现） -->
+    <button
+      type="button"
+      class="btn hidden px-2.5 max-[900px]:block"
+      data-action="toggle-nav"
+      aria-label={t(locale, 'nav.menu')}
+    >
+      ☰
+    </button>
+
+    <!-- 左侧导航：宽度不足时从右向左逐项折入下拉面板 -->
+    <nav class="flex items-center gap-1 text-sm">
       {
         navItems.map((item) => (
           <a
             href={item.href}
             data-i18n={item.key}
-            class:list={[
-              'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900',
-              'dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white',
-              { 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white': isActive(item.href) },
-            ]}
+            class:list={[...linkClasses, FOLD_INLINE[item.fold], { 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white': isActive(item.href) }]}
           >
             {t(locale, item.key)}
           </a>
@@ -52,11 +84,48 @@ function isActive(href: string): boolean {
       }
     </nav>
 
+    <!-- 左侧导航下拉面板（内容与内联项互补显隐，JS 切换整体开合） -->
+    <div
+      class="absolute inset-x-0 top-14 z-40 hidden flex-col gap-1 border-b border-slate-200 bg-white p-3 text-sm shadow-lg dark:border-slate-800 dark:bg-slate-950"
+      data-role="nav-menu"
+    >
+      {
+        navItems.map((item) => (
+          <a
+            href={item.href}
+            data-i18n={item.key}
+            class:list={['hidden', ...linkClasses, FOLD_PANEL[item.fold], { 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white': isActive(item.href) }]}
+          >
+            {t(locale, item.key)}
+          </a>
+        ))
+      }
+    </div>
+
     <div class="ml-auto flex shrink-0 items-center gap-2">
-      <LanguageSwitcher locale={locale} />
-      <ThemeToggle locale={locale} />
-      <div id="user-area" class="flex items-center gap-2 text-sm">
-        <button class="btn" type="button" data-i18n="nav.login">{t(locale, 'nav.login')}</button>
+      <!-- 宽度不足：右导航先折叠为下拉开关 -->
+      <button
+        type="button"
+        class="btn px-2.5 lg:hidden"
+        data-action="toggle-controls"
+        aria-label={t(locale, 'nav.more')}
+      >
+        ⋯
+      </button>
+
+      <!-- 右侧控件：桌面行内展开，不足时折叠为下拉面板（JS 切换 hidden） -->
+      <div
+        class="absolute right-0 top-14 z-40 hidden flex-col items-start gap-2 rounded-b-lg border-b border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-950 lg:static lg:flex lg:flex-row lg:items-center lg:gap-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
+        data-role="controls-menu"
+      >
+        <a href="/new" class="btn btn-primary" data-role="nav-submit" data-i18n="nav.submit">
+          {t(locale, 'nav.submit')}
+        </a>
+        <LanguageSwitcher locale={locale} />
+        <ThemeToggle locale={locale} />
+        <div id="user-area" class="flex items-center gap-2 text-sm">
+          <button class="btn" type="button" data-i18n="nav.login">{t(locale, 'nav.login')}</button>
+        </div>
       </div>
     </div>
   </div>
@@ -66,13 +135,16 @@ function isActive(href: string): boolean {
   import { openAuthDialog } from '@/lib/auth-dialog';
   import { buildAuthLabels } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
+  import { logout } from '@/lib/auth';
+  import { t } from '@/i18n';
 
   // 已登录时以头像 + 用户名替换登录按钮（登录态保存在 localStorage）
   const area = document.getElementById('user-area');
+  let session: { login?: string; name?: string; avatarUrl?: string } | null = null;
   if (area) {
     try {
       const raw = localStorage.getItem('svp-session');
-      const session = raw ? JSON.parse(raw) : null;
+      session = raw ? JSON.parse(raw) : null;
       if (session?.login && session?.avatarUrl) {
         area.textContent = '';
         const link = document.createElement('a');
@@ -86,6 +158,18 @@ function isActive(href: string): boolean {
         name.textContent = session.name ?? session.login;
         link.append(img, name);
         area.appendChild(link);
+        // 登出：清除全部平台令牌与会话后刷新
+        const logoutBtn = document.createElement('button');
+        logoutBtn.type = 'button';
+        logoutBtn.className = 'btn px-2.5';
+        logoutBtn.dataset.action = 'logout';
+        logoutBtn.dataset.i18n = 'nav.logout';
+        logoutBtn.textContent = t(getClientLocale(), 'nav.logout');
+        logoutBtn.addEventListener('click', () => {
+          logout();
+          window.location.reload();
+        });
+        area.appendChild(logoutBtn);
       }
     } catch {
       /* 忽略损坏的会话数据 */
@@ -97,4 +181,39 @@ function isActive(href: string): boolean {
       });
     }
   }
+
+  // 导航栏投稿按钮：已登录跳转新建投稿页，未登录与登录按钮一致（打开授权对话框）
+  const submitLink = document.querySelector<HTMLAnchorElement>('[data-role="nav-submit"]');
+  if (submitLink && !session?.login) {
+    submitLink.addEventListener('click', (event) => {
+      event.preventDefault();
+      void openAuthDialog(buildAuthLabels(getClientLocale()));
+    });
+  }
+
+  // 窄屏折叠面板：左右独立开合，互斥；点击面板外或 Escape 关闭
+  const navMenu = document.querySelector<HTMLElement>('[data-role="nav-menu"]');
+  const controlsMenu = document.querySelector<HTMLElement>('[data-role="controls-menu"]');
+  const closeMenus = (): void => {
+    navMenu?.classList.add('hidden');
+    controlsMenu?.classList.add('hidden');
+  };
+  for (const [action, panel] of [
+    ['toggle-nav', navMenu],
+    ['toggle-controls', controlsMenu],
+  ] as const) {
+    document.querySelector(`[data-action="${action}"]`)?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (!panel) return;
+      const wasOpen = !panel.classList.contains('hidden');
+      closeMenus();
+      if (!wasOpen) panel.classList.remove('hidden');
+    });
+  }
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element) || !event.target.closest('header')) closeMenus();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMenus();
+  });
 </script>

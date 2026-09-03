@@ -1,0 +1,42 @@
+{
+  "submissions": [
+    {
+      "slug": "230725-梅菲斯特",
+      "owner": "906030538",
+      "repo": "svp-default",
+      "platform": "github",
+      "type": "project",
+      "title": "梅菲斯特",
+      "submittedAt": "2023-07-25T04:00:00.000Z",
+      "publishedAt": "2023-07-25T04:00:00.000Z",
+      "cover": "ksm单齿轮眼.png",
+      "paramState": "no-params",
+      "songs": [
+        "メフィスト"
+      ],
+      "engines": [
+        "CeVIO AI"
+      ],
+      "voicebanks": [
+        "POPY",
+        "ROSE"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "issue": 6,
+      "release": 382315262
+    }
+  ],
+  "users": [
+    {
+      "platform": "github",
+      "owner": "906030538",
+      "repos": [
+        {
+          "repo": "svp-default"
+        }
+      ]
+    }
+  ]
+}

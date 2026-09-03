@@ -351,7 +351,7 @@ async function ensureRepoInitialized(
     await (await adapter()).listDir(user, repo);
   } catch (error) {
     if (!isRepoEmptyError(error)) throw error;
-    await (await adapter()).commitFiles(token!, user, repo, 'Initialize Sector Vault repository', [
+    await (await adapter()).commitFiles(token!, user, repo, 'Initialize Sector Vault Project repository', [
       {
         path: 'README.md',
         content: baseRepoReadme(repo),
@@ -545,7 +545,7 @@ export async function updateSubmission(
     if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} files`, changes);
   });
 
-  const readme = buildReadmeText(draft, ctx.issue, currentCover);  await runStep('readme', mock, onStep, async () => {
+  const readme = buildReadmeText(draft, ctx.issue, currentCover); await runStep('readme', mock, onStep, async () => {
     if (!mock) {
       await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} README`, [
         { path: `${slug}/README.md`, content: readme, encoding: 'utf-8' },

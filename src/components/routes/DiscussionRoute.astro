@@ -1,0 +1,82 @@
+---
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+/**
+ * /discussions/:platform/:owner/:repo/:number 的路由组件：
+ * 由客户端解析 URL，兼容 404 SPA 回退（讨论为动态内容，不做静态预渲染）。
+ */
+const locale = DEFAULT_LOCALE;
+---
+
+<div data-route-component="discussion">
+  <a href="/discussions" class="btn mb-4" data-action="back-list">
+    ← <span data-i18n="discussions.back">{t(locale, 'discussions.back')}</span>
+  </a>
+
+  <article class="mx-auto max-w-3xl">
+    <header>
+      <h1 class="text-2xl font-bold" data-role="discussion-title"></h1>
+      <p class="mt-2 flex flex-wrap items-center gap-2 text-sm" data-role="discussion-meta"></p>
+    </header>
+
+    <section class="prose-svp mt-6" data-role="discussion-body"></section>
+
+    <div class="mt-6" data-role="discussion-actions"></div>
+
+    <section class="mt-8">
+      <h2 class="mb-3 text-lg font-semibold" data-i18n="discussions.commentsTitle">
+        {t(locale, 'discussions.commentsTitle')}
+      </h2>
+      <div class="flex flex-col gap-3" data-role="discussion-comments"></div>
+    </section>
+
+    <section class="mt-6" data-role="discussion-reply"></section>
+  </article>
+</div>
+
+<script>
+  import { initDiscussionDetail } from '@/lib/views/discussions';
+  import { buildDiscussionsLabels } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { SITE_NAME } from '@/config';
+  import type { Platform } from '@/types';
+
+  // 路由匹配：/discussions/:platform/:owner/:repo/:number（严格五段）；不匹配时不激活
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  const [platform, owner, repo, rawNumber] = segments.slice(1);
+  const number = Number(rawNumber);
+  const validPlatform = ['github', 'gitee', 'atomgit'].includes(platform);
+  if (segments[0] === 'discussions' && segments.length === 5 && validPlatform && owner && repo && number) {
+    const root = document.querySelector<HTMLElement>('[data-route-component="discussion"]')!;
+    const host = root.closest<HTMLElement>('[data-route-host]');
+    if (host) host.hidden = false;
+    document.querySelector<HTMLElement>('[data-role="not-found"]')?.setAttribute('hidden', '');
+
+    const locale = getClientLocale();
+    const pick = <T extends HTMLElement>(role: string) =>
+      root.querySelector<T>(`[data-role="${role}"]`)!;
+
+    try {
+      await initDiscussionDetail({
+        platform: platform as Platform,
+        owner,
+        repo,
+        number,
+        locale,
+        labels: buildDiscussionsLabels(locale),
+        els: {
+          title: pick('discussion-title'),
+          meta: pick('discussion-meta'),
+          body: pick('discussion-body'),
+          comments: pick('discussion-comments'),
+          actions: pick('discussion-actions'),
+          reply: pick('discussion-reply'),
+        },
+      });
+    } catch (error) {
+      console.error('[discussion] init failed:', error);
+      document.title = `${SITE_NAME}`;
+      pick('discussion-title').textContent = buildDiscussionsLabels(locale).loadError;
+    }
+  }
+</script>

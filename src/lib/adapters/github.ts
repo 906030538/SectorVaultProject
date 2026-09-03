@@ -1,6 +1,8 @@
 import { Octokit } from 'octokit';
 import type {
   AuthInfo,
+  DiscussionComment,
+  DiscussionInfo,
   FileInfo,
   IssueInfo,
   ReleaseInfo,
@@ -22,6 +24,20 @@ async function blobToBase64(file: Blob): Promise<string> {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
   return btoa(binary);
+}
+
+/** GitHub Discussion（repo discussions REST） */
+interface GithubDiscussion {
+  number: number;
+  title: string;
+  html_url: string;
+  body?: string;
+  created_at: string;
+  updated_at?: string;
+  comments: number;
+  user?: { login: string; html_url: string } | null;
+  category?: { name?: string } | null;
+  state?: string;
 }
 
 function mapRepo(repo: {
@@ -146,6 +162,85 @@ export class GitHubAdapter implements GitPlatformAdapter {
 
   discussionsUrl(owner: string, repo: string): string {
     return `https://github.com/${owner}/${repo}/discussions`;
+  }
+
+  // ---- Discussions（repo 级 REST 端点未收录于 octokit 快照，request 直调） ----
+
+  mapDiscussion(d: GithubDiscussion): DiscussionInfo {
+    return {
+      number: d.number,
+      title: d.title,
+      htmlUrl: d.html_url,
+      body: d.body ?? '',
+      createdAt: d.created_at,
+      updatedAt: d.updated_at,
+      comments: d.comments,
+      author: d.user?.login,
+      authorUrl: d.user?.html_url,
+      category: d.category?.name,
+      state: d.state,
+    };
+  }
+
+  async listDiscussions(user: string, repo: string): Promise<DiscussionInfo[]> {
+    const { data } = await client().request('GET /repos/{owner}/{repo}/discussions', {
+      owner: user,
+      repo,
+      per_page: 50,
+    });
+    return (Array.isArray(data) ? (data as GithubDiscussion[]) : []).map((d) => this.mapDiscussion(d));
+  }
+
+  async getDiscussion(user: string, repo: string, number: number): Promise<DiscussionInfo> {
+    const { data } = await client().request('GET /repos/{owner}/{repo}/discussions/{discussion_number}', {
+      owner: user,
+      repo,
+      discussion_number: number,
+    });
+    return this.mapDiscussion(data as GithubDiscussion);
+  }
+
+  async listDiscussionComments(
+    user: string,
+    repo: string,
+    number: number,
+  ): Promise<DiscussionComment[]> {
+    const { data } = await client().request(
+      'GET /repos/{owner}/{repo}/discussions/{discussion_number}/comments',
+      { owner: user, repo, discussion_number: number, per_page: 50 },
+    );
+    const items = Array.isArray(data)
+      ? (data as Array<{
+          id: number;
+          html_url: string;
+          body: string;
+          created_at: string;
+          user?: { login: string; html_url: string } | null;
+          reactions?: { total_count?: number };
+        }>)
+      : [];
+    return items.map((c) => ({
+      id: c.id,
+      author: c.user?.login,
+      authorUrl: c.user?.html_url,
+      body: c.body,
+      createdAt: c.created_at,
+      htmlUrl: c.html_url,
+      reactions: c.reactions?.total_count ?? 0,
+    }));
+  }
+
+  async createDiscussionComment(
+    token: string,
+    user: string,
+    repo: string,
+    number: number,
+    body: string,
+  ): Promise<void> {
+    await client(token).request(
+      'POST /repos/{owner}/{repo}/discussions/{discussion_number}/comments',
+      { owner: user, repo, discussion_number: number, body },
+    );
   }
 
   wikiUrl(owner: string, repo: string): string {

@@ -1,23 +1,52 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { MAIN_REPO } from '@/config';
+import LoadingBlock from '@/components/LoadingBlock.astro';
 import { DEFAULT_LOCALE, t } from '@/i18n';
+import { DEFAULT_INDEX_SOURCES } from '@/config';
 
 const locale = DEFAULT_LOCALE;
-const discussionsUrl = `https://github.com/${MAIN_REPO.owner}/${MAIN_REPO.name}/discussions`;
+const primary = DEFAULT_INDEX_SOURCES[0];
+const discussionsUrl = `https://github.com/${primary.owner}/${primary.repo}/discussions`;
 ---
 
 <BaseLayout titleKey="discussions.title">
-  <h1 class="mb-6 text-2xl font-bold" data-i18n="discussions.title">
-    {t(locale, 'discussions.title')}
-  </h1>
-  <div class="card p-8 text-center">
-    <p class="text-slate-600 dark:text-slate-300" data-i18n="discussions.description">
-      {t(locale, 'discussions.description')}
-    </p>
-    <a href={discussionsUrl} target="_blank" rel="noopener noreferrer" class="btn btn-primary mt-6">
+  <div class="mb-6 flex flex-wrap items-center gap-3">
+    <h1 class="text-2xl font-bold" data-i18n="discussions.title">{t(locale, 'discussions.title')}</h1>
+    <a href={discussionsUrl} target="_blank" rel="noopener noreferrer" class="btn ml-auto">
       <span data-i18n="discussions.open">{t(locale, 'discussions.open')}</span> →
     </a>
-    <!-- TODO: 登录态下嵌入主站点仓库 Discussions 列表与楼层 -->
   </div>
+  <p class="mb-6 text-sm text-slate-500 dark:text-slate-400" data-i18n="discussions.description">
+    {t(locale, 'discussions.description')}
+  </p>
+
+  <div class="flex flex-col gap-3" data-component="discussion-list"></div>
+  <p class="py-8 text-center text-slate-400" data-role="empty" data-i18n="discussions.none" hidden>
+    {t(locale, 'discussions.none')}
+  </p>
+  <p class="py-8 text-center text-rose-500" data-role="error" data-i18n="discussions.loadError" hidden>
+    {t(locale, 'discussions.loadError')}
+  </p>
+  <LoadingBlock locale={locale} />
+
+  <script>
+    import { initDiscussionList } from '@/lib/views/discussions';
+    import { buildDiscussionsLabels } from '@/lib/labels';
+    import { getClientLocale } from '@/lib/i18n-client';
+
+    const locale = getClientLocale();
+    try {
+      await initDiscussionList(locale, buildDiscussionsLabels(locale), {
+        list: document.querySelector('[data-component="discussion-list"]')!,
+        empty: document.querySelector<HTMLElement>('[data-role="empty"]')!,
+        error: document.querySelector<HTMLElement>('[data-role="error"]')!,
+        loading: document.querySelector<HTMLElement>('[data-component="loading"]')!,
+      });
+    } catch {
+      const loading = document.querySelector<HTMLElement>('[data-component="loading"]');
+      if (loading) loading.hidden = true;
+      const error = document.querySelector<HTMLElement>('[data-role="error"]');
+      if (error) error.hidden = false;
+    }
+  </script>
 </BaseLayout>

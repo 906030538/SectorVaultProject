@@ -134,7 +134,7 @@ function saveBlob(blob: Blob, filename: string): void {
 
 /** 演示模式下合成的工程文件字节（压缩文件生成真实 ZIP，便于演练解压管线） */
 function mockFileBytes(file: ProjectFile): Uint8Array {
-  const content = strToU8(`Sector Vault mock project file: ${file.name}\n`);
+  const content = strToU8(`Sector Vault Project mock project file: ${file.name}\n`);
   if (file.compressed || file.encrypted) {
     return zipSync({ [file.name]: content });
   }

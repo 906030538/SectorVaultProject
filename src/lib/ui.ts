@@ -1,4 +1,17 @@
 import type { EngagementStats, SubmissionEntry } from '@/types';
+import faviconUrl from '../../favicon.svg?url';
+
+/** 设置头像 src；加载失败时回退为站点 favicon 占位 */
+export function setAvatar(img: HTMLImageElement, url: string): void {
+  img.addEventListener(
+    'error',
+    () => {
+      img.src = faviconUrl;
+    },
+    { once: true },
+  );
+  img.src = url;
+}
 
 /** 客户端列表渲染所需的文案（由页面内联 JSON 注入） */
 export interface CardLabels {

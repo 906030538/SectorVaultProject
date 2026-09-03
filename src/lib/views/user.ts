@@ -8,6 +8,7 @@ import {
 } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSession } from '@/lib/auth';
+import { setAvatar } from '@/lib/ui';
 import { isMockAvailable, loadAbout, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadActiveIndex, loadMockIndex } from '@/lib/index/loader';
 import type { IndexFile, Platform, SubmissionEntry } from '@/types';
@@ -299,7 +300,7 @@ export async function initUser(init: UserInit): Promise<void> {
 
   if (session?.login === name && session.avatarUrl) {
     const img = el('img', 'h-full w-full rounded-full object-cover');
-    img.src = session.avatarUrl;
+    setAvatar(img, session.avatarUrl);
     img.alt = name;
     els.avatar.textContent = '';
     els.avatar.appendChild(img);

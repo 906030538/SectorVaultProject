@@ -1,5 +1,7 @@
 import type {
   AuthInfo,
+  DiscussionComment,
+  DiscussionInfo,
   FileInfo,
   IssueInfo,
   ReleaseInfo,
@@ -175,8 +177,24 @@ export class AtomGitAdapter implements GitPlatformAdapter {
   }
 
   discussionsUrl(owner: string, repo: string): string {
-    // AtomGit 无 Discussions，以仓库页代替
     return `${WEB_BASE}/${owner}/${repo}`;
+  }
+
+  // AtomGit 仓库级 Discussions API 形态未定，暂不支持
+  async listDiscussions(): Promise<DiscussionInfo[]> {
+    return [];
+  }
+
+  async getDiscussion(): Promise<DiscussionInfo> {
+    throw new Error('AtomGit discussions API is not supported yet');
+  }
+
+  async listDiscussionComments(): Promise<DiscussionComment[]> {
+    return [];
+  }
+
+  async createDiscussionComment(): Promise<void> {
+    throw new Error('AtomGit discussions API is not supported yet');
   }
 
   wikiUrl(owner: string, repo: string): string {

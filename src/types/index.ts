@@ -137,6 +137,33 @@ export interface IssueInfo {
   createdAt: string;
 }
 
+/** 平台讨论（Discussion）条目 */
+export interface DiscussionInfo {
+  number: number;
+  title: string;
+  htmlUrl: string;
+  createdAt: string;
+  updatedAt?: string;
+  comments: number;
+  author?: string;
+  authorUrl?: string;
+  category?: string;
+  state?: string;
+  /** 讨论正文（Markdown） */
+  body?: string;
+}
+
+/** 讨论评论 */
+export interface DiscussionComment {
+  id: number | string;
+  author?: string;
+  authorUrl?: string;
+  body: string;
+  createdAt: string;
+  htmlUrl?: string;
+  reactions?: number;
+}
+
 /** 已登录账户信息 */
 export interface AuthInfo {
   platform: Platform;

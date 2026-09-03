@@ -1,23 +1,55 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { MAIN_REPO } from '@/config';
+import { DEFAULT_INDEX_SOURCES } from '@/config';
 import { DEFAULT_LOCALE, t } from '@/i18n';
 
 const locale = DEFAULT_LOCALE;
-const wikiUrl = `https://github.com/${MAIN_REPO.owner}/${MAIN_REPO.name}/wiki`;
+const primary = DEFAULT_INDEX_SOURCES[0];
 ---
 
 <BaseLayout titleKey="faq.title">
-  <h1 class="mb-6 text-2xl font-bold" data-i18n="faq.title">{t(locale, 'faq.title')}</h1>
+  <div class="mb-6 flex flex-wrap items-center gap-3">
+    <h1 class="text-2xl font-bold" data-i18n="faq.title">{t(locale, 'faq.title')}</h1>
+    <a
+      href={`https://github.com/${primary.owner}/${primary.repo}/wiki`}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="btn ml-auto"
+      data-role="source-btn"
+    >
+      <span data-i18n="faq.viewSource">{t(locale, 'faq.viewSource')}</span> ↗
+    </a>
+  </div>
   <p class="mb-4 text-slate-500 dark:text-slate-400" data-i18n="faq.description">
     {t(locale, 'faq.description')}
   </p>
-  <div class="card p-8">
-    <!-- TODO: 从主站点仓库 wiki 拉取页面并渲染（默认显示 Home 页） -->
-    <p class="text-center text-slate-400">
-      <a href={wikiUrl} target="_blank" rel="noopener noreferrer" class="text-emerald-600 hover:underline dark:text-emerald-400">
-        Wiki →
-      </a>
-    </p>
-  </div>
+
+  <p class="hidden py-8 text-center text-rose-500" data-role="faq-error" data-i18n="faq.loadError">
+    {t(locale, 'faq.loadError')}
+  </p>
+  <div class="card prose-svp p-6" data-role="faq-body"></div>
+
+  <script>
+    import { loadFaqPage } from '@/lib/views/faq';
+    import { getClientLocale } from '@/lib/i18n-client';
+    import { t } from '@/i18n';
+
+    const locale = getClientLocale();
+    const page = new URLSearchParams(window.location.search).get('page') || 'Home';
+    void loadFaqPage({
+      owner: '906030538',
+      repo: 'SectorVaultProject',
+      page,
+      labels: {
+        viewSource: t(locale, 'faq.viewSource'),
+        loadError: t(locale, 'faq.loadError'),
+        empty: t(locale, 'faq.empty'),
+      },
+      els: {
+        body: document.querySelector('[data-role="faq-body"]')!,
+        sourceBtn: document.querySelector('[data-role="source-btn"]')!,
+        error: document.querySelector<HTMLElement>('[data-role="faq-error"]')!,
+      },
+    });
+  </script>
 </BaseLayout>

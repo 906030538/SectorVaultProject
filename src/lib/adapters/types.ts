@@ -1,5 +1,7 @@
 import type {
   AuthInfo,
+  DiscussionComment,
+  DiscussionInfo,
   FileInfo,
   IssueInfo,
   ReleaseInfo,
@@ -48,6 +50,28 @@ export interface GitPlatformAdapter {
 
   /** Discussions 页面地址 */
   discussionsUrl(owner: string, repo: string): string;
+
+  /** 仓库讨论列表（平台不支持时返回空数组） */
+  listDiscussions(user: string, repo: string): Promise<DiscussionInfo[]>;
+
+  /** 讨论详情 */
+  getDiscussion(user: string, repo: string, number: number): Promise<DiscussionInfo>;
+
+  /** 讨论评论列表 */
+  listDiscussionComments(
+    user: string,
+    repo: string,
+    number: number,
+  ): Promise<DiscussionComment[]>;
+
+  /** 发表讨论回复（需登录且与讨论同平台） */
+  createDiscussionComment(
+    token: string,
+    user: string,
+    repo: string,
+    number: number,
+    body: string,
+  ): Promise<void>;
 
   /** Wiki 页面地址 */
   wikiUrl(owner: string, repo: string): string;

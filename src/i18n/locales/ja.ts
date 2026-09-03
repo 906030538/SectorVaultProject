@@ -28,7 +28,7 @@ const ja: Record<MessageKey, string> = {
   'home.tagline': 'コンテンツを分散保存する、Git ベースのヘッドレス CMS',
   'home.hero': '合成エンジンプロジェクトを、自由に共有',
   'home.intro':
-    'Sector Vault はすべての作品を作者自身の Git リポジトリに保存し、メインサイトは軽量なインデックスのみを管理します。GitHub・Gitee・AtomGit での運用に対応し、ライセンスも明確です。',
+    'Sector Vault Project はすべての作品を作者自身の Git リポジトリに保存し、メインサイトは軽量なインデックスのみを管理します。GitHub・Gitee・AtomGit での運用に対応し、ライセンスも明確です。',
   'home.latest': '最新投稿',
   'home.viewAll': 'すべて見る',
   'home.submissionCount': 'インデックス済み作品',
@@ -93,14 +93,28 @@ const ja: Record<MessageKey, string> = {
   'discussions.description':
     'ディスカッションはメインサイトリポジトリの Discussions で提供されています。',
   'discussions.open': 'ディスカッションへ',
+  'discussions.none': 'ディスカッションはまだありません',
+  'discussions.loadError': 'ディスカッションの読み込みに失敗しました',
+  'discussions.viewOriginal': 'プラットフォームで表示',
+  'discussions.reply': '返信',
+  'discussions.replyPlaceholder': '返信を入力…（Markdown）',
+  'discussions.replySubmit': '返信を投稿',
+  'discussions.replySuccess': '返信を投稿しました',
+  'discussions.replyFailed': '返信に失敗しました。ログイン状態を確認してください',
+  'discussions.replyLoginHint': '同じホスティングプラットフォームのアカウントでログインすると返信できます',
+  'discussions.back': 'ディスカッション一覧に戻る',
+  'discussions.commentsTitle': '返信',
 
   'faq.title': 'よくある質問',
   'faq.description': '以下の内容はメインサイトリポジトリの Wiki から表示されています。',
+  'faq.viewSource': 'Wiki のソースへ',
+  'faq.loadError': 'Wiki の読み込みに失敗しました',
+  'faq.empty': 'このページには内容がありません',
 
   'about.title': 'サイト紹介',
   'about.arch': 'アーキテクチャ',
   'about.archText':
-    'Sector Vault は分散型の作品共有サイトです。作品本文とメディアは投稿者自身のコンテンツリポジトリに保存され、メインサイトは月ごとにアーカイブされる軽量なインデックスのみを管理します。ユーザースペースは単独での静的デプロイにも対応し、インデックスリポジトリは PR による投稿を受け付けます。',
+    'Sector Vault Project は分散型の作品共有サイトです。作品本文とメディアは投稿者自身のコンテンツリポジトリに保存され、メインサイトは月ごとにアーカイブされる軽量なインデックスのみを管理します。ユーザースペースは単独での静的デプロイにも対応し、インデックスリポジトリは PR による投稿を受け付けます。',
   'about.advantages': 'メリット',
   'about.advantage1': 'コンテンツは自分の Git リポジトリに保存され、移行コストはゼロ',
   'about.advantage2': 'インデックスとサイトは同一リポジトリの別ブランチで管理、完全にオープン',

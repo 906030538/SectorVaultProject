@@ -1,7 +1,7 @@
 import type { Platform } from './types';
 import type { MessageKey } from './i18n';
 
-export const SITE_NAME = 'Sector Vault';
+export const SITE_NAME = 'SVP - Sector Vault Project';
 
 /** 内容仓固定前缀，可通过部署配置覆盖 */
 export const CONTENT_REPO_PREFIX = 'svp-';

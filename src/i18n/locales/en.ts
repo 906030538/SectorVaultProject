@@ -28,7 +28,7 @@ const en: Record<MessageKey, string> = {
   'home.tagline': 'A Git-based headless CMS with decentralized content storage',
   'home.hero': 'Share synth-engine projects, freely',
   'home.intro':
-    'Sector Vault stores every submission in the author’s own Git repository while the main site keeps only a lightweight index. Deploy on GitHub, Gitee or AtomGit, with clear licensing and no lock-in.',
+    'Sector Vault Project stores every submission in the author’s own Git repository while the main site keeps only a lightweight index. Deploy on GitHub, Gitee or AtomGit, with clear licensing and no lock-in.',
   'home.latest': 'Latest submissions',
   'home.viewAll': 'View all',
   'home.submissionCount': 'Indexed submissions',
@@ -93,14 +93,28 @@ const en: Record<MessageKey, string> = {
   'discussions.description':
     'The discussion board is powered by the Discussions of the main-site repository.',
   'discussions.open': 'Open discussions',
+  'discussions.none': 'No discussions yet',
+  'discussions.loadError': 'Failed to load discussions',
+  'discussions.viewOriginal': 'View on platform',
+  'discussions.reply': 'Reply',
+  'discussions.replyPlaceholder': 'Write a reply… (Markdown)',
+  'discussions.replySubmit': 'Post reply',
+  'discussions.replySuccess': 'Reply posted',
+  'discussions.replyFailed': 'Failed to reply, please check your sign-in status',
+  'discussions.replyLoginHint': 'Sign in with an account on the same hosting platform to reply',
+  'discussions.back': 'Back to discussions',
+  'discussions.commentsTitle': 'Replies',
 
   'faq.title': 'FAQ',
   'faq.description': 'The following content is served from the main-site repository wiki.',
+  'faq.viewSource': 'View wiki source',
+  'faq.loadError': 'Failed to load wiki content',
+  'faq.empty': 'This page has no content yet',
 
   'about.title': 'About',
   'about.arch': 'Architecture',
   'about.archText':
-    'Sector Vault is a decentralized project-sharing site: full content and media live in the author’s own content repository, while the main site maintains only a lightweight, monthly-archived index. User spaces can be deployed standalone, and the index repository accepts submissions via PR.',
+    'Sector Vault Project is a decentralized project-sharing site: full content and media live in the author’s own content repository, while the main site maintains only a lightweight, monthly-archived index. User spaces can be deployed standalone, and the index repository accepts submissions via PR.',
   'about.advantages': 'Advantages',
   'about.advantage1': 'Content lives in your own Git repository — zero-cost migration',
   'about.advantage2': 'Index and site share one repository on separate branches, fully open',

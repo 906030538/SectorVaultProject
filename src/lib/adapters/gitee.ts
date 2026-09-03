@@ -10,6 +10,8 @@ import {
 import { client } from '@hey-api/client-axios';
 import type {
   AuthInfo,
+  DiscussionComment,
+  DiscussionInfo,
   FileInfo,
   IssueInfo,
   ReleaseInfo,
@@ -179,6 +181,23 @@ export class GiteeAdapter implements GitPlatformAdapter {
   discussionsUrl(owner: string, repo: string): string {
     // Gitee 无 Discussions 功能，以仓库页代替
     return `https://gitee.com/${owner}/${repo}`;
+  }
+
+  // Gitee 无 Discussions 功能
+  async listDiscussions(): Promise<DiscussionInfo[]> {
+    return [];
+  }
+
+  async getDiscussion(): Promise<DiscussionInfo> {
+    throw new Error('Gitee does not support discussions');
+  }
+
+  async listDiscussionComments(): Promise<DiscussionComment[]> {
+    return [];
+  }
+
+  async createDiscussionComment(): Promise<void> {
+    throw new Error('Gitee does not support discussions');
   }
 
   wikiUrl(owner: string, repo: string): string {

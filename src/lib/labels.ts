@@ -4,6 +4,7 @@ import type { AuthLabels } from '@/lib/auth-dialog';
 import type { CardLabels } from '@/lib/ui';
 import type { CollectionLabels } from '@/lib/views/collection';
 import type { DetailLabels } from '@/lib/views/detail';
+import type { DiscussionsLabels } from '@/lib/views/discussions';
 import type { EditorLabels } from '@/lib/views/editor';
 import type { UserLabels } from '@/lib/views/user';
 
@@ -56,6 +57,27 @@ export function buildDetailLabels(locale: Locale): DetailLabels {
     loadError: t(locale, 'detail.loadError'),
     license: t(locale, 'label.license'),
     stars: t(locale, 'label.stars'),
+  };
+}
+
+/** 讨论页文案 */
+export function buildDiscussionsLabels(locale: Locale): DiscussionsLabels {
+  return {
+    title: t(locale, 'discussions.title'),
+    description: t(locale, 'discussions.description'),
+    open: t(locale, 'discussions.open'),
+    none: t(locale, 'discussions.none'),
+    loadError: t(locale, 'discussions.loadError'),
+    comments: t(locale, 'common.comments'),
+    viewOriginal: t(locale, 'discussions.viewOriginal'),
+    reply: t(locale, 'discussions.reply'),
+    replyPlaceholder: t(locale, 'discussions.replyPlaceholder'),
+    replySubmit: t(locale, 'discussions.replySubmit'),
+    replyPosting: t(locale, 'editor.publishing'),
+    replySuccess: t(locale, 'discussions.replySuccess'),
+    replyFailed: t(locale, 'discussions.replyFailed'),
+    replyLoginHint: t(locale, 'discussions.replyLoginHint'),
+    back: t(locale, 'discussions.back'),
   };
 }
 

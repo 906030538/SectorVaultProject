@@ -17,7 +17,7 @@
     },
     "owner": { "type": "string", "minLength": 1 },
     "repo": { "type": "string", "minLength": 1 },
-    "slug": { "type": "string", "pattern": "^[0-9a-zA-Z_-]+$" },
+    "slug": { "type": "string", "pattern": "^[0-9A-Za-z_\\-\\u3041-\\u30FF\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\uAC00-\\uD7A3\\u3130-\\u318F]+$" },
     "title": { "type": "string", "minLength": 1 },
     "cover": { "type": ["string", "null"] },
     "submittedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T[\\d:.]+(Z|[+-]\\d{2}:?\\d{2})$" },

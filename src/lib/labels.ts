@@ -170,6 +170,7 @@ export function buildEditorLabels(locale: Locale): EditorLabels {
     submittedAt: t(locale, 'editor.submittedAt'),
     publishedAt: t(locale, 'editor.publishedAt'),
     attachmentChoose: t(locale, 'editor.attachmentChoose'),
+    attachmentsGithubHint: t(locale, 'editor.attachmentsGithubHint'),
     existing: t(locale, 'editor.existing'),
     license: t(locale, 'label.license'),
     authRequired: t(locale, 'editor.authRequired'),

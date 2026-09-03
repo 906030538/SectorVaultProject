@@ -177,6 +177,7 @@ const en: Record<MessageKey, string> = {
   'editor.commentSection': 'Comment section',
   'editor.submittedAt': 'Submitted at (optional, defaults to publish time)',
   'editor.publishedAt': 'Published at (optional, defaults to publish time)',
+  'editor.attachmentsGithubHint': 'Due to platform limitations, attachments can only be uploaded on the GitHub page after publishing',
   'editor.attachmentChoose': 'Choose attachments',
   'editor.existing': 'Existing file',
   'editor.authRequired': 'Sign in to submit or edit',

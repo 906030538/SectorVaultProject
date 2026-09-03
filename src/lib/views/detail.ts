@@ -144,16 +144,17 @@ function mockFileBytes(file: ProjectFile): Uint8Array {
 async function downloadProjectFile(
   init: DetailInit,
   platform: Platform,
+  baseDir: string,
   file: ProjectFile,
   password?: string,
 ): Promise<void> {
-  const { user, repo, slug } = init;
+  const { user, repo } = init;
   const mock = await isMockAvailable();
   let bytes: Uint8Array;
   if (mock) {
     bytes = mockFileBytes(file);
   } else {
-    const url = (await getAdapterAsync(platform)).rawUrl(user, repo, `${slug}/${file.name}`);
+    const url = (await getAdapterAsync(platform)).rawUrl(user, repo, `${baseDir}/${file.name}`);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     bytes = new Uint8Array(await response.arrayBuffer());
@@ -187,6 +188,7 @@ async function downloadProjectFile(
 function renderFiles(
   init: DetailInit,
   platform: Platform,
+  baseDir: string,
   files: ProjectFile[],
   els: DetailElements,
 ): void {
@@ -238,7 +240,7 @@ function renderFiles(
       status.textContent = '…';
       const password = li.querySelector<HTMLInputElement>('[data-role="file-password"]')?.value;
       try {
-        await downloadProjectFile(init, platform, file, password);
+        await downloadProjectFile(init, platform, baseDir, file, password);
         status.textContent = '✓';
       } catch (error) {
         status.textContent = error instanceof Error ? error.message : labels.loadError;
@@ -376,7 +378,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   // 作者卡 + 许可证（稿件级优先，缺省仓库级）
   renderAuthor(entry, repoInfo, content, labels, els);
 
-  renderFiles(init, platform, content.parsed.files, els);
+  renderFiles(init, platform, content.baseDir, content.parsed.files, els);
 
   const release = releases.find((r) => r.tag === slug) ?? null;
   renderRelease(release, labels, els);

@@ -6,6 +6,9 @@ export const SITE_NAME = 'SVP - Sector Vault Project';
 /** 内容仓固定前缀，可通过部署配置覆盖 */
 export const CONTENT_REPO_PREFIX = 'svp-';
 
+/** 内容仓数据目录：投稿目录为 posts/[slug]（DESIGN.md 内容仓结构） */
+export const POSTS_DIR = 'posts';
+
 /** 默认分页条数 */
 export const PAGE_SIZE = 10;
 

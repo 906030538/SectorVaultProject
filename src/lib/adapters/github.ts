@@ -15,9 +15,9 @@ function client(token?: string): Octokit {
   return token ? new Octokit({ auth: token }) : new Octokit();
 }
 
-/** Blob → base64（分块编码避免大文件栈溢出） */
-async function blobToBase64(file: Blob): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
+/** UTF-8 文本 → base64（分块编码避免长内容栈溢出） */
+function utf8ToBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
   let binary = '';
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) {
@@ -328,7 +328,15 @@ export class GitHubAdapter implements GitPlatformAdapter {
     tag: string,
     body: string,
   ): Promise<number> {
-    const { data } = await client(token).rest.repos.createRelease({
+    const octokit = client(token);
+    // 按 tag 幂等：重试时复用已创建的 release，避免重复
+    try {
+      const { data: existing } = await octokit.rest.repos.getReleaseByTag({ owner: user, repo, tag });
+      return existing.id;
+    } catch {
+      /* 不存在时创建 */
+    }
+    const { data } = await octokit.rest.repos.createRelease({
       owner: user,
       repo,
       tag_name: tag,
@@ -346,55 +354,37 @@ export class GitHubAdapter implements GitPlatformAdapter {
     file: Blob,
     name: string,
   ): Promise<void> {
-    // uploads.github.com 不支持浏览器跨域（CORS 预检 400），
-    // 附件改经 api.github.com 的 contents API 提交到内容仓 attachments/{tag}/
     const octokit = client(token);
     const { data: release } = await octokit.rest.repos.getRelease({
       owner: user,
       repo,
       release_id: releaseId,
     });
-    const path = `attachments/${release.tag_name}/${name}`;
-    await octokit.rest.repos.createOrUpdateFileContents({
-      owner: user,
-      repo,
-      path,
-      message: `Upload attachment ${name}`,
-      content: await blobToBase64(file),
+    const uploadUrl = release.upload_url.replace(/\{.*\}$/, '');
+    const response = await fetch(`${uploadUrl}?name=${encodeURIComponent(name)}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/octet-stream',
+      },
+      body: file,
     });
+    if (!response.ok) {
+      throw new Error(`Upload release asset failed: ${response.status}`);
+    }
   }
 
   async deleteReleaseAsset(
     token: string,
     user: string,
     repo: string,
-    releaseId: number,
+    _releaseId: number,
     assetId: number,
   ): Promise<void> {
-    // 附件存于仓库（不在 release 下）：按 release 附件表反查文件名后删除仓库文件
-    const octokit = client(token);
-    const { data: release } = await octokit.rest.repos.getRelease({
+    await client(token).rest.repos.deleteReleaseAsset({
       owner: user,
       repo,
-      release_id: releaseId,
-    });
-    const asset = release.assets.find((a) => a.id === assetId);
-    if (!asset?.name) return;
-    const path = `attachments/${release.tag_name}/${asset.name}`;
-    let sha: string;
-    try {
-      const { data: content } = await octokit.rest.repos.getContent({ owner: user, repo, path });
-      sha = (content as { sha?: string }).sha ?? '';
-    } catch {
-      return; // 仓库中已不存在
-    }
-    if (!sha) return;
-    await octokit.rest.repos.deleteFile({
-      owner: user,
-      repo,
-      path,
-      message: `Delete attachment ${asset.name}`,
-      sha,
+      asset_id: assetId,
     });
   }
 
@@ -413,12 +403,86 @@ export class GitHubAdapter implements GitPlatformAdapter {
     });
   }
 
-  async openIndexPr(token: string, title: string, changes: FileChange[]): Promise<string> {
-    // TODO: 完整实现为跨仓库轻量 PR（fork 索引仓 → 更新索引行 → 发起 PR）。
-    // 框架阶段先直连索引分支提交（要求 token 对索引仓有写权限）。
-    void token;
-    void title;
-    void changes;
-    throw new Error('openIndexPr: fork-based index PR flow not implemented yet');
+  async openIndexPr(
+    token: string,
+    target: { owner: string; repo: string; branch: string },
+    title: string,
+    changes: FileChange[],
+  ): Promise<string> {
+    const octokit = client(token);
+    const { data: viewer } = await octokit.rest.users.getAuthenticated();
+    const login = viewer.login;
+    const { owner, repo, branch } = target;
+
+    // 基准提交取自上游索引分支
+    const { data: baseRef } = await octokit.rest.git.getRef({
+      owner,
+      repo,
+      ref: `heads/${branch}`,
+    });
+    const baseSha = baseRef.object.sha;
+
+    // 分支宿主：索引仓所有者直接在上游开分支，其他用户先 fork（重复 fork 返回既有 fork）
+    const sameOwner = login.toLowerCase() === owner.toLowerCase();
+    let headOwner = owner;
+    if (!sameOwner) {
+      await octokit.rest.repos.createFork({ owner, repo });
+      headOwner = login;
+    }
+
+    // 工作分支（fork 异步就绪时重试创建）
+    const prBranch = `svp-index-${Date.now().toString(36)}`;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await octokit.rest.git.createRef({
+          owner: headOwner,
+          repo,
+          ref: `refs/heads/${prBranch}`,
+          sha: baseSha,
+        });
+        break;
+      } catch (error) {
+        const missingRepo = /404|Not Found/i.test(String(error));
+        if (attempt >= 5 || !missingRepo) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+      }
+    }
+
+    // 逐文件提交到工作分支（contents API 要求 base64）
+    for (const change of changes) {
+      let sha: string | undefined;
+      try {
+        const { data } = await octokit.rest.repos.getContent({
+          owner: headOwner,
+          repo,
+          path: change.path,
+          ref: prBranch,
+        });
+        sha = (data as { sha?: string }).sha;
+      } catch {
+        /* 新文件无需 sha */
+      }
+      const content = change.encoding === 'base64' ? change.content : utf8ToBase64(change.content);
+      await octokit.rest.repos.createOrUpdateFileContents({
+        owner: headOwner,
+        repo,
+        path: change.path,
+        branch: prBranch,
+        message: title,
+        content,
+        ...(sha ? { sha } : {}),
+      });
+    }
+
+    // PR：fork 的 head 需 "login:branch"，同仓直用分支名
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner,
+      repo,
+      title,
+      head: sameOwner ? prBranch : `${login}:${prBranch}`,
+      base: branch,
+      body: '*Powered by Sector Vault Project*',
+    });
+    return pr.html_url;
   }
 }

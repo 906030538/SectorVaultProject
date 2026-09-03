@@ -177,6 +177,7 @@ const ja: Record<MessageKey, string> = {
   'editor.commentSection': 'コメント欄',
   'editor.submittedAt': '投稿日時（任意、既定は公開時刻）',
   'editor.publishedAt': '公開日時（任意、既定は公開時刻）',
+  'editor.attachmentsGithubHint': 'プラットフォームの制限により、添付ファイルは公開後に GitHub ページでアップロードしてください',
   'editor.attachmentChoose': '添付ファイルを選択',
   'editor.existing': '既存ファイル',
   'editor.authRequired': '投稿・編集にはログインが必要です',

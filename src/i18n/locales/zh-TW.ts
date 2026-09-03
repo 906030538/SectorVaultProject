@@ -176,6 +176,7 @@ const zhTW: Record<MessageKey, string> = {
   'editor.commentSection': '關聯留言區',
   'editor.submittedAt': '投稿時間（可選，預設發布時刻）',
   'editor.publishedAt': '發布時間（可選，預設發布時刻）',
+  'editor.attachmentsGithubHint': '由於平台限制，只能在發布後跳轉 GitHub 頁面上傳附件',
   'editor.attachmentChoose': '選擇附件',
   'editor.existing': '現有檔案',
   'editor.authRequired': '需登入後才能投稿或編輯',

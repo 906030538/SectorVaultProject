@@ -315,7 +315,13 @@ export class GiteeAdapter implements GitPlatformAdapter {
     void owner;
   }
 
-  async openIndexPr(token: string, title: string, changes: FileChange[]): Promise<string> {
+  async openIndexPr(
+    token: string,
+    target: { owner: string; repo: string; branch: string },
+    title: string,
+    changes: FileChange[],
+  ): Promise<string> {
+    void target;
     void token;
     void title;
     void changes;

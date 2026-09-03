@@ -1,8 +1,9 @@
-import { INDEX_PATHS, MOCK_PIPELINE_STEP_DELAY } from '@/config';
+import { INDEX_PATHS, MOCK_PIPELINE_STEP_DELAY, POSTS_DIR } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import type { FileChange, GitPlatformAdapter } from '@/lib/adapters/types';
 import { generateReadme, type ProjectFile } from '@/lib/content';
 import { loadMockIndex, loadPrimaryArchive, loadPrimaryIndex } from '@/lib/index/loader';
+import { getIndexSources } from '@/lib/index/sources';
 import { DEFAULT_LOCALE, t } from '@/i18n';
 import type { MessageKey } from '@/i18n';
 import type {
@@ -91,11 +92,22 @@ export function buildReadmeText(
   draft: SubmissionDraft,
   issue: number | string,
   coverName?: string,
+  dates?: { submittedAt?: string; publishedAt?: string },
+  releaseId?: number | string,
 ): string {
   return generateReadme({
     issue,
+    release: releaseId,
+    title: draft.title,
+    type: draft.type,
+    submittedAt: dates?.submittedAt,
+    publishedAt: dates?.publishedAt,
     cover: coverName || undefined,
     license: draft.license || undefined,
+    songs: draft.tracks.filter(Boolean),
+    engines: draft.engines.filter(Boolean),
+    voicebanks: draft.voicebanks.filter(Boolean),
+    languages: draft.songLanguages.filter(Boolean),
     videos: draft.videos.filter(Boolean),
     tags: draft.tags,
     body: draft.body,
@@ -184,12 +196,46 @@ export async function buildIndexChange(entry: SubmissionEntry, mock: boolean): P
   };
 }
 
+/**
+ * 许可证文件：稿件许可证与内容仓不同时，向 slug 目录写入 LICENSE
+ * （正文优先取 SPDX 许可证全文，取不到时回退为 SPDX 标识声明）。
+ */
+export async function licenseFileChange(
+  adapter: GitPlatformAdapter,
+  user: string,
+  repo: string,
+  slug: string,
+  license: string | undefined,
+): Promise<FileChange | null> {
+  if (!license) return null;
+  let repoLicense: string | undefined;
+  try {
+    repoLicense = (await adapter.getRepo(user, repo)).license;
+  } catch {
+    repoLicense = undefined; // 仓库信息不可用时按不同处理
+  }
+  if (repoLicense && repoLicense === license) return null;
+
+  let text: string | null = null;
+  try {
+    const response = await fetch(`https://api.github.com/licenses/${license.toLowerCase()}`);
+    if (response.ok) text = ((await response.json()) as { body?: string }).body ?? null;
+  } catch {
+    /* 文本不可用时回退声明式内容 */
+  }
+  const content =
+    text ??
+    `${license}\n\nSPDX-License-Identifier: ${license}\n\n*Powered by Sector Vault Project*\n`;
+  return { path: `${POSTS_DIR}/${slug}/LICENSE`, content, encoding: 'utf-8' };
+}
+
 /** 由表单构造索引条目；编辑时 submittedAt/publishedAt 沿用原值 */
 export function buildIndexEntry(
   draft: SubmissionDraft,
   date: string,
   cover?: string,
   publishedAt?: string,
+  ids?: { issue?: number; release?: number },
 ): SubmissionEntry {
   const base: SubmissionEntry = {
     slug: draft.slug,
@@ -202,6 +248,8 @@ export function buildIndexEntry(
     publishedAt: publishedAt ?? date,
   };
   if (cover) base.cover = cover;
+  if (ids?.issue) base.issue = ids.issue;
+  if (ids?.release) base.release = ids.release;
   if (draft.type === 'project') {
     base.paramState = draft.params;
     base.songs = draft.tracks.filter(Boolean);
@@ -242,13 +290,21 @@ async function tryIndexPr(
     const change = await buildIndexChange(entry, mock);
     if (!mock) {
       if (!token) throw new Error('missing token');
-      await (await getAdapterAsync(entry.platform)).openIndexPr(token, `index: +${entry.owner}/${entry.repo}/${entry.slug}`, [change]);
+      // PR 目标为主索引源（与 buildIndexChange 的归档基准同源）
+      const source = (await getIndexSources())[0]!;
+      const prUrl = await (await getAdapterAsync(entry.platform)).openIndexPr(
+        token,
+        { owner: source.owner, repo: source.repo, branch: source.branch },
+        `index: +${entry.owner}/${entry.repo}/${entry.slug}`,
+        [change],
+      );
+      onStep('index', 'done', prUrl);
     } else {
       await sleep(MOCK_PIPELINE_STEP_DELAY);
+      onStep('index', 'done');
     }
-    onStep('index', 'done');
   } catch (error) {
-    // openIndexPr 尚未实现（各平台适配器均为桩）：降级为跳过，不阻断发布
+    // 平台不支持或提交失败时降级为警告，不阻断发布
     onStep('index', 'warning', error instanceof Error ? error.message : String(error));
   }
 }
@@ -305,7 +361,7 @@ export async function upsertRepoReadmeLink(
   } catch {
     /* README 缺失时从基础结构开始 */
   }
-  const href = `(${slug}/)`;
+  const href = `(${POSTS_DIR}/${slug}/)`;
   if (!readme.includes(href)) {
     readme = `${readme.trimEnd()}\n\n- [${slug}]${href}\n`;
   }
@@ -418,28 +474,35 @@ export async function publishSubmission(
     });
   }
 
+  // 稿件条目（含投稿/发布时间与 issue/release id）：本地索引与索引 PR 共用；
+  // 断点续传时复用首次结果，重试时 ids 取最新进度补全
+  const entry = progress.entry ?? buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now);
+  progress.entry = entry;
+
   await resumeStep('files', progress.filesDone === true, async () => {
     if (!mock) await ensureRepoInitialized(token, user, repo, adapter);
-    // 稿件条目：本地索引与索引 PR 共用；断点续传时复用首次结果
-    const entry =
-      progress.entry ??
-      buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now);
-    progress.entry = entry;
     // 内联媒体（封面 + 工程文件）、README 与本地索引（目录链接 + svp-archive.json）合并为一个提交
     const changes: FileChange[] = [];
     if (draft.cover) {
-      changes.push(await fileChange(`${slug}/${draft.cover.name}`, draft.cover, 'raw'));
+      changes.push(await fileChange(`${POSTS_DIR}/${slug}/${draft.cover.name}`, draft.cover, 'raw'));
     }
     for (const f of draft.files) {
       if (!f.file) continue;
-      changes.push(await fileChange(`${slug}/${f.name}`, f.file, f.scheme, f.password));
+      changes.push(await fileChange(`${POSTS_DIR}/${slug}/${f.name}`, f.file, f.scheme, f.password));
     }
     changes.push({
-      path: `${slug}/README.md`,
-      content: buildReadmeText(draft, issue, draft.cover?.name),
+      path: `${POSTS_DIR}/${slug}/README.md`,
+      // release 尚未创建，头部 release 属性在 release 步补写
+      content: buildReadmeText(draft, issue, draft.cover?.name, {
+        submittedAt: entry.submittedAt,
+        publishedAt: entry.publishedAt,
+      }),
       encoding: 'utf-8',
     });
     if (!mock) {
+      // 许可证与内容仓不同时，向 slug 目录写入 LICENSE 文件
+      const licenseChange = await licenseFileChange(await adapter(), user, repo, slug, draft.license);
+      if (licenseChange) changes.push(licenseChange);
       changes.push(await upsertRepoReadmeLink(await adapter(), user, repo, slug));
       changes.push(await upsertLocalArchive(await adapter(), user, repo, slug, entry));
       await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes);
@@ -453,6 +516,7 @@ export async function publishSubmission(
       return;
     }
     const site = await findUserSite(user, mock);
+    // createRelease 按 tag 幂等（已存在则复用），重试不会重复建 release
     releaseId = await (await adapter()).createRelease(
       token!,
       user,
@@ -460,6 +524,20 @@ export async function publishSubmission(
       slug,
       buildReleaseBody(user, repo, slug, site, draft.summary),
     );
+    // 补写 README 头部的 release id（小提交，随 release 步一起重试）
+    await (await adapter()).commitFiles(token!, user, repo, `Add ${slug} release`, [
+      {
+        path: `${POSTS_DIR}/${slug}/README.md`,
+        content: buildReadmeText(
+          draft,
+          issue,
+          draft.cover?.name,
+          { submittedAt: entry.submittedAt, publishedAt: entry.publishedAt },
+          releaseId,
+        ),
+        encoding: 'utf-8',
+      },
+    ]);
     progress.releaseId = releaseId;
   });
 
@@ -486,11 +564,13 @@ export async function publishSubmission(
   } else if (progress.indexDone) {
     onStep('index', 'done');
   } else {
-    // 复用本地索引已写入的条目，保证重试时时间戳一致
-    const entry =
-      progress.entry ??
-      buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now);
-    await tryIndexPr(token, mock, entry, onStep);
+    // 复用本地索引已写入的条目，保证重试时时间戳一致；ids 取当前进度补全
+    const entryForIndex = {
+      ...entry,
+      issue: progress.issue ?? undefined,
+      release: progress.releaseId ?? undefined,
+    };
+    await tryIndexPr(token, mock, entryForIndex, onStep);
     progress.indexDone = true;
   }
 
@@ -521,9 +601,9 @@ export async function updateSubmission(
   await runStep('cover', mock, onStep, async () => {
     if (!coverChanged) return;
     const changes: FileChange[] = [];
-    if (ctx.oldCover) changes.push({ path: `${slug}/${ctx.oldCover}`, content: '', delete: true });
+    if (ctx.oldCover) changes.push({ path: `${POSTS_DIR}/${slug}/${ctx.oldCover}`, content: '', delete: true });
     if (draft.cover) {
-      changes.push(await fileChange(`${slug}/${draft.cover.name}`, draft.cover, 'raw'));
+      changes.push(await fileChange(`${POSTS_DIR}/${slug}/${draft.cover.name}`, draft.cover, 'raw'));
     }
     if (changes.length && !mock) {
       await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} cover`, changes);
@@ -535,20 +615,26 @@ export async function updateSubmission(
   await runStep('files', mock, onStep, async () => {
     if (!removedFiles.length && !newFiles.length) return;
     const changes: FileChange[] = removedFiles.map((of) => ({
-      path: `${slug}/${of.name}`,
+      path: `${POSTS_DIR}/${slug}/${of.name}`,
       content: '',
       delete: true,
     }));
     for (const f of newFiles) {
-      changes.push(await fileChange(`${slug}/${f.name}`, f.file!, f.scheme, f.password));
+      changes.push(await fileChange(`${POSTS_DIR}/${slug}/${f.name}`, f.file!, f.scheme, f.password));
     }
     if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} files`, changes);
   });
 
-  const readme = buildReadmeText(draft, ctx.issue, currentCover); await runStep('readme', mock, onStep, async () => {
+  // 发布时间编辑器可改（未改动时沿用原值）；投稿时间不变更
+  const nextPublishedAt = draft.publishedAt ?? ctx.entry.publishedAt ?? ctx.entry.submittedAt;
+  const readme = buildReadmeText(draft, ctx.issue, currentCover, {
+    submittedAt: ctx.entry.submittedAt,
+    publishedAt: nextPublishedAt,
+  });
+  await runStep('readme', mock, onStep, async () => {
     if (!mock) {
       await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} README`, [
-        { path: `${slug}/README.md`, content: readme, encoding: 'utf-8' },
+        { path: `${POSTS_DIR}/${slug}/README.md`, content: readme, encoding: 'utf-8' },
       ]);
     }
   });
@@ -574,8 +660,6 @@ export async function updateSubmission(
   }
 
   const entry = ctx.entry;
-  // 发布时间编辑器可改（未改动时沿用原值）；投稿时间不变更
-  const nextPublishedAt = draft.publishedAt ?? entry.publishedAt ?? entry.submittedAt;
   const publishedAtChanged =
     draft.publishedAt !== undefined &&
     new Date(draft.publishedAt).getTime() !== new Date(entry.publishedAt ?? entry.submittedAt).getTime();
@@ -590,7 +674,10 @@ export async function updateSubmission(
     !sameList(draft.songLanguages, entry.languages);
 
   if (indexChanged) {
-    const updatedEntry = buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt);
+    const updatedEntry = buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt, {
+      issue: Number(ctx.issue) || undefined,
+      release: ctx.releaseId ?? undefined,
+    });
     // 投稿时间不变更；同步更新内容仓本地索引（失败不阻断索引 PR）
     if (!mock) {
       try {

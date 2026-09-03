@@ -1,4 +1,4 @@
-import { MOCK_CONTENT_URL, POWERED_BY } from '@/config';
+import { MOCK_CONTENT_URL, POSTS_DIR, POWERED_BY } from '@/config';
 import type { IssueInfo, Platform, ReleaseInfo, RepoInfo, SubmissionEntry } from '@/types';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { fetchEngagementForEntries } from '@/lib/index/stats';
@@ -27,6 +27,8 @@ export interface MediaItem {
 export interface SubmissionContent {
   parsed: ParsedReadme;
   media: MediaItem[];
+  /** 投稿实际所在目录（posts/[slug] 或兼容的 [slug]） */
+  baseDir: string;
 }
 
 interface MockRepo {
@@ -118,8 +120,24 @@ export function parseReadme(raw: string): ParsedReadme {
 /** generateReadme 的输入；空值属性整行省略 */
 export interface ReadmeInput {
   issue: number | string;
+  title?: string;
+  type?: string;
+  /** 投稿时间（ISO） */
+  submittedAt?: string;
+  /** 发布时间（ISO） */
+  publishedAt?: string;
   cover?: string;
   license?: string;
+  /** 关联 release id */
+  release?: number | string;
+  /** 关联曲目（多值，逗号连接） */
+  songs?: string[];
+  /** 合成引擎（多值） */
+  engines?: string[];
+  /** 使用声库（多值） */
+  voicebanks?: string[];
+  /** 歌曲语言（多值） */
+  languages?: string[];
   /** 视频站链接，逗号连接写入 videos 属性 */
   videos?: string[];
   /** 标签，逗号连接写入 tags 属性（索引 schema 不含标签，随稿件内容存储） */
@@ -128,11 +146,20 @@ export interface ReadmeInput {
   files: ProjectFile[];
 }
 
-/** 生成编辑器格式的 README（与 parseReadme 严格互逆） */
+/** 生成编辑器格式的 README（与 parseReadme 严格互逆）：头部携带全部稿件参数 */
 export function generateReadme(input: ReadmeInput): string {
   const header = [`*${POWERED_BY}*`, `issue: ${input.issue}`];
+  if (input.release !== undefined && input.release !== '') header.push(`release: ${input.release}`);
+  if (input.title) header.push(`title: ${input.title}`);
+  if (input.type) header.push(`type: ${input.type}`);
+  if (input.submittedAt) header.push(`submittedAt: ${input.submittedAt}`);
+  if (input.publishedAt) header.push(`publishedAt: ${input.publishedAt}`);
   if (input.cover) header.push(`cover: ${input.cover}`);
   if (input.license) header.push(`license: ${input.license}`);
+  if (input.songs?.length) header.push(`songs: ${input.songs.join(', ')}`);
+  if (input.engines?.length) header.push(`engines: ${input.engines.join(', ')}`);
+  if (input.voicebanks?.length) header.push(`voicebanks: ${input.voicebanks.join(', ')}`);
+  if (input.languages?.length) header.push(`languages: ${input.languages.join(', ')}`);
   if (input.videos?.length) header.push(`videos: ${input.videos.join(', ')}`);
   if (input.tags?.length) header.push(`tags: ${input.tags.join(', ')}`);
 
@@ -206,22 +233,56 @@ export async function loadAbout(
   }
 }
 
-async function loadReadme(platform: Platform, user: string, repo: string, slug: string): Promise<string> {
+/**
+ * 解析投稿基础目录：优先 posts/[slug]（DESIGN 内容仓结构），
+ * 兼容早期直接位于根下的 [slug] 目录。
+ */
+async function resolveBaseDir(
+  platform: Platform,
+  user: string,
+  repo: string,
+  slug: string,
+): Promise<string> {
+  const adapter = await getAdapterAsync(platform);
+  for (const base of [`${POSTS_DIR}/${slug}`, slug]) {
+    try {
+      await adapter.readFile(user, repo, `${base}/README.md`);
+      return base;
+    } catch {
+      /* 尝试下一个候选目录 */
+    }
+  }
+  throw new Error(`README not found: ${user}/${repo}/${slug}`);
+}
+
+async function loadReadme(
+  platform: Platform,
+  user: string,
+  repo: string,
+  slug: string,
+  baseDir: string,
+): Promise<string> {
   const mock = await getMock();
   if (mock) {
     const raw = mock.readmes[slugKey(user, repo, slug)];
     if (!raw) throw new Error(`README not found: ${slugKey(user, repo, slug)}`);
     return raw;
   }
-  return (await getAdapterAsync(platform)).readFile(user, repo, `${slug}/README.md`);
+  return (await getAdapterAsync(platform)).readFile(user, repo, `${baseDir}/README.md`);
 }
 
-async function loadSlugDir(platform: Platform, user: string, repo: string, slug: string): Promise<string[]> {
+async function loadSlugDir(
+  platform: Platform,
+  user: string,
+  repo: string,
+  slug: string,
+  baseDir: string,
+): Promise<string[]> {
   const mock = await getMock();
   if (mock) {
     return mock.dirs[slugKey(user, repo, slug)] ?? [];
   }
-  const entries = await (await getAdapterAsync(platform)).listDir(user, repo, slug);
+  const entries = await (await getAdapterAsync(platform)).listDir(user, repo, baseDir);
   return entries.filter((e) => e.type === 'file').map((e) => e.name);
 }
 
@@ -233,9 +294,10 @@ export async function loadSubmissionContent(
   slug: string,
 ): Promise<SubmissionContent> {
   const mock = await getMock();
+  const baseDir = mock ? slug : await resolveBaseDir(platform, user, repo, slug);
   const [raw, dir] = await Promise.all([
-    loadReadme(platform, user, repo, slug),
-    loadSlugDir(platform, user, repo, slug),
+    loadReadme(platform, user, repo, slug, baseDir),
+    loadSlugDir(platform, user, repo, slug, baseDir).catch(() => [] as string[]),
   ]);
   const parsed = parseReadme(raw);
   const projectNames = new Set(parsed.files.map((f) => f.name));
@@ -248,10 +310,10 @@ export async function loadSubmissionContent(
     });
   if (!mock) {
     const adapter = await getAdapterAsync(platform);
-    for (const item of media) item.url = adapter.rawUrl(user, repo, `${slug}/${item.name}`);
+    for (const item of media) item.url = adapter.rawUrl(user, repo, `${baseDir}/${item.name}`);
   }
 
-  return { parsed, media };
+  return { parsed, media, baseDir };
 }
 
 export async function loadReleases(

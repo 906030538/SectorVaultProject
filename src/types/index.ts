@@ -49,6 +49,10 @@ export interface SubmissionEntry {
   publishedAt?: string;
   /** 有无参数 */
   paramState?: ParamStatus;
+  /** 关联评论区 issue 编号（未创建时缺省） */
+  issue?: number;
+  /** 关联 release id（未创建时缺省） */
+  release?: number;
   /** 关联曲目（多值） */
   songs?: string[];
   /** 合成引擎（多值） */

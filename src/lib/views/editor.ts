@@ -56,6 +56,7 @@ export interface EditorLabels {
   schemeEncrypt: string;
   attachments: string;
   attachmentChoose: string;
+  attachmentsGithubHint: string;
   summary: string;
   commentSection: string;
   submittedAt: string;
@@ -676,7 +677,18 @@ function makeOnStep(progress: HTMLElement, labels: EditorLabels): { onStep: OnSt
     if (dot) dot.className = `inline-block h-2 w-2 rounded-full ${DOT_COLOR[stateName] ?? DOT_COLOR.pending}`;
     const detailEl = row.children[2];
     if (detailEl) {
-      detailEl.textContent = stateName === 'warning' ? `${labels.stepSkipped}${detail ? `：${detail}` : ''}` : detail ?? '';
+      // done 且 detail 为链接（如索引 PR 地址）时渲染为可点击链接
+      if (stateName === 'done' && detail && /^https?:\/\//.test(detail)) {
+        detailEl.textContent = '';
+        const link = el('a', 'ml-1 break-all text-emerald-600 hover:underline dark:text-emerald-400', detail);
+        link.href = detail;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        detailEl.appendChild(link);
+      } else {
+        detailEl.textContent =
+          stateName === 'warning' ? `${labels.stepSkipped}${detail ? `：${detail}` : ''}` : detail ?? '';
+      }
     }
   };
   const onStep: OnStep = (id, stateName, detail) => update(id, stateName, detail);
@@ -991,6 +1003,7 @@ export async function initEditor(
       state.platform = match.platform;
       config.user = match.user;
       config.repo = match.repo;
+      syncAttachmentVisibility();
     }
   };
   repoSelect.addEventListener('change', applyRepoSelection);
@@ -1175,6 +1188,20 @@ export async function initEditor(
     () => oldAssets,
   );
   form.appendChild(attachmentControl);
+  // GitHub 上传域不支持浏览器跨域：新建模式隐藏附件控件，以文本提示代替
+  const attachmentHint = el(
+    'p',
+    'hidden rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+    labels.attachmentsGithubHint,
+  );
+  attachmentHint.dataset.role = 'attachments-hint';
+  form.insertBefore(attachmentHint, attachmentControl);
+  const syncAttachmentVisibility = (): void => {
+    const hide = !isEdit && state.platform === 'github';
+    attachmentControl.hidden = hide;
+    attachmentHint.hidden = !hide;
+  };
+  syncAttachmentVisibility();
 
   // ---- 校验与提交 ----
   const validation = el('ul', 'hidden flex-col gap-1 text-sm text-rose-600');

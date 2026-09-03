@@ -127,6 +127,11 @@ export interface GitPlatformAdapter {
     license?: string,
   ): Promise<void>;
 
-  /** 向索引仓提交轻量 PR（仅包含索引更新行） */
-  openIndexPr(token: string, title: string, changes: FileChange[]): Promise<string>;
+  /** 向索引仓提交单文件 PR（fork → 分支 → 提交 → PR），返回 PR 地址 */
+  openIndexPr(
+    token: string,
+    target: { owner: string; repo: string; branch: string },
+    title: string,
+    changes: FileChange[],
+  ): Promise<string>;
 }

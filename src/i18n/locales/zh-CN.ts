@@ -174,6 +174,7 @@ const zhCN = {
   'editor.commentSection': '关联评论区',
   'editor.submittedAt': '投稿时间（可选，默认发布时刻）',
   'editor.publishedAt': '发布时间（可选，默认发布时刻）',
+  'editor.attachmentsGithubHint': '由于平台限制，只能在发布后跳转 GitHub 页面上传附件',
   'editor.attachmentChoose': '选择附件',
   'editor.existing': '现有文件',
   'editor.authRequired': '需要登录后才能投稿或编辑',

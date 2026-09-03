@@ -2,7 +2,9 @@ import { INDEX_PATHS, MOCK_PIPELINE_STEP_DELAY } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import type { FileChange, GitPlatformAdapter } from '@/lib/adapters/types';
 import { generateReadme, type ProjectFile } from '@/lib/content';
-import { loadMockIndex, loadPrimaryIndex } from '@/lib/index/loader';
+import { loadMockIndex, loadPrimaryArchive, loadPrimaryIndex } from '@/lib/index/loader';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+import type { MessageKey } from '@/i18n';
 import type {
   IndexFile,
   ParamStatus,
@@ -36,6 +38,8 @@ export interface SubmissionDraft {
   license: string;
   /** 发布简介：新建时写入 release 正文 */
   summary: string;
+  /** 是否创建关联评论区 issue（标题为 slug，正文为稿件参数） */
+  createIssue: boolean;
   /** 投稿时间（ISO）：编辑器指定；缺省为发布点击时刻。编辑模式忽略（沿用原值） */
   submittedAt?: string;
   /** 发布时间（ISO）：编辑器指定；新建缺省为发布点击时刻 */
@@ -99,6 +103,27 @@ export function buildReadmeText(
   });
 }
 
+/** issue 正文：稿件参数摘要（有值的字段逐行列出） */
+export function buildIssueBody(draft: SubmissionDraft): string {
+  const locale = DEFAULT_LOCALE;
+  const lines: string[] = [];
+  const row = (label: string, values?: string[]): void => {
+    const filtered = values?.filter(Boolean) ?? [];
+    if (filtered.length) lines.push(`**${label}**: ${filtered.join('、')}`);
+  };
+  row(t(locale, 'label.tracks'), draft.tracks);
+  row(t(locale, 'label.engines'), draft.engines);
+  row(t(locale, 'label.voicebanks'), draft.voicebanks);
+  row(t(locale, 'label.songLanguages'), draft.songLanguages);
+  if (draft.type === 'project' && draft.params) {
+    const paramKey: MessageKey =
+      draft.params === 'with-params' ? 'params.with' : draft.params === 'tuned' ? 'params.tuned' : 'params.none';
+    lines.push(`**${t(locale, 'editor.params')}**: ${t(locale, paramKey)}`);
+  }
+  row(t(locale, 'label.videos'), draft.videos);
+  return lines.join('\n');
+}
+
 /** Release 正文：发布简介 + 主站详情链接 +（若部署了用户空间静态页）用户空间链接 */
 export function buildReleaseBody(
   user: string,
@@ -126,8 +151,19 @@ async function loadIndex(mock: boolean): Promise<IndexFile> {
 
 /** 构造索引仓变更：按 user+repo+slug upsert 到投稿月份的归档文件，并确保 users 记录 */
 export async function buildIndexChange(entry: SubmissionEntry, mock: boolean): Promise<FileChange> {
-  const index = await loadIndex(mock);
-  const next: IndexFile = JSON.parse(JSON.stringify(index)) as IndexFile;
+  // 归档是事实来源：先读取投稿月份的目标归档，不存在则创建只含本投稿的新归档；
+  // current.json 由索引仓 CI 从归档重建，不在此修改
+  const month = entry.submittedAt.slice(0, 7);
+  let base: IndexFile;
+  if (mock) {
+    base = await loadMockIndex();
+  } else {
+    const { index } = await loadPrimaryArchive(month);
+    base = index ?? { submissions: [], users: [] };
+  }
+  const next: IndexFile = JSON.parse(JSON.stringify(base)) as IndexFile;
+  if (!Array.isArray(next.submissions)) next.submissions = [];
+  if (!Array.isArray(next.users)) next.users = [];
   const at = next.submissions.findIndex(
     (s) => s.owner === entry.owner && s.repo === entry.repo && s.slug === entry.slug,
   );
@@ -141,8 +177,6 @@ export async function buildIndexChange(entry: SubmissionEntry, mock: boolean): P
   if (!(user.repos ?? []).some((r) => r.repo === entry.repo)) {
     user.repos = [...(user.repos ?? []), { repo: entry.repo }];
   }
-  // 归档是事实来源：投稿 PR 写入该稿投稿月份的归档文件，current.json 由索引仓 CI 重建
-  const month = entry.submittedAt.slice(0, 7);
   return {
     path: `${INDEX_PATHS.archiveDir}/${month}.json`,
     content: `${JSON.stringify(next, null, 2)}\n`,
@@ -233,6 +267,8 @@ export interface PublishProgress {
   releaseId?: number;
   assetsDone?: boolean;
   indexDone?: boolean;
+  /** 首次写入本地索引时的稿件条目：重试时索引 PR 复用，保证时间戳一致 */
+  entry?: SubmissionEntry;
   /** 用户主动跳过的步骤（不再重试） */
   skipped?: string[];
 }
@@ -241,6 +277,67 @@ export interface PublishProgress {
 function isRepoEmptyError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /git repository is empty/i.test(message);
+}
+
+/** 内容仓本地索引结构（svp-archive.json：只记录 submissions） */
+interface LocalArchive {
+  submissions: SubmissionEntry[];
+}
+
+/** 仓库 README.md 缺失时的基础结构 */
+function baseRepoReadme(repo: string): string {
+  return `# ${repo}\n\n*Powered by Sector Vault Project*\n`;
+}
+
+/**
+ * 内容仓 README.md 目录更新：追加 slug 名 + slug 相对路径的链接（幂等）。
+ * 返回可直接并入提交的文件变更。
+ */
+export async function upsertRepoReadmeLink(
+  adapter: GitPlatformAdapter,
+  user: string,
+  repo: string,
+  slug: string,
+): Promise<FileChange> {
+  let readme = baseRepoReadme(repo);
+  try {
+    readme = await adapter.readFile(user, repo, 'README.md');
+  } catch {
+    /* README 缺失时从基础结构开始 */
+  }
+  const href = `(${slug}/)`;
+  if (!readme.includes(href)) {
+    readme = `${readme.trimEnd()}\n\n- [${slug}]${href}\n`;
+  }
+  return { path: 'README.md', content: readme, encoding: 'utf-8' };
+}
+
+/**
+ * 内容仓本地索引更新（svp-archive.json）：按 slug upsert 稿件条目。
+ * 返回可直接并入提交的文件变更。
+ */
+export async function upsertLocalArchive(
+  adapter: GitPlatformAdapter,
+  user: string,
+  repo: string,
+  slug: string,
+  entry: SubmissionEntry,
+): Promise<FileChange> {
+  let archive: LocalArchive = { submissions: [] };
+  try {
+    archive = JSON.parse(await adapter.readFile(user, repo, 'svp-archive.json')) as LocalArchive;
+    if (!Array.isArray(archive.submissions)) archive.submissions = [];
+  } catch {
+    /* 索引缺失或损坏时从空索引开始 */
+  }
+  const at = archive.submissions.findIndex((s) => s.slug === slug);
+  if (at >= 0) archive.submissions[at] = entry;
+  else archive.submissions.push(entry);
+  return {
+    path: 'svp-archive.json',
+    content: `${JSON.stringify(archive, null, 2)}\n`,
+    encoding: 'utf-8',
+  };
 }
 
 /** 确保内容仓库可写入：空仓库先初始化基础结构（README + 本地索引） */
@@ -257,7 +354,7 @@ async function ensureRepoInitialized(
     await (await adapter()).commitFiles(token!, user, repo, 'Initialize Sector Vault repository', [
       {
         path: 'README.md',
-        content: `# ${repo}\n\n*Powered by Sector Vault Project*\n`,
+        content: baseRepoReadme(repo),
         encoding: 'utf-8',
       },
       {
@@ -280,6 +377,8 @@ export async function publishSubmission(
   const { user, repo, slug } = draft;
   let issue = progress.issue ?? 0;
   let releaseId = progress.releaseId ?? 0;
+  // 投稿/发布时间缺省取发布点击时刻（投稿时间可由编辑器指定，决定归档月份与 slug 日期）
+  const now = new Date().toISOString();
   const skipped = new Set(progress.skipped ?? []);
   const isSkipped = (id: string): boolean => skipped.has(id);
   // 惰性加载适配器：演示模式全程不触碰平台 SDK 代码
@@ -303,19 +402,30 @@ export async function publishSubmission(
     await runStep(id, mock, onStep, work);
   }
 
-  await resumeStep('issue', progress.issue !== undefined, async () => {
-    if (mock) {
-      issue = 13;
-      return;
-    }
-    if (!token) throw new Error('missing token');
-    issue = await (await adapter()).createIssue(token, user, repo, draft.title, '');
-    progress.issue = issue;
-  });
+  if (!draft.createIssue) {
+    // 未勾选关联评论区：不创建 issue，正文头部 issue 记为 0
+    issue = 0;
+    onStep('issue', 'warning');
+  } else {
+    await resumeStep('issue', progress.issue !== undefined, async () => {
+      if (mock) {
+        issue = 13;
+        return;
+      }
+      if (!token) throw new Error('missing token');
+      issue = await (await adapter()).createIssue(token, user, repo, draft.slug, buildIssueBody(draft));
+      progress.issue = issue;
+    });
+  }
 
   await resumeStep('files', progress.filesDone === true, async () => {
     if (!mock) await ensureRepoInitialized(token, user, repo, adapter);
-    // 内联媒体（封面 + 工程文件）与 README 合并为一个提交
+    // 稿件条目：本地索引与索引 PR 共用；断点续传时复用首次结果
+    const entry =
+      progress.entry ??
+      buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now);
+    progress.entry = entry;
+    // 内联媒体（封面 + 工程文件）、README 与本地索引（目录链接 + svp-archive.json）合并为一个提交
     const changes: FileChange[] = [];
     if (draft.cover) {
       changes.push(await fileChange(`${slug}/${draft.cover.name}`, draft.cover, 'raw'));
@@ -329,7 +439,11 @@ export async function publishSubmission(
       content: buildReadmeText(draft, issue, draft.cover?.name),
       encoding: 'utf-8',
     });
-    if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes);
+    if (!mock) {
+      changes.push(await upsertRepoReadmeLink(await adapter(), user, repo, slug));
+      changes.push(await upsertLocalArchive(await adapter(), user, repo, slug, entry));
+      await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes);
+    }
     progress.filesDone = true;
   });
 
@@ -372,14 +486,11 @@ export async function publishSubmission(
   } else if (progress.indexDone) {
     onStep('index', 'done');
   } else {
-    // 投稿/发布时间缺省取发布点击时刻（投稿时间可由编辑器指定，决定归档月份与 slug 日期）
-    const now = new Date().toISOString();
-    await tryIndexPr(
-      token,
-      mock,
-      buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now),
-      onStep,
-    );
+    // 复用本地索引已写入的条目，保证重试时时间戳一致
+    const entry =
+      progress.entry ??
+      buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now);
+    await tryIndexPr(token, mock, entry, onStep);
     progress.indexDone = true;
   }
 
@@ -479,13 +590,17 @@ export async function updateSubmission(
     !sameList(draft.songLanguages, entry.languages);
 
   if (indexChanged) {
-    // 投稿时间不变更
-    await tryIndexPr(
-      token,
-      mock,
-      buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt),
-      onStep,
-    );
+    const updatedEntry = buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt);
+    // 投稿时间不变更；同步更新内容仓本地索引（失败不阻断索引 PR）
+    if (!mock) {
+      try {
+        const change = await upsertLocalArchive(await adapter(), user, repo, slug, updatedEntry);
+        await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} archive`, [change]);
+      } catch (error) {
+        console.warn('[pipeline] 本地索引更新失败:', error);
+      }
+    }
+    await tryIndexPr(token, mock, updatedEntry, onStep);
   } else {
     onStep('index', 'done');
   }

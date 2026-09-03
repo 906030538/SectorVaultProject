@@ -159,6 +159,7 @@ const zhTW: Record<MessageKey, string> = {
   'editor.schemeEncrypt': '加密',
   'editor.attachments': '附件',
   'editor.summary': '發布簡介',
+  'editor.commentSection': '關聯留言區',
   'editor.submittedAt': '投稿時間（可選，預設發布時刻）',
   'editor.publishedAt': '發布時間（可選，預設發布時刻）',
   'editor.attachmentChoose': '選擇附件',

@@ -13,6 +13,17 @@ function client(token?: string): Octokit {
   return token ? new Octokit({ auth: token }) : new Octokit();
 }
 
+/** Blob → base64（分块编码避免大文件栈溢出） */
+async function blobToBase64(file: Blob): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 function mapRepo(repo: {
   name: string;
   full_name: string;
@@ -240,37 +251,55 @@ export class GitHubAdapter implements GitPlatformAdapter {
     file: Blob,
     name: string,
   ): Promise<void> {
+    // uploads.github.com 不支持浏览器跨域（CORS 预检 400），
+    // 附件改经 api.github.com 的 contents API 提交到内容仓 attachments/{tag}/
     const octokit = client(token);
     const { data: release } = await octokit.rest.repos.getRelease({
       owner: user,
       repo,
       release_id: releaseId,
     });
-    const uploadUrl = release.upload_url.replace(/\{.*\}$/, '');
-    const response = await fetch(`${uploadUrl}?name=${encodeURIComponent(name)}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/octet-stream',
-      },
-      body: file,
+    const path = `attachments/${release.tag_name}/${name}`;
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: user,
+      repo,
+      path,
+      message: `Upload attachment ${name}`,
+      content: await blobToBase64(file),
     });
-    if (!response.ok) {
-      throw new Error(`Upload release asset failed: ${response.status}`);
-    }
   }
 
   async deleteReleaseAsset(
     token: string,
     user: string,
     repo: string,
-    _releaseId: number,
+    releaseId: number,
     assetId: number,
   ): Promise<void> {
-    await client(token).rest.repos.deleteReleaseAsset({
+    // 附件存于仓库（不在 release 下）：按 release 附件表反查文件名后删除仓库文件
+    const octokit = client(token);
+    const { data: release } = await octokit.rest.repos.getRelease({
       owner: user,
       repo,
-      asset_id: assetId,
+      release_id: releaseId,
+    });
+    const asset = release.assets.find((a) => a.id === assetId);
+    if (!asset?.name) return;
+    const path = `attachments/${release.tag_name}/${asset.name}`;
+    let sha: string;
+    try {
+      const { data: content } = await octokit.rest.repos.getContent({ owner: user, repo, path });
+      sha = (content as { sha?: string }).sha ?? '';
+    } catch {
+      return; // 仓库中已不存在
+    }
+    if (!sha) return;
+    await octokit.rest.repos.deleteFile({
+      owner: user,
+      repo,
+      path,
+      message: `Delete attachment ${asset.name}`,
+      sha,
     });
   }
 

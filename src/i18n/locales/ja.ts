@@ -160,6 +160,7 @@ const ja: Record<MessageKey, string> = {
   'editor.schemeEncrypt': '暗号化',
   'editor.attachments': '添付ファイル',
   'editor.summary': 'リリース概要',
+  'editor.commentSection': 'コメント欄',
   'editor.submittedAt': '投稿日時（任意、既定は公開時刻）',
   'editor.publishedAt': '公開日時（任意、既定は公開時刻）',
   'editor.attachmentChoose': '添付ファイルを選択',

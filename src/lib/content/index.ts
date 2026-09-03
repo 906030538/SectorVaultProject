@@ -293,7 +293,7 @@ export async function loadEngagements(
         continue;
       }
       const stats: EngagementStats = {
-        comments: issues.find((i) => i.title === entry.title)?.comments ?? 0,
+        comments: issues.find((i) => i.title === entry.slug)?.comments ?? 0,
         reactions: releases.find((r) => r.tag === entry.slug)?.reactions ?? 0,
       };
       engagementCache.set(key, stats);

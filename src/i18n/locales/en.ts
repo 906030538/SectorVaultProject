@@ -160,6 +160,7 @@ const en: Record<MessageKey, string> = {
   'editor.schemeEncrypt': 'Encrypt',
   'editor.attachments': 'Attachments',
   'editor.summary': 'Release summary',
+  'editor.commentSection': 'Comment section',
   'editor.submittedAt': 'Submitted at (optional, defaults to publish time)',
   'editor.publishedAt': 'Published at (optional, defaults to publish time)',
   'editor.attachmentChoose': 'Choose attachments',

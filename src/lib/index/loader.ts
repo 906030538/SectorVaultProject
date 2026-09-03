@@ -122,6 +122,36 @@ export async function loadPrimaryIndex(
   return { source, index: await readIndexFile(source, INDEX_PATHS.current, signal) };
 }
 
+/** 归档不存在（404/Not Found）的判定 */
+function isNotFoundError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b404\b|not found/i.test(message);
+}
+
+/**
+ * 主索引源指定月份（YYYY-MM）的归档索引：
+ * 归档不存在时返回 null（调用方创建只含本投稿的新归档）；其他错误抛出。
+ */
+export async function loadPrimaryArchive(
+  month: string,
+): Promise<{ source: IndexSource; index: IndexFile | null }> {
+  const source = (await getIndexSources())[0]!;
+  const adapter = await getAdapterAsync(source.platform);
+  let raw: string;
+  try {
+    raw = await adapter.readFile(
+      source.owner,
+      source.repo,
+      `${INDEX_PATHS.archiveDir}/${month}.json`,
+      source.branch,
+    );
+  } catch (error) {
+    if (isNotFoundError(error)) return { source, index: null };
+    throw error;
+  }
+  return { source, index: JSON.parse(raw) as IndexFile };
+}
+
 /**
  * 按设计顺序遍历全部稿件：各索引源先 current.json 再按月归档，跨源去重。
  * 支持 AbortSignal 取消（对应列表页的取消按钮）。

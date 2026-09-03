@@ -21,7 +21,8 @@ export async function fetchEngagement(
     adapter.listReleases(entry.owner, entry.repo).catch(() => []),
   ]);
 
-  const issue = issues.find((i) => i.title === entry.title);
+  // issue 标题使用 slug：按 slug 关联留言
+  const issue = issues.find((i) => i.title === entry.slug);
   const release = releases.find((r) => r.tag === entry.slug);
   const stats: EngagementStats = {
     comments: issue?.comments ?? 0,

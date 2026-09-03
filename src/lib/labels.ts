@@ -144,6 +144,7 @@ export function buildEditorLabels(locale: Locale): EditorLabels {
     schemeEncrypt: t(locale, 'editor.schemeEncrypt'),
     attachments: t(locale, 'editor.attachments'),
     summary: t(locale, 'editor.summary'),
+    commentSection: t(locale, 'editor.commentSection'),
     submittedAt: t(locale, 'editor.submittedAt'),
     publishedAt: t(locale, 'editor.publishedAt'),
     attachmentChoose: t(locale, 'editor.attachmentChoose'),

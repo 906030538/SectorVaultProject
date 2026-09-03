@@ -57,6 +57,7 @@ export interface EditorLabels {
   attachments: string;
   attachmentChoose: string;
   summary: string;
+  commentSection: string;
   submittedAt: string;
   publishedAt: string;
   existing: string;
@@ -127,6 +128,7 @@ interface EditorState {
   tags: string[];
   license: string;
   summary: string;
+  createIssue: boolean;
   submittedAt: string;
   publishedAt: string;
   cover: File | null;
@@ -219,7 +221,7 @@ function renderListInput(
   box.appendChild(rows);
 
   // 候选下拉（datalist）：不限制输入，仅提供建议
-  const candidates = LIST_CANDIDATES[kind];
+  const candidates = LIST_CANDIDATES[kind as keyof typeof LIST_CANDIDATES];
   if (candidates) {
     const datalist = el('datalist');
     datalist.id = `svp-candidates-${kind}`;
@@ -703,6 +705,7 @@ interface DraftSnapshot {
   tags: string[];
   license: string;
   summary: string;
+  createIssue: boolean;
   submittedAt: string;
   publishedAt: string;
 }
@@ -731,6 +734,7 @@ function readDraft(): DraftSnapshot | null {
       tags: d.tags ?? [],
       license: d.license ?? '',
       summary: d.summary ?? '',
+      createIssue: d.createIssue !== false,
       submittedAt: d.submittedAt ?? '',
       publishedAt: d.publishedAt ?? '',
     };
@@ -830,6 +834,7 @@ function buildDraft(state: EditorState): SubmissionDraft {
     tags: state.tags,
     license: state.license,
     summary: state.summary,
+    createIssue: state.createIssue,
     submittedAt: inputValueToIso(state.submittedAt),
     publishedAt: inputValueToIso(state.publishedAt),
     cover: state.cover,
@@ -893,6 +898,7 @@ export async function initEditor(
     tags: [],
     license: '',
     summary: '',
+    createIssue: true,
     submittedAt: '',
     publishedAt: '',
     cover: null,
@@ -1106,8 +1112,22 @@ export async function initEditor(
   });
   publishedAtBox.appendChild(publishedAtInput);
 
+  // 关联评论区：默认勾选；不勾选则发布时不创建 issue
+  const commentBox = el('div', 'flex flex-col gap-1');
+  commentBox.appendChild(el('label', 'text-xs text-slate-500', labels.commentSection));
+  const commentRow = el('label', 'mt-1 flex items-center gap-1.5 text-sm');
+  const commentCheck = el('input');
+  commentCheck.type = 'checkbox';
+  commentCheck.checked = state.createIssue;
+  commentCheck.setAttribute('data-field', 'comments');
+  commentCheck.addEventListener('change', () => {
+    state.createIssue = commentCheck.checked;
+  });
+  commentRow.appendChild(commentCheck);
+  commentBox.appendChild(commentRow);
+
   const metaRow = el('div', 'flex flex-wrap items-end gap-3');
-  metaRow.append(paramsBox, publishedAtBox);
+  metaRow.append(paramsBox, publishedAtBox, commentBox);
   form.appendChild(metaRow);
 
   // ---- 工程专属区块（article 时隐藏；paramsBox 已随 metaRow 挂载，仅参与隐藏切换） ----
@@ -1310,6 +1330,7 @@ export async function initEditor(
     state.slug = draft.slug;
     state.license = draft.license;
     state.summary = draft.summary;
+    state.createIssue = draft.createIssue;
     state.body = draft.body;
     state.submittedAt = draft.submittedAt;
     state.publishedAt = draft.publishedAt;
@@ -1330,6 +1351,7 @@ export async function initEditor(
     const bodyArea = form.querySelector<HTMLTextAreaElement>('[data-field="body"]');
     if (bodyArea) bodyArea.value = draft.body;
     setType(draft.type);
+    commentCheck.checked = draft.createIssue;
     refreshTags();
     slugInput.placeholder = slugFallback();
     pendingRepoChoice = `${draft.user}/${draft.repo}`;
@@ -1349,6 +1371,7 @@ export async function initEditor(
       tags: [...state.tags],
       license: state.license,
       summary: state.summary,
+      createIssue: state.createIssue,
       submittedAt: state.submittedAt,
       publishedAt: state.publishedAt,
     };

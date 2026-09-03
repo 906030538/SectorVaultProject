@@ -157,6 +157,7 @@ const zhCN = {
   'editor.schemeEncrypt': '加密',
   'editor.attachments': '附件',
   'editor.summary': '发布简介',
+  'editor.commentSection': '关联评论区',
   'editor.submittedAt': '投稿时间（可选，默认发布时刻）',
   'editor.publishedAt': '发布时间（可选，默认发布时刻）',
   'editor.attachmentChoose': '选择附件',

@@ -381,7 +381,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   const release = releases.find((r) => r.tag === slug) ?? null;
   renderRelease(release, labels, els);
 
-  const issue = issues.find((i) => i.title === entry.title) ?? null;
+  const issue = issues.find((i) => i.title === slug) ?? null;
   renderIssues(issue, labels, els);
 }
 

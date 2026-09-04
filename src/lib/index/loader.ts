@@ -17,6 +17,48 @@ function cacheKey(source: IndexSource, path: string): string {
   return `${source.platform}:${source.owner}/${source.repo}@${source.branch}:${path}`;
 }
 
+/** localStorage 索引缓存前缀 */
+const LS_PREFIX = 'svp-idx:';
+
+/** 各类索引文件的缓存 TTL：current 10 分钟，当月归档 12 小时，过往归档 3 天 */
+function cacheTtlFor(path: string): number {
+  if (path === INDEX_PATHS.current) return 10 * 60 * 1000;
+  const month = path.match(/(\d{4}-\d{2})\.json$/)?.[1];
+  if (month) {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return month === currentMonth ? 12 * 60 * 60 * 1000 : 3 * 24 * 60 * 60 * 1000;
+  }
+  return 0; // 其他文件不做持久缓存
+}
+
+interface LsCacheEntry {
+  t: number;
+  d: IndexFile;
+}
+
+function readLsCache(key: string): IndexFile | null {
+  try {
+    const raw = localStorage.getItem(LS_PREFIX + key);
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as LsCacheEntry;
+    if (Date.now() - entry.t > cacheTtlFor(key.split(':').pop() ?? '')) return null;
+    return entry.d;
+  } catch {
+    return null;
+  }
+}
+
+function writeLsCache(key: string, data: IndexFile): void {
+  const path = key.split(':').pop() ?? '';
+  if (cacheTtlFor(path) <= 0) return;
+  try {
+    localStorage.setItem(LS_PREFIX + key, JSON.stringify({ t: Date.now(), d: data } as LsCacheEntry));
+  } catch {
+    /* 配额不足时放弃持久缓存 */
+  }
+}
+
 async function readIndexFile(
   source: IndexSource,
   path: string,
@@ -25,11 +67,18 @@ async function readIndexFile(
   const key = cacheKey(source, path);
   const cached = indexCache.get(key);
   if (cached) return cached;
+  // localStorage 持久缓存（TTL 内免请求，缓解接口配额）
+  const stored = readLsCache(key);
+  if (stored) {
+    indexCache.set(key, stored);
+    return stored;
+  }
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
   const adapter = await getAdapterAsync(source.platform);
   const raw = await adapter.readFile(source.owner, source.repo, path, source.branch);
   const parsed = JSON.parse(raw) as IndexFile;
   indexCache.set(key, parsed);
+  writeLsCache(key, parsed);
   return parsed;
 }
 

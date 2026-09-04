@@ -17,7 +17,6 @@ const { locale = DEFAULT_LOCALE } = Astro.props;
   class="input h-8 px-2 text-xs"
   aria-label={t(locale, 'nav.line')}
 >
-  <option value="" data-i18n="line.all">{t(locale, 'line.all')}</option>
 </select>
 
 <script>
@@ -33,10 +32,13 @@ const { locale = DEFAULT_LOCALE } = Astro.props;
         option.textContent = platform;
         select.appendChild(option);
       }
-      select.value = getStoredLine() ?? '';
+      // 无线路偏好时默认选首个平台
+      const stored = getStoredLine();
+      select.value = platforms.includes(stored as never) ? (stored ?? '') : (platforms[0] ?? '');
+      if (!stored) setStoredLine((platforms[0] ?? null) as never);
     });
     select.addEventListener('change', () => {
-      setStoredLine(select.value === '' ? null : (select.value as 'github' | 'gitee' | 'atomgit' | 'gitcode'));
+      setStoredLine(select.value === '' ? null : (select.value as 'github' | 'gitee' | 'atomgit'));
       location.reload();
     });
   }

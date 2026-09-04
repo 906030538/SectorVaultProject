@@ -129,8 +129,13 @@ export async function getLineSources(): Promise<IndexSource[]> {
   return filtered.length > 0 ? filtered : all;
 }
 
-/** 配置中出现的平台（线路下拉选项） */
+/** 不作为独立线路展示的平台（数据仍参与合并，仅不出现在下拉） */
+const HIDDEN_LINE_PLATFORMS = new Set<string>(['gitcode']);
+
+/** 配置中出现的平台（线路下拉选项；排除隐藏平台） */
 export async function getAvailablePlatforms(): Promise<Platform[]> {
   const all = await getIndexSources();
-  return [...new Set(all.map((source) => source.platform))];
+  return [...new Set(all.map((source) => source.platform))].filter(
+    (platform) => !HIDDEN_LINE_PLATFORMS.has(platform),
+  );
 }

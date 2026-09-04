@@ -340,6 +340,12 @@ interface LocalArchive {
   submissions: SubmissionEntry[];
 }
 
+/** 文件不存在（404/Not Found）判定：找不到时新建，其他错误抛出重试 */
+function isMissingFileError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b404\b|not found|未找到/i.test(message);
+}
+
 /** 仓库 README.md 缺失时的基础结构 */
 function baseRepoReadme(repo: string): string {
   return `# ${repo}\n\n*Powered by Sector Vault Project*\n`;
@@ -358,8 +364,9 @@ export async function upsertRepoReadmeLink(
   let readme = baseRepoReadme(repo);
   try {
     readme = await adapter.readFile(user, repo, 'README.md');
-  } catch {
-    /* README 缺失时从基础结构开始 */
+  } catch (error) {
+    // 仅"文件不存在"时新建基础结构；限流/网络等错误抛出重试，避免覆盖
+    if (!isMissingFileError(error)) throw error;
   }
   const href = `(${POSTS_DIR}/${slug}/)`;
   if (!readme.includes(href)) {
@@ -379,12 +386,21 @@ export async function upsertLocalArchive(
   slug: string,
   entry: SubmissionEntry,
 ): Promise<FileChange> {
+  // 找不到现有索引（404）或内容损坏时创建新索引；限流/网络错误抛出重试，避免覆盖已有索引
   let archive: LocalArchive = { submissions: [] };
+  let raw: string | null = null;
   try {
-    archive = JSON.parse(await adapter.readFile(user, repo, 'svp-archive.json')) as LocalArchive;
-    if (!Array.isArray(archive.submissions)) archive.submissions = [];
-  } catch {
-    /* 索引缺失或损坏时从空索引开始 */
+    raw = await adapter.readFile(user, repo, 'svp-archive.json');
+  } catch (error) {
+    if (!isMissingFileError(error)) throw error;
+  }
+  if (raw !== null) {
+    try {
+      archive = JSON.parse(raw) as LocalArchive;
+      if (!Array.isArray(archive.submissions)) archive.submissions = [];
+    } catch {
+      /* JSON 损坏时从空索引重建 */
+    }
   }
   const at = archive.submissions.findIndex((s) => s.slug === slug);
   if (at >= 0) archive.submissions[at] = entry;

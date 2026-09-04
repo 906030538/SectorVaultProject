@@ -21,6 +21,17 @@ import type { FileChange, GitPlatformAdapter } from './types';
 const API_BASE = 'https://api.atomgit.com/api/v5';
 const WEB_BASE = 'https://atomgit.com';
 
+/** UTF-8 文本 → base64（分块编码避免长内容栈溢出）；AtomGit contents 接口要求 base64 */
+function utf8ToBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 interface RequestOptions {
   method?: string;
   query?: Record<string, string>;
@@ -219,14 +230,14 @@ export class AtomGitAdapter implements GitPlatformAdapter {
         await request(path, { method: 'DELETE', token, body: { sha: existing.sha, message } });
         continue;
       }
-      // 已存在的文件走 PUT 更新，否则 POST 新建
+      // 已存在的文件走 PUT 更新，否则 POST 新建；content 一律 base64（无 encoding 字段）
       const existing = await request<{ sha?: string } | Array<unknown>>(path, {
         token,
       }).catch(() => null);
       const body = {
-        content: change.content,
+        content:
+          change.encoding === 'base64' ? change.content : utf8ToBase64(change.content),
         message,
-        ...(change.encoding === 'base64' ? { encoding: 'base64' } : {}),
         ...(existing && !Array.isArray(existing) && existing.sha ? { sha: existing.sha } : {}),
       };
       const method = existing && !Array.isArray(existing) ? 'PUT' : 'POST';
@@ -311,10 +322,66 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     title: string,
     changes: FileChange[],
   ): Promise<string> {
-    void target;
-    void token;
-    void title;
-    void changes;
-    throw new Error('openIndexPr: AtomGit index PR flow not implemented yet');
+    const { owner, repo, branch } = target;
+    const base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+    // 轻量 PR：同仓直接创建工作分支提交（无需 fork；要求令牌对索引仓有写权限）
+    const prBranch = `svp-index-${Date.now().toString(36)}`;
+
+    // 基准提交：目标索引分支头（AtomGit 分支接口的 commit 字段为 id）
+    const baseBranch = await request<{ commit?: { id?: string; sha?: string } }>(
+      `${base}/branches/${encodeURIComponent(branch)}`,
+      { token },
+    );
+    const baseSha = baseBranch.commit?.id ?? baseBranch.commit?.sha;
+    if (!baseSha) throw new Error('AtomGit: cannot resolve index branch head');
+
+    // 创建工作分支（Gitee v5 风格；失败时回退 git refs API）
+    try {
+      await request(`${base}/branches`, {
+        method: 'POST',
+        token,
+        body: { branch_name: prBranch, refs: branch },
+      });
+    } catch {
+      await request(`${base}/git/refs`, {
+        method: 'POST',
+        token,
+        body: { ref: `refs/heads/${prBranch}`, sha: baseSha },
+      });
+    }
+
+    // 逐文件提交到工作分支（contents API 带 ref；已存在则 PUT 更新）
+    for (const change of changes) {
+      if (change.delete) continue;
+      const path = `${base}/contents/${change.path}`;
+      const existing = await request<{ sha?: string }>(path, {
+        token,
+        query: { ref: prBranch },
+      }).catch(() => null);
+      await request(path, {
+        method: existing ? 'PUT' : 'POST',
+        token,
+        query: { ref: prBranch },
+        body: {
+          // content 一律 base64（AtomGit contents 接口不接受 encoding 字段）
+          content:
+            change.encoding === 'base64' ? change.content : utf8ToBase64(change.content),
+          message: title,
+          branch: prBranch,
+          ...(existing?.sha ? { sha: existing.sha } : {}),
+        },
+      });
+    }
+
+    // 创建 PR（同仓分支：head 直用分支名）
+    const pr = await request<{ number?: number | string; html_url?: string }>(
+      `${base}/pulls`,
+      {
+        method: 'POST',
+        token,
+        body: { title, head: prBranch, base: branch, body: '*Powered by Sector Vault Project*' },
+      },
+    );
+    return pr.html_url ?? `${WEB_BASE}/${owner}/${repo}/pulls/${pr.number ?? ''}`;
   }
 }

@@ -321,10 +321,68 @@ export class GiteeAdapter implements GitPlatformAdapter {
     title: string,
     changes: FileChange[],
   ): Promise<string> {
-    void target;
-    void token;
-    void title;
-    void changes;
-    throw new Error('openIndexPr: Gitee index PR flow not implemented yet');
+    const { owner, repo, branch } = target;
+    // 轻量 PR：同仓直接创建工作分支提交（无需 fork；要求令牌对索引仓有写权限）
+    const prBranch = `svp-index-${Date.now().toString(36)}`;
+
+    // 基准提交：目标索引分支头
+    const { data: baseBranch } = await client.get<{ commit?: { sha?: string; id?: string } }>({
+      url: '/v5/repos/{owner}/{repo}/branches/{branch}',
+      path: { owner, repo, branch },
+      query: { access_token: token },
+    });
+    const baseSha = baseBranch?.commit?.sha ?? baseBranch?.commit?.id;
+    if (!baseSha) throw new Error('Gitee: cannot resolve index branch head');
+
+    // 创建工作分支
+    await client.post({
+      url: '/v5/repos/{owner}/{repo}/branches',
+      path: { owner, repo },
+      body: { access_token: token, branch_name: prBranch, refs: branch },
+    });
+
+    // 逐文件提交到工作分支（contents API 带 branch；已存在则带 sha 更新）
+    for (const change of changes) {
+      if (change.delete) continue;
+      const url = '/v5/repos/{owner}/{repo}/contents/{path}';
+      let sha: string | undefined;
+      try {
+        const { data: existing } = await getV5ReposOwnerRepoContentsPath({
+          path: { owner, repo, path: change.path },
+          query: { accessToken: token, ref: prBranch },
+        });
+        sha = (existing as { sha?: string }).sha;
+      } catch {
+        /* 新文件无需 sha */
+      }
+      await client.post({
+        url,
+        path: { owner, repo, path: change.path },
+        body: {
+          access_token: token,
+          content: change.content,
+          message: title,
+          branch: prBranch,
+          ...(change.encoding === 'base64' ? { encode: 'base64' } : {}),
+          ...(sha ? { sha } : {}),
+        },
+      });
+    }
+
+    // 创建 PR（同仓分支：head 直用分支名）
+    const { data: pr } = await client.post<{ html_url?: string; number?: number }>({
+      url: '/v5/repos/{owner}/{repo}/pulls',
+      path: { owner, repo },
+      body: {
+        access_token: token,
+        title,
+        head: prBranch,
+        base: branch,
+        body: '*Powered by Sector Vault Project*',
+      },
+    });
+    return (
+      pr?.html_url ?? `https://gitee.com/${owner}/${repo}/pulls/${pr?.number ?? ''}`
+    );
   }
 }

@@ -108,30 +108,30 @@ export const EDITOR_LIMITS = {
  */
 export const LIST_CANDIDATES: Partial<Record<'engines' | 'voicebanks' | 'songLanguages', string[]>> = {
   engines: [
-    'Synthesizer V Studio Pro',
-    'Synthesizer V Studio Basic',
-    'VOCALOID6',
-    'VOCALOID5',
-    'VOCALOID4',
-    'UTAU',
+    'VOCALOID',
+    'Synthesizer V',
+    'Synthesizer V 2',
+    'VoiSona',
     'OpenUtau',
     'ACE Studio',
+    'XStudio',
     'CeVIO AI',
+    'UTAU',
     'piapro studio',
   ],
   voicebanks: [
     '初音ミク',
-    '初音ミク AI',
     '重音テト',
     '星尘',
-    '星尘 Infinity',
     '洛天依',
     '乐正绫',
-    '诗岸',
-    '闇音レンリ',
-    'IA',
+    'POPY',
+    'ROSE',
+    'PASTEL',
+    'HALO',
+    'AVER',
   ],
-  songLanguages: ['zh', 'ja', 'en', 'ko'],
+  songLanguages: ['zh', 'ja', 'en', 'ko', 'es', 'yue', 'nan', 'hak'],
 };
 
 /** 演示模式发布管线每步模拟耗时（毫秒） */

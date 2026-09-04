@@ -1,0 +1,43 @@
+---
+import { t } from '@/i18n';
+import type { Locale } from '@/i18n';
+import { DEFAULT_LOCALE } from '@/i18n';
+
+interface Props {
+  locale?: Locale;
+}
+
+const { locale = DEFAULT_LOCALE } = Astro.props;
+---
+
+<!-- 线路选择：切换后索引/讨论等数据使用目标平台的索引仓（各平台索引仓由 deployment.json 配置） -->
+<select
+  id="line-switcher"
+  data-role="line-switcher"
+  class="input h-8 px-2 text-xs"
+  aria-label={t(locale, 'nav.line')}
+>
+  <option value="" data-i18n="line.all">{t(locale, 'line.all')}</option>
+</select>
+
+<script>
+  import { getAvailablePlatforms, getStoredLine, setStoredLine } from '@/lib/index/sources';
+
+  // 平台选项来自部署配置的索引源；切换后整页重载以刷新各线路数据
+  const select = document.getElementById('line-switcher') as HTMLSelectElement | null;
+  if (select) {
+    void getAvailablePlatforms().then((platforms) => {
+      for (const platform of platforms) {
+        const option = document.createElement('option');
+        option.value = platform;
+        option.textContent = platform;
+        select.appendChild(option);
+      }
+      select.value = getStoredLine() ?? '';
+    });
+    select.addEventListener('change', () => {
+      setStoredLine(select.value === '' ? null : (select.value as 'github' | 'gitee' | 'atomgit'));
+      location.reload();
+    });
+  }
+</script>

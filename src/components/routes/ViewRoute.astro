@@ -95,7 +95,11 @@ const locale = DEFAULT_LOCALE;
   import { buildCollectionLabels, buildDetailLabels } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
   import { SITE_NAME } from '@/config';
+  import { findPlatformForRepo, findEntry } from '@/lib/index/loader';
+  import { getStoredLine, setStoredLine } from '@/lib/index/sources';
+  import type { Platform } from '@/types';
 
+void (async () => {
   // 路由匹配：/view/:user/:repo[/:slug...]；不匹配时（404 回退页共存场景）不激活
   const segments = window.location.pathname.split('/').filter(Boolean);
   const user = segments[1];
@@ -111,6 +115,23 @@ const locale = DEFAULT_LOCALE;
     const locale = getClientLocale();
     const pick = <T extends HTMLElement>(role: string) =>
       root.querySelector<T>(`[data-role="${role}"]`)!;
+
+    // 线路自动切换：当前线路平台没有该仓库时，切到索引记录的平台线路并重载
+    const line = getStoredLine();
+    if (line) {
+      try {
+        const located = slug
+          ? ((await findEntry(user, repo, slug))?.platform ?? null)
+          : await findPlatformForRepo(user, repo);
+        if (located && located !== line) {
+          setStoredLine(located as Platform);
+          window.location.reload();
+          return;
+        }
+      } catch {
+        /* 定位失败时按当前线路渲染 */
+      }
+    }
 
     try {
       if (slug) {
@@ -161,4 +182,5 @@ const locale = DEFAULT_LOCALE;
       console.error('[view] init failed:', error);
     }
   }
+})();
 </script>

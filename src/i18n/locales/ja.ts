@@ -1,4 +1,4 @@
-import type { MessageKey } from './zh-CN';
+import type { MessageKey } from './zh-Hans';
 
 const ja: Record<MessageKey, string> = {
   'nav.projects': '作品一覧',
@@ -10,7 +10,8 @@ const ja: Record<MessageKey, string> = {
   'nav.logout': 'ログアウト',
   'nav.submit': '投稿',
   'nav.menu': 'メニュー',
-  'nav.more': 'その他',
+  'nav.line': 'ライン',
+  'line.all': 'すべてのプラットフォーム',
   'auth.title': '認証してログイン',
   'auth.intro': 'データホスティングプラットフォームを選択し、アカウントを登録してトークンを作成し、本サイトがコンテンツリポジトリにアクセスすることを許可してください。',
   'auth.stepRegister': 'プラットフォームのアカウントを登録',

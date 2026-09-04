@@ -1,4 +1,4 @@
-import type { MessageKey } from './zh-CN';
+import type { MessageKey } from './zh-Hans';
 
 const en: Record<MessageKey, string> = {
   'nav.projects': 'Projects',
@@ -10,7 +10,8 @@ const en: Record<MessageKey, string> = {
   'nav.logout': 'Sign out',
   'nav.submit': 'Submit',
   'nav.menu': 'Menu',
-  'nav.more': 'More',
+  'nav.line': 'Data line',
+  'line.all': 'All platforms',
   'auth.title': 'Authorize & sign in',
   'auth.intro': 'Choose your data hosting platform, register an account and create a token so this site can access your content repositories.',
   'auth.stepRegister': 'Register a platform account',

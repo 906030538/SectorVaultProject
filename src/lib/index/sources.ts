@@ -54,3 +54,39 @@ export function getIndexSources(): Promise<IndexSource[]> {
 export async function getPrimaryIndexSource(): Promise<IndexSource> {
   return (await getIndexSources())[0]!;
 }
+
+/** 线路偏好（选定的托管平台）存储键；未设置 = 全部平台 */
+export const LINE_STORAGE_KEY = 'svp-line';
+
+/** 当前线路（null = 全部平台） */
+export function getStoredLine(): string | null {
+  try {
+    return localStorage.getItem(LINE_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredLine(platform: Platform | null): void {
+  try {
+    if (platform) localStorage.setItem(LINE_STORAGE_KEY, platform);
+    else localStorage.removeItem(LINE_STORAGE_KEY);
+  } catch {
+    /* 存储不可用时忽略 */
+  }
+}
+
+/** 当前线路生效的索引源：选定平台时只保留该平台的源（无配置时回退全部） */
+export async function getLineSources(): Promise<IndexSource[]> {
+  const all = await getIndexSources();
+  const line = getStoredLine();
+  if (!line) return all;
+  const filtered = all.filter((source) => source.platform === line);
+  return filtered.length > 0 ? filtered : all;
+}
+
+/** 配置中出现的平台（线路下拉选项） */
+export async function getAvailablePlatforms(): Promise<Platform[]> {
+  const all = await getIndexSources();
+  return [...new Set(all.map((source) => source.platform))];
+}

@@ -4,9 +4,9 @@ import {
   MOCK_INDEX_URL,
   type IndexSource,
 } from '@/config';
-import type { FilterState, IndexFile, SubmissionEntry, UserRecord } from '@/types';
+import type { FilterState, IndexFile, Platform, SubmissionEntry, UserRecord } from '@/types';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
-import { getIndexSources } from '@/lib/index/sources';
+import { getIndexSources, getLineSources } from '@/lib/index/sources';
 import { isMockAvailable } from '@/lib/content';
 
 /** 已加载索引缓存，避免重复请求（设计：缓存已加载的索引） */
@@ -100,10 +100,10 @@ function warnSourceFailure(source: IndexSource, error: unknown): void {
   );
 }
 
-/** 未归档索引：全部索引源的 current.json 合并（按配置顺序，跨源去重） */
+/** 未归档索引：当前线路索引源的 current.json 合并（按配置顺序，跨源去重） */
 export async function loadActiveIndex(signal?: AbortSignal): Promise<IndexFile> {
   const parts: IndexFile[] = [];
-  for (const source of await getIndexSources()) {
+  for (const source of await getLineSources()) {
     try {
       parts.push(await readIndexFile(source, INDEX_PATHS.current, signal));
     } catch (error) {
@@ -152,15 +152,13 @@ export async function loadPrimaryArchive(
   return { source, index: JSON.parse(raw) as IndexFile };
 }
 
-/**
- * 按设计顺序遍历全部稿件：各索引源先 current.json 再按月归档，跨源去重。
- * 支持 AbortSignal 取消（对应列表页的取消按钮）。
- */
-export async function* iterateAllSubmissions(
+/** 按源顺序遍历指定源集合的稿件（current + 按月归档，跨源去重） */
+async function* iterateSources(
+  sources: IndexSource[],
   signal?: AbortSignal,
 ): AsyncGenerator<SubmissionEntry, void, unknown> {
   const seen = new Set<string>();
-  for (const source of await getIndexSources()) {
+  for (const source of sources) {
     try {
       const current = await readIndexFile(source, INDEX_PATHS.current, signal);
       for (const entry of current.submissions) {
@@ -185,6 +183,49 @@ export async function* iterateAllSubmissions(
       warnSourceFailure(source, error);
     }
   }
+}
+
+/**
+ * 遍历当前线路的全部稿件：各索引源先 current.json 再按月归档，跨源去重。
+ * 列表页数据按线路过滤；全源检索（详情定位/自动切线）用 iterateAllSourcesSubmissions。
+ * 支持 AbortSignal 取消（对应列表页的取消按钮）。
+ */
+export async function* iterateAllSubmissions(
+  signal?: AbortSignal,
+): AsyncGenerator<SubmissionEntry, void, unknown> {
+  yield* iterateSources(await getLineSources(), signal);
+}
+
+/** 全源遍历（不随线路过滤）：详情定位与自动切线使用 */
+export async function* iterateAllSourcesSubmissions(
+  signal?: AbortSignal,
+): AsyncGenerator<SubmissionEntry, void, unknown> {
+  yield* iterateSources(await getIndexSources(), signal);
+}
+
+/** 全源检索 user/repo 所属平台（线路自动切换用）；未收录返回 null */
+export async function findPlatformForRepo(
+  user: string,
+  repo: string,
+): Promise<Platform | null> {
+  for (const source of await getIndexSources()) {
+    try {
+      const current = await readIndexFile(source, INDEX_PATHS.current);
+      const inUsers = current.users.some(
+        (u) => u.owner === user && (u.repos ?? []).some((r) => r.repo === repo),
+      );
+      const inSubmissions = current.submissions.some(
+        (s) => s.owner === user && s.repo === repo,
+      );
+      if (inUsers || inSubmissions) return source.platform;
+    } catch {
+      /* 源不可用时跳过 */
+    }
+  }
+  for await (const entry of iterateAllSourcesSubmissions()) {
+    if (entry.owner === user && entry.repo === repo) return entry.platform;
+  }
+  return null;
 }
 
 /** 关键字搜索：遍历全部索引直至命中足够结果或遍历完毕 */
@@ -263,7 +304,7 @@ export async function findEntry(
       null
     );
   }
-  for await (const entry of iterateAllSubmissions()) {
+  for await (const entry of iterateAllSourcesSubmissions()) {
     if (entry.owner === user && entry.repo === repo && entry.slug === slug) return entry;
   }
   return null;

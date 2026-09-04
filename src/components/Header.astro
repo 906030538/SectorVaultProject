@@ -4,6 +4,7 @@ import { t } from '@/i18n';
 import type { Locale, MessageKey } from '@/i18n';
 import LanguageSwitcher from '@/components/LanguageSwitcher.astro';
 import ThemeToggle from '@/components/ThemeToggle.astro';
+import LineSwitcher from '@/components/LineSwitcher.astro';
 import logoSmallUrl from '../../logo-small.svg?url';
 
 interface Props {
@@ -121,6 +122,7 @@ function isActive(href: string): boolean {
         <a href="/new" class="btn btn-primary" data-role="nav-submit" data-i18n="nav.submit">
           {t(locale, 'nav.submit')}
         </a>
+        <LineSwitcher />
         <LanguageSwitcher locale={locale} />
         <ThemeToggle locale={locale} />
         <div id="user-area" class="flex items-center gap-2 text-sm">

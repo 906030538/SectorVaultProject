@@ -1,29 +1,36 @@
 import en from './locales/en';
 import ja from './locales/ja';
-import zhCN, { type MessageKey } from './locales/zh-CN';
-import zhTW from './locales/zh-TW';
+import zhHans, { type MessageKey } from './locales/zh-Hans';
+import zhHant from './locales/zh-Hant';
 
 export type { MessageKey };
 
-export type Locale = 'zh-CN' | 'zh-TW' | 'en' | 'ja';
+export type Locale = 'zh-Hans' | 'zh-Hant' | 'en' | 'ja';
 
 export const LOCALES: { code: Locale; label: string }[] = [
-  { code: 'zh-CN', label: '简体中文' },
-  { code: 'zh-TW', label: '繁體中文' },
+  { code: 'zh-Hans', label: '简体中文' },
+  { code: 'zh-Hant', label: '繁體中文' },
   { code: 'en', label: 'English' },
   { code: 'ja', label: '日本語' },
 ];
 
-export const DEFAULT_LOCALE: Locale = 'zh-CN';
+export const DEFAULT_LOCALE: Locale = 'zh-Hans';
 
 const dicts: Record<Locale, Record<MessageKey, string>> = {
-  'zh-CN': zhCN,
-  'zh-TW': zhTW,
+  'zh-Hans': zhHans,
+  'zh-Hant': zhHant,
   en,
   ja,
 };
 
+/** 旧语言代码迁移：zh-CN / zh-TW（历史 localStorage 偏好） */
+const LEGACY_LOCALE: Record<string, Locale> = {
+  'zh-CN': 'zh-Hans',
+  'zh-TW': 'zh-Hant',
+};
+
 export function normalizeLocale(locale: string | undefined | null): Locale {
+  if (locale && locale in LEGACY_LOCALE) return LEGACY_LOCALE[locale];
   if (locale && locale in dicts) return locale as Locale;
   return DEFAULT_LOCALE;
 }

@@ -31,13 +31,29 @@ export function loadSession(): AuthInfo | null {
   }
 }
 
+/** 指定平台的登录会话（多平台 token 并存时按平台分别保存） */
+export function loadSessionBy(platform: Platform): AuthInfo | null {
+  const raw = localStorage.getItem(`svp-session-${platform}`);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthInfo;
+  } catch {
+    return null;
+  }
+}
+
 export function saveSession(info: AuthInfo): void {
+  // svp-session 为最近登录（导航头像展示用）；各平台会话分别保存
   localStorage.setItem('svp-session', JSON.stringify(info));
+  localStorage.setItem(`svp-session-${info.platform}`, JSON.stringify(info));
 }
 
 export function logout(): void {
   localStorage.removeItem('svp-session');
-  for (const platform of Object.keys(TOKEN_KEY) as Platform[]) clearToken(platform);
+  for (const platform of Object.keys(TOKEN_KEY) as Platform[]) {
+    clearToken(platform);
+    localStorage.removeItem(`svp-session-${platform}`);
+  }
 }
 
 /**

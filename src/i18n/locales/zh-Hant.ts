@@ -1,4 +1,4 @@
-import type { MessageKey } from './zh-CN';
+import type { MessageKey } from './zh-Hans';
 
 const zhTW: Record<MessageKey, string> = {
   'nav.projects': '投稿列表',
@@ -10,7 +10,8 @@ const zhTW: Record<MessageKey, string> = {
   'nav.logout': '登出',
   'nav.submit': '投稿',
   'nav.menu': '選單',
-  'nav.more': '更多',
+  'nav.line': '線路',
+  'line.all': '全部平台',
   'auth.title': '授權登入',
   'auth.intro': '選擇資料託管平台，註冊帳號並創建權杖，授權本站存取你的內容倉庫。',
   'auth.stepRegister': '註冊平台帳號',

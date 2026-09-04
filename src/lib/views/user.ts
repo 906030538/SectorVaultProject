@@ -7,7 +7,7 @@ import {
   REPO_TEMPLATES,
 } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
-import { getToken, loadSession } from '@/lib/auth';
+import { getToken, loadSessionBy } from '@/lib/auth';
 import { setAvatar } from '@/lib/ui';
 import { isMockAvailable, loadAbout, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadActiveIndex, loadMockIndex } from '@/lib/index/loader';
@@ -271,7 +271,6 @@ function openCreateDialog(init: UserInit, platform: Platform): void {
 
 export async function initUser(init: UserInit): Promise<void> {
   const { name, labels, els } = init;
-  const session = loadSession();
 
   const [index, entries] = await Promise.all([loadIndex(), loadUserEntries(name)]);
 
@@ -298,9 +297,10 @@ export async function initUser(init: UserInit): Promise<void> {
     }
   }
 
-  if (session?.login === name && session.avatarUrl) {
+  const platformSession = loadSessionBy(platform);
+  if (platformSession?.login === name && platformSession.avatarUrl) {
     const img = el('img', 'h-full w-full rounded-full object-cover');
-    setAvatar(img, session.avatarUrl);
+    setAvatar(img, platformSession.avatarUrl);
     img.alt = name;
     els.avatar.textContent = '';
     els.avatar.appendChild(img);
@@ -316,7 +316,7 @@ export async function initUser(init: UserInit): Promise<void> {
     els.site.appendChild(link);
   }
 
-  if (session?.login === name && session.platform === platform) {
+  if (platformSession?.login === name) {
     const button = el('button', 'btn btn-primary', labels.newCollection);
     button.type = 'button';
     button.dataset.action = 'new-collection';

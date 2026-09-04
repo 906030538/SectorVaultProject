@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SUPPORTED_PLATFORMS } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
-import { getToken, loadSession, saveSession, setToken } from '@/lib/auth';
+import { getToken, loadSessionBy, saveSession, setToken } from '@/lib/auth';
 import { isMockAvailable, loadReleases, loadSubmissionContent, type ProjectFile } from '@/lib/content';
 import {
   defaultScheme,
@@ -882,9 +882,9 @@ export async function initEditor(
     banner.setAttribute('data-role', 'demo-banner');
     root.appendChild(banner);
   } else {
-    const session = loadSession();
-    const token = session ? getToken(session.platform) : null;
-    if (!session || !token) {
+    // 多平台 token 并存：任一平台已登录即进入表单，目标平台缺令牌在提交时提示
+    const hasAnyToken = SUPPORTED_PLATFORMS.some((platform) => getToken(platform));
+    if (!hasAnyToken) {
       renderAuthGate(root, labels);
       return;
     }
@@ -1029,11 +1029,21 @@ export async function initEditor(
         }
       }
     } else {
-      const session = loadSession();
-      if (session) {
-        const repos = await (await getAdapterAsync(session.platform)).listRepos(session.login, CONTENT_REPO_PREFIX);
+      // 合并全部已保存 token 平台的仓库（会话按平台分别读取，缺失时实时校验令牌获取）
+      for (const platform of SUPPORTED_PLATFORMS) {
+        const token = getToken(platform);
+        if (!token) continue;
+        let login = loadSessionBy(platform)?.login;
+        if (!login) {
+          try {
+            login = (await (await getAdapterAsync(platform)).getViewer(token)).login;
+          } catch {
+            continue; // 令牌失效的平台跳过
+          }
+        }
+        const repos = await (await getAdapterAsync(platform)).listRepos(login, CONTENT_REPO_PREFIX);
         for (const repo of repos) {
-          repoOptions.push({ user: session.login, repo: repo.name, platform: session.platform });
+          repoOptions.push({ user: login, repo: repo.name, platform });
         }
       }
     }
@@ -1507,8 +1517,17 @@ export async function initEditor(
       onStepInner(id, stateName, detail);
       if (stateName === 'done' || stateName === 'warning') persistProgress();
     };
-    const draft = buildDraft(state);
+    // 互动（发布/保存）按稿件所在平台取对应令牌；缺失时提示登录
     const token = mock ? null : getToken(state.platform);
+    if (!mock && !token) {
+      validation.classList.remove('hidden');
+      validation.classList.add('flex');
+      validation.appendChild(el('li', undefined, labels.authRequired));
+      submitBtn.disabled = false;
+      submitBtn.textContent = isEdit ? labels.save : labels.submit;
+      return;
+    }
+    const draft = buildDraft(state);
     if (!isEdit) currentProgress = loadProgress();
 
     try {

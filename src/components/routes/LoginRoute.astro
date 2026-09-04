@@ -1,0 +1,146 @@
+---
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+/**
+ * /login/:platform 的 OAuth 回调路由组件：
+ * 平台授权后带 ?code= 回跳到此页，前端换取令牌并保存登录态。
+ * 静态部署下经 404 SPA 回退激活；亦可由部署为任意路径的静态页承载。
+ */
+const locale = DEFAULT_LOCALE;
+---
+
+<div data-route-component="login">
+  <div class="mx-auto max-w-md">
+    <h1 class="mb-6 text-2xl font-bold" data-i18n="login.title">{t(locale, 'login.title')}</h1>
+    <div class="card flex flex-col gap-3 p-6" data-role="login-panel">
+      <p class="text-sm text-slate-500 dark:text-slate-400" data-role="login-status">
+        {t(locale, 'login.exchanging')}
+      </p>
+      <div data-role="login-error" class="hidden text-sm text-rose-600"></div>
+      <div data-role="login-actions" class="hidden flex gap-2">
+        <a href="/" class="btn" data-i18n="login.back">{t(locale, 'login.back')}</a>
+        <button type="button" class="btn btn-primary" data-action="retry-login">
+          {t(locale, 'login.retry')}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { withBase } from '@/lib/base';
+  import { stripBase } from '@/lib/base';
+  import { getAdapterAsync } from '@/lib/adapters/lazy';
+  import { getOAuthConfig } from '@/lib/index/sources';
+  import { setToken, saveSession } from '@/lib/auth';
+  import type { Platform } from '@/types';
+
+  const segments = stripBase(window.location.pathname).split('/').filter(Boolean);
+  const platform = segments[1];
+  const valid = ['github', 'gitee', 'atomgit', 'gitcode'].includes(platform);
+
+  if (segments[0] === 'login' && segments.length === 2 && valid) {
+    const root = document.querySelector<HTMLElement>('[data-route-component="login"]')!;
+    const host = root.closest<HTMLElement>('[data-route-host]');
+    if (host) host.hidden = false;
+    document.querySelector<HTMLElement>('[data-role="not-found"]')?.setAttribute('hidden', '');
+    document.title = `${platform} · Login - Sector Vault`;
+
+    const status = root.querySelector<HTMLElement>('[data-role="login-status"]')!;
+    const errorEl = root.querySelector<HTMLElement>('[data-role="login-error"]')!;
+    const actions = root.querySelector<HTMLElement>('[data-role="login-actions"]')!;
+    const retryBtn = root.querySelector<HTMLButtonElement>('[data-action="retry-login"]')!;
+
+    async function exchange(): Promise<void> {
+      status.textContent = document.documentElement.lang.startsWith('zh')
+        ? '正在获取令牌…'
+        : 'Exchanging token…';
+      errorEl.classList.add('hidden');
+      actions.classList.add('hidden');
+
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      const oauthError = params.get('error');
+      const cfg = await getOAuthConfig(platform as Platform);
+
+      if (oauthError) {
+        throw new Error(params.get('error_description') ?? oauthError);
+      }
+      if (!cfg || !cfg.authorizeUrl || !cfg.tokenUrl) {
+        throw new Error(`OAuth for ${platform} is not configured`);
+      }
+      if (!code) {
+        throw new Error('Missing ?code= parameter');
+      }
+      // state 校验（防 CSRF）：授权发起时写入 sessionStorage
+      const saved = sessionStorage.getItem('svp-oauth-state');
+      if (saved && state && saved !== state) {
+        throw new Error('State mismatch');
+      }
+
+      const redirectUri = `${window.location.origin}/login/${platform}`;
+      const form = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: cfg.clientId,
+        redirect_uri: redirectUri,
+      });
+      const secret = (cfg as Partial<Record<'clientSecret', string>>).clientSecret;
+      if (secret) form.set('client_secret', secret);
+      const response = await fetch(cfg.tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        body: form.toString(),
+      });
+      if (!response.ok) {
+        throw new Error(`Token exchange failed: ${response.status}`);
+      }
+      const text = await response.text();
+      let token: string | null = null;
+      try {
+        const data = JSON.parse(text) as Record<string, unknown>;
+        token = (data.access_token as string) || null;
+      } catch {
+        // 部分平台返回 form 编码
+        token = new URLSearchParams(text).get('access_token');
+      }
+      if (!token) {
+        throw new Error('No access_token in response');
+      }
+
+      const adapter = await getAdapterAsync(platform as Platform);
+      const viewer = await adapter.getViewer(token);
+      setToken(platform as Platform, token);
+      saveSession(viewer);
+      sessionStorage.removeItem('svp-oauth-state');
+      status.textContent = document.documentElement.lang.startsWith('zh')
+        ? `登录成功：${viewer.login}，正在返回…`
+        : `Signed in as ${viewer.login}, redirecting…`;
+      window.setTimeout(() => {
+        window.location.href = withBase('/');
+      }, 1500);
+    }
+
+    function fail(message: string): void {
+      status.textContent = '';
+      errorEl.textContent = message;
+      errorEl.classList.remove('hidden');
+      actions.classList.remove('hidden');
+    }
+
+    retryBtn.addEventListener('click', () => {
+      // 重试：清除 code 重新走授权（避免 code 已被消费）
+      void (async () => {
+        const cfg = await getOAuthConfig(platform as Platform);
+        if (cfg?.authorizeUrl) {
+          window.location.href = cfg.authorizeUrl;
+        }
+      })();
+    });
+
+    void exchange().catch((error) => {
+      fail(error instanceof Error ? error.message : String(error));
+    });
+  }
+</script>

@@ -1,5 +1,5 @@
 /** Git 托管平台 */
-export type Platform = 'github' | 'gitee' | 'atomgit';
+export type Platform = 'github' | 'gitee' | 'atomgit' | 'gitcode';
 
 /** 稿件类型：工程投稿 / 专栏投稿 */
 export type SubmissionType = 'project' | 'article';
@@ -122,6 +122,14 @@ export interface ReleaseInfo {
   htmlUrl: string;
   reactions: number;
   assets: ReleaseAsset[];
+}
+
+/** Release 表情互动条目 */
+export interface ReleaseReactionInfo {
+  id: number;
+  /** 表情类型（+1 / -1 / laugh / confused / heart / hooray / rocket / eyes） */
+  content: string;
+  user?: string;
 }
 
 export interface ReleaseAsset {

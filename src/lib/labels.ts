@@ -54,6 +54,8 @@ export function buildDetailLabels(locale: Locale): DetailLabels {
     compressed: t(locale, 'detail.compressed'),
     attachments: t(locale, 'detail.attachments'),
     interactions: t(locale, 'detail.interactions'),
+    like: t(locale, 'detail.like'),
+    liked: t(locale, 'detail.liked'),
     loadError: t(locale, 'detail.loadError'),
     license: t(locale, 'label.license'),
     stars: t(locale, 'label.stars'),
@@ -122,6 +124,7 @@ export function buildAuthLabels(locale: Locale): AuthLabels {
     tokenBad: t(locale, 'editor.tokenBad'),
     demoHint: t(locale, 'auth.demoHint'),
     cancel: t(locale, 'common.cancel'),
+    oauthLogin: t(locale, 'auth.oauthLogin'),
   };
 }
 

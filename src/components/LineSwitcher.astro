@@ -36,7 +36,7 @@ const { locale = DEFAULT_LOCALE } = Astro.props;
       select.value = getStoredLine() ?? '';
     });
     select.addEventListener('change', () => {
-      setStoredLine(select.value === '' ? null : (select.value as 'github' | 'gitee' | 'atomgit'));
+      setStoredLine(select.value === '' ? null : (select.value as 'github' | 'gitee' | 'atomgit' | 'gitcode'));
       location.reload();
     });
   }

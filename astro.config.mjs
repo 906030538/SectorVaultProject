@@ -3,8 +3,10 @@ import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
+// site/base 经环境变量注入（Pages 子路径部署见 .github/workflows/deploy-pages.yml）
 export default defineConfig({
-  site: 'https://sectorvault.example.com',
+  site: process.env.ASTRO_SITE ?? 'https://sectorvault.example.com',
+  base: process.env.ASTRO_BASE || undefined,
   vite: {
     plugins: [
       tailwindcss(),
@@ -23,10 +25,6 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
-        // @gitee/typescript-sdk-v5 生成代码需要的共享 client 实例由垫片提供
-        '@hey-api/client-axios': fileURLToPath(
-          new URL('./src/lib/adapters/hey-api-client-axios-shim.ts', import.meta.url),
-        ),
       },
     },
   },

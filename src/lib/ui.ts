@@ -1,5 +1,10 @@
 import type { EngagementStats, SubmissionEntry } from '@/types';
 import faviconUrl from '../../favicon.svg?url';
+import { POSTS_DIR } from '@/config';
+import { getAdapterAsync } from '@/lib/adapters/lazy';
+import { withBase } from '@/lib/base';
+import { getClientLocale } from '@/lib/i18n-client';
+import { t } from '@/i18n';
 
 /** 设置头像 src；加载失败时回退为站点 favicon 占位 */
 export function setAvatar(img: HTMLImageElement, url: string): void {
@@ -11,6 +16,70 @@ export function setAvatar(img: HTMLImageElement, url: string): void {
     { once: true },
   );
   img.src = url;
+}
+
+/** 封面图：解析索引 cover（完整 URL 或相对文件名）为 raw 地址后插入；失败保留 ♪ 占位 */
+export async function applyCover(entry: SubmissionEntry, coverLink: HTMLElement): Promise<void> {
+  if (!entry.cover) return;
+  let src: string | null = entry.cover.startsWith('http') ? entry.cover : null;
+  if (!src) {
+    try {
+      const adapter = await getAdapterAsync(entry.platform);
+      src = adapter.rawUrl(entry.owner, entry.repo, `${POSTS_DIR}/${entry.slug}/${entry.cover}`);
+    } catch {
+      return;
+    }
+  }
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = entry.title;
+  img.loading = 'lazy';
+  img.className = 'aspect-video w-full rounded-lg object-cover';
+  const placeholder = coverLink.querySelector('div');
+  // 封面成功加载后移除 ♪ 占位；加载失败则移除图片保留占位
+  img.addEventListener('load', () => placeholder?.remove());
+  img.addEventListener('error', () => img.remove());
+  if (placeholder) coverLink.insertBefore(img, placeholder);
+  else coverLink.appendChild(img);
+}
+
+/** 接口配额超限判定（403/429 且报文含 rate limit） */
+export function isRateLimitError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = (error as { status?: number }).status;
+    if (status === 429) return true;
+    if (status !== 403) return false;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /rate limit/i.test(message);
+}
+
+/** 配额超限提示横幅（幂等单例）：登录该平台提高配额，或切换其他线路 */
+export function showApiLimitNotice(platform: string): void {
+  if (document.getElementById('svp-rate-limit-notice')) return;
+  const locale = getClientLocale();
+  const banner = document.createElement('div');
+  banner.id = 'svp-rate-limit-notice';
+  banner.dataset.role = 'rate-limit-notice';
+  banner.className =
+    'fixed inset-x-0 top-16 z-50 mx-auto flex max-w-2xl items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 shadow-lg dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200';
+  const text = document.createElement('div');
+  text.className = 'flex-1';
+  const title = document.createElement('p');
+  title.className = 'font-medium';
+  title.textContent = `${t(locale, 'ratelimit.title')}（${platform}）`;
+  const hint = document.createElement('p');
+  hint.className = 'mt-0.5 text-xs';
+  hint.textContent = t(locale, 'ratelimit.hint');
+  text.append(title, hint);
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'btn px-2 py-0.5 text-xs';
+  close.dataset.action = 'dismiss-rate-limit';
+  close.textContent = '×';
+  close.addEventListener('click', () => banner.remove());
+  banner.append(text, close);
+  document.body.appendChild(banner);
 }
 
 /** 客户端列表渲染所需的文案（由页面内联 JSON 注入） */
@@ -46,22 +115,15 @@ export function renderCard(
   article.className = 'card flex gap-4 p-4';
 
   const coverLink = document.createElement('a');
-  coverLink.href = `/view/${entry.owner}/${entry.repo}/${entry.slug}`;
+  coverLink.href = withBase(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   coverLink.className = 'block w-32 shrink-0';
-  if (entry.cover?.startsWith('http')) {
-    const img = document.createElement('img');
-    img.src = entry.cover;
-    img.alt = entry.title;
-    img.loading = 'lazy';
-    img.className = 'aspect-video w-full rounded-lg object-cover';
-    coverLink.appendChild(img);
-  } else {
-    const placeholder = document.createElement('div');
-    placeholder.className =
-      'flex aspect-video w-full items-center justify-center rounded-lg bg-slate-100 text-2xl text-slate-300 dark:bg-slate-800 dark:text-slate-600';
-    placeholder.textContent = '♪';
-    coverLink.appendChild(placeholder);
-  }
+  const placeholder = document.createElement('div');
+  placeholder.className =
+    'flex aspect-video w-full items-center justify-center rounded-lg bg-slate-100 text-2xl text-slate-300 dark:bg-slate-800 dark:text-slate-600';
+  placeholder.textContent = '♪';
+  coverLink.appendChild(placeholder);
+  // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
+  void applyCover(entry, coverLink);
 
   const body = document.createElement('div');
   body.className = 'min-w-0 flex-1';
@@ -77,7 +139,7 @@ export function renderCard(
   const meta = document.createElement('p');
   meta.className = 'mt-1 text-sm text-slate-500 dark:text-slate-400';
   const userLink = document.createElement('a');
-  userLink.href = `/user/${entry.owner}`;
+  userLink.href = withBase(`/user/${entry.owner}`);
   userLink.className = 'hover:text-emerald-600 dark:hover:text-emerald-400';
   userLink.textContent = entry.owner;
   const date = document.createElement('time');
@@ -127,7 +189,7 @@ export function renderCard(
     const actions = document.createElement('div');
     actions.className = 'mt-2 flex gap-2';
     const editBtn = document.createElement('a');
-    editBtn.href = `/edit/${entry.owner}/${entry.repo}/${entry.slug}`;
+    editBtn.href = withBase(`/edit/${entry.owner}/${entry.repo}/${entry.slug}`);
     editBtn.className =
       'rounded-md border border-slate-300 px-2 py-0.5 text-xs hover:border-emerald-500 hover:text-emerald-600 dark:border-slate-600';
     editBtn.dataset.action = 'edit-submission';

@@ -52,6 +52,7 @@ const locale = DEFAULT_LOCALE;
 </div>
 
 <script>
+  import { stripBase } from '@/lib/base';
   import { initUser } from '@/lib/views/user';
   import { buildUserLabels } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
@@ -59,7 +60,7 @@ const locale = DEFAULT_LOCALE;
   import { SITE_NAME } from '@/config';
 
   // 路由匹配：/user/:name（严格两段）；不匹配时不激活
-  const segments = window.location.pathname.split('/').filter(Boolean);
+  const segments = stripBase(window.location.pathname).split('/').filter(Boolean);
   const name = segments[1];
   if (segments[0] === 'user' && segments.length === 2 && name) {
     const root = document.querySelector<HTMLElement>('[data-route-component="user"]')!;

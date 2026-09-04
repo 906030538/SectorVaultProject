@@ -290,8 +290,9 @@ async function tryIndexPr(
     const change = await buildIndexChange(entry, mock);
     if (!mock) {
       if (!token) throw new Error('missing token');
-      // PR 目标为主索引源（与 buildIndexChange 的归档基准同源）
-      const source = (await getIndexSources())[0]!;
+      // PR 目标优先取与稿件同平台的索引源（跨平台投稿时适配器与目标仓一致），无则回退主源
+      const sources = await getIndexSources();
+      const source = sources.find((s) => s.platform === entry.platform) ?? sources[0]!;
       const prUrl = await (await getAdapterAsync(entry.platform)).openIndexPr(
         token,
         { owner: source.owner, repo: source.repo, branch: source.branch },
@@ -549,7 +550,7 @@ export async function publishSubmission(
           issue,
           draft.cover?.name,
           { submittedAt: entry.submittedAt, publishedAt: entry.publishedAt },
-          releaseId,
+          releaseId || undefined,
         ),
         encoding: 'utf-8',
       },

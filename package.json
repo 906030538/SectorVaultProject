@@ -11,8 +11,6 @@
     "check": "astro check"
   },
   "dependencies": {
-    "@gitee/typescript-sdk-v5": "^5.4.86",
-    "@hey-api/client-axios": "^0.3.4",
     "@tailwindcss/vite": "^4.1.0",
     "@zip.js/zip.js": "^2.8.60",
     "astro": "^7.3.1",

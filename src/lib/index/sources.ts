@@ -1,9 +1,13 @@
 import {
   DEFAULT_INDEX_SOURCES,
+  DEFAULT_OAUTH_ENDPOINTS,
   DEPLOYMENT_CONFIG_URL,
   SUPPORTED_PLATFORMS,
   type IndexSource,
+  type OAuthProviderConfig,
 } from '@/config';
+import { GITHUB_CLIENT_ID } from '@/lib/auth';
+import { withBase } from '@/lib/base';
 import type { Platform } from '@/types';
 
 /** 部署配置结构：indexes 为索引源列表 */
@@ -34,7 +38,7 @@ let sourcesPromise: Promise<IndexSource[]> | undefined;
 export function getIndexSources(): Promise<IndexSource[]> {
   sourcesPromise ??= (async () => {
     try {
-      const response = await fetch(DEPLOYMENT_CONFIG_URL);
+      const response = await fetch(withBase(DEPLOYMENT_CONFIG_URL));
       if (response.ok) {
         const config = (await response.json()) as DeploymentConfig;
         const list = (Array.isArray(config.indexes) ? config.indexes : [])
@@ -53,6 +57,46 @@ export function getIndexSources(): Promise<IndexSource[]> {
 /** 主索引源：第一个配置的源，作为索引 PR 的写入目标 */
 export async function getPrimaryIndexSource(): Promise<IndexSource> {
   return (await getIndexSources())[0]!;
+}
+
+let oauthPromise: Promise<Record<string, OAuthProviderConfig>> | undefined;
+
+/** 部署配置的 OAuth 提供方（deployment.json 的 oauth 段；GitHub clientId 亦可经环境变量注入） */
+export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>> {
+  oauthPromise ??= (async () => {
+    try {
+      const response = await fetch(withBase(DEPLOYMENT_CONFIG_URL));
+      if (response.ok) {
+        const config = (await response.json()) as { oauth?: Record<string, OAuthProviderConfig> };
+        const merged = { ...(config.oauth ?? {}) };
+        if (GITHUB_CLIENT_ID && !merged.github?.clientId) {
+          merged.github = { ...(merged.github ?? {}), clientId: GITHUB_CLIENT_ID };
+        }
+        return merged;
+      }
+    } catch {
+      /* 配置不可用时仅环境变量 */
+    }
+    return GITHUB_CLIENT_ID ? { github: { clientId: GITHUB_CLIENT_ID } } : {};
+  })();
+  return oauthPromise;
+}
+
+/** 平台的可用 OAuth 配置（含默认端点；未配置 clientId 时返回 null） */
+export async function getOAuthConfig(
+  platform: Platform,
+): Promise<Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> | null> {
+  const providers = await getOAuthProviders();
+  const custom = providers[platform];
+  if (!custom?.clientId) return null;
+  const preset = DEFAULT_OAUTH_ENDPOINTS[platform];
+  return {
+    clientId: custom.clientId,
+    authorizeUrl: custom.authorizeUrl ?? preset?.authorizeUrl ?? '',
+    tokenUrl: custom.tokenUrl ?? preset?.tokenUrl ?? '',
+    scope: custom.scope ?? preset?.scope ?? '',
+    ...(custom.clientSecret ? { clientSecret: custom.clientSecret } : {}),
+  } as Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>>;
 }
 
 /** 线路偏好（选定的托管平台）存储键；未设置 = 全部平台 */

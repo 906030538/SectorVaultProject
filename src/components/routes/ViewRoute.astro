@@ -90,6 +90,7 @@ const locale = DEFAULT_LOCALE;
 </div>
 
 <script>
+  import { stripBase } from '@/lib/base';
   import { initCollection } from '@/lib/views/collection';
   import { initDetail } from '@/lib/views/detail';
   import { buildCollectionLabels, buildDetailLabels } from '@/lib/labels';
@@ -100,8 +101,17 @@ const locale = DEFAULT_LOCALE;
   import type { Platform } from '@/types';
 
 void (async () => {
-  // 路由匹配：/view/:user/:repo[/:slug...]；不匹配时（404 回退页共存场景）不激活
-  const segments = window.location.pathname.split('/').filter(Boolean);
+  // 路由匹配：/view/:user/:repo[/:slug...]；pathname 中中文为百分号编码，需逐段解码
+  const segments = stripBase(window.location.pathname)
+    .split('/')
+    .filter(Boolean)
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    });
   const user = segments[1];
   const repo = segments[2];
   const slug = segments.slice(3).join('/');

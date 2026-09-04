@@ -8,7 +8,8 @@ import {
 } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSessionBy } from '@/lib/auth';
-import { setAvatar } from '@/lib/ui';
+import { applyCover, setAvatar } from '@/lib/ui';
+import { withBase } from '@/lib/base';
 import { isMockAvailable, loadAbout, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadActiveIndex, loadMockIndex } from '@/lib/index/loader';
 import type { IndexFile, Platform, SubmissionEntry } from '@/types';
@@ -95,24 +96,18 @@ function formatDate(date: string, locale: string): string {
 
 function miniCard(entry: SubmissionEntry, locale: string): HTMLElement {
   const link = el('a', 'card block w-40 shrink-0 overflow-hidden p-0');
-  link.href = `/view/${entry.owner}/${entry.repo}/${entry.slug}`;
+  link.href = withBase(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   link.dataset.role = 'mini-card';
 
-  if (entry.cover?.startsWith('http')) {
-    const img = el('img', 'aspect-video w-full object-cover');
-    img.src = entry.cover;
-    img.alt = entry.title;
-    img.loading = 'lazy';
-    link.appendChild(img);
-  } else {
-    link.appendChild(
-      el(
-        'div',
-        'flex aspect-video w-full items-center justify-center bg-slate-100 text-2xl text-slate-300 dark:bg-slate-800 dark:text-slate-600',
-        '♪',
-      ),
-    );
-  }
+  link.appendChild(
+    el(
+      'div',
+      'flex aspect-video w-full items-center justify-center bg-slate-100 text-2xl text-slate-300 dark:bg-slate-800 dark:text-slate-600',
+      '♪',
+    ),
+  );
+  // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
+  void applyCover(entry, link);
 
   const body = el('div', 'flex flex-col gap-0.5 p-2.5');
   body.appendChild(el('p', 'truncate text-sm font-medium', entry.title));
@@ -137,12 +132,12 @@ async function renderRepoCollection(
 
   const header = el('div', 'flex flex-wrap items-center gap-2');
   const repoLink = el('a', 'font-semibold hover:text-emerald-600 dark:hover:text-emerald-400', repo);
-  repoLink.href = `/view/${name}/${repo}`;
+  repoLink.href = withBase(`/view/${name}/${repo}`);
   header.appendChild(repoLink);
   const info = await loadRepoInfo(platform, name, repo).catch(() => null);
   if (info) header.appendChild(el('span', 'text-sm text-slate-400', `★ ${info.stars}`));
   const more = el('a', 'btn ml-auto', labels.more);
-  more.href = `/view/${name}/${repo}`;
+  more.href = withBase(`/view/${name}/${repo}`);
   more.dataset.action = 'more';
   header.appendChild(more);
   card.appendChild(header);
@@ -173,7 +168,7 @@ function dialogShell(title: string): { overlay: HTMLElement; body: HTMLElement }
 /** 新建集合：前缀 + 名称、属主、模板库、默认许可证 */
 function openCreateDialog(init: UserInit, platform: Platform): void {
   const { labels } = init;
-  const session = loadSession()!;
+  const session = loadSessionBy(platform)!;
   const { overlay, body } = dialogShell(labels.newCollection);
 
   const nameRow = el('div', 'flex flex-col gap-1');
@@ -290,7 +285,7 @@ export async function initUser(init: UserInit): Promise<void> {
   if (platforms.length > 1) {
     for (const p of platforms) {
       const chip = el('a', 'chip', p);
-      chip.href = `/user/${name}?git=${p}`;
+      chip.href = withBase(`/user/${name}?git=${p}`);
       chip.dataset.platform = p;
       if (p === platform) chip.classList.add('font-semibold', 'text-emerald-600', 'dark:text-emerald-400');
       els.platforms.appendChild(chip);

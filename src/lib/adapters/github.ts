@@ -4,15 +4,25 @@ import type {
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
+  ReleaseReactionInfo,
   IssueInfo,
   ReleaseInfo,
   RepoInfo,
 } from '@/types';
 import type { FileChange, GitPlatformAdapter } from './types';
 import { decodeBase64Utf8 } from '@/lib/utils';
+import { getToken } from '@/lib/auth';
 
 function client(token?: string): Octokit {
   return token ? new Octokit({ auth: token }) : new Octokit();
+}
+
+/**
+ * 读请求客户端：自动附带已保存的 GitHub 令牌
+ * （登录后 5000 次/小时，匿名仅 60 次/小时，配额极易耗尽）。
+ */
+function autoClient(): Octokit {
+  return client(getToken('github') ?? undefined);
 }
 
 /** UTF-8 文本 → base64（分块编码避免长内容栈溢出） */
@@ -72,7 +82,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
   }
 
   async listRepos(user: string, prefix?: string): Promise<RepoInfo[]> {
-    const { data } = await client().rest.repos.listForUser({
+    const { data } = await autoClient().rest.repos.listForUser({
       username: user,
       per_page: 100,
       sort: 'pushed',
@@ -82,12 +92,12 @@ export class GitHubAdapter implements GitPlatformAdapter {
   }
 
   async getRepo(user: string, repo: string): Promise<RepoInfo> {
-    const { data } = await client().rest.repos.get({ owner: user, repo });
+    const { data } = await autoClient().rest.repos.get({ owner: user, repo });
     return mapRepo(data);
   }
 
   async listDir(user: string, repo: string, path = '', ref?: string): Promise<FileInfo[]> {
-    const { data } = await client().rest.repos.getContent({
+    const { data } = await autoClient().rest.repos.getContent({
       owner: user,
       repo,
       path,
@@ -104,7 +114,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
   }
 
   async readFile(user: string, repo: string, path: string, ref?: string): Promise<string> {
-    const { data } = await client().rest.repos.getContent({
+    const { data } = await autoClient().rest.repos.getContent({
       owner: user,
       repo,
       path,
@@ -121,7 +131,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
   }
 
   async listReleases(user: string, repo: string): Promise<ReleaseInfo[]> {
-    const { data } = await client().rest.repos.listReleases({
+    const { data } = await autoClient().rest.repos.listReleases({
       owner: user,
       repo,
       per_page: 100,
@@ -143,7 +153,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
   }
 
   async listIssues(user: string, repo: string): Promise<IssueInfo[]> {
-    const { data } = await client().rest.issues.listForRepo({
+    const { data } = await autoClient().rest.issues.listForRepo({
       owner: user,
       repo,
       per_page: 100,
@@ -183,7 +193,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
   }
 
   async listDiscussions(user: string, repo: string): Promise<DiscussionInfo[]> {
-    const { data } = await client().request('GET /repos/{owner}/{repo}/discussions', {
+    const { data } = await autoClient().request('GET /repos/{owner}/{repo}/discussions', {
       owner: user,
       repo,
       per_page: 50,
@@ -192,7 +202,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
   }
 
   async getDiscussion(user: string, repo: string, number: number): Promise<DiscussionInfo> {
-    const { data } = await client().request('GET /repos/{owner}/{repo}/discussions/{discussion_number}', {
+    const { data } = await autoClient().request('GET /repos/{owner}/{repo}/discussions/{discussion_number}', {
       owner: user,
       repo,
       discussion_number: number,
@@ -205,7 +215,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
     repo: string,
     number: number,
   ): Promise<DiscussionComment[]> {
-    const { data } = await client().request(
+    const { data } = await autoClient().request(
       'GET /repos/{owner}/{repo}/discussions/{discussion_number}/comments',
       { owner: user, repo, discussion_number: number, per_page: 50 },
     );
@@ -344,6 +354,39 @@ export class GitHubAdapter implements GitPlatformAdapter {
       body,
     });
     return data.id;
+  }
+
+  // ---- Release 表情互动（repo reactions REST） ----
+
+  async listReleaseReactions(
+    user: string,
+    repo: string,
+    releaseId: number,
+  ): Promise<ReleaseReactionInfo[]> {
+    // 匿名 GET 会被 CDN 缓存（点赞后读不到新数据），自动附带已存令牌
+    const { data } = await autoClient().request(
+      'GET /repos/{owner}/{repo}/releases/{release_id}/reactions',
+      { owner: user, repo, release_id: releaseId, per_page: 100 },
+    );
+    const items = Array.isArray(data)
+      ? (data as Array<{ id: number; content: string; user?: { login: string } | null }>)
+      : [];
+    return items.map((r) => ({ id: r.id, content: r.content, user: r.user?.login }));
+  }
+
+  async createReleaseReaction(
+    token: string,
+    user: string,
+    repo: string,
+    releaseId: number,
+  ): Promise<void> {
+    // 已点过赞时平台返回 200（幂等）
+    await client(token).request('POST /repos/{owner}/{repo}/releases/{release_id}/reactions', {
+      owner: user,
+      repo,
+      release_id: releaseId,
+      content: '+1',
+    });
   }
 
   async uploadReleaseAsset(

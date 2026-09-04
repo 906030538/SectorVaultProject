@@ -1,6 +1,7 @@
 import { saveSession, setToken } from '@/lib/auth';
 import { isMockAvailable } from '@/lib/content';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
+import { getOAuthConfig } from '@/lib/index/sources';
 import type { Platform } from '@/types';
 
 export interface AuthLabels {
@@ -13,6 +14,7 @@ export interface AuthLabels {
   register: string;
   tokenPage: string;
   tokenPh: string;
+  oauthLogin: string;
   tokenSave: string;
   tokenBad: string;
   demoHint: string;
@@ -23,6 +25,7 @@ const PLATFORM_LINKS: Record<Platform, { signup: string; tokens: string }> = {
   github: { signup: 'https://github.com/signup', tokens: 'https://github.com/settings/tokens' },
   gitee: { signup: 'https://gitee.com/signup', tokens: 'https://gitee.com/personal_access_tokens' },
   atomgit: { signup: 'https://atomgit.com/login', tokens: 'https://atomgit.com/-/settings/tokens' },
+  gitcode: { signup: 'https://gitcode.com/login', tokens: 'https://gitcode.com/-/settings/tokens' },
 };
 
 const MOCK_AVATAR = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -69,6 +72,7 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
       }
       registerLink.href = PLATFORM_LINKS[p].signup;
       tokenLink.href = PLATFORM_LINKS[p].tokens;
+      void syncOauthButton();
     });
     chips.set(p, chip);
     platformRow.appendChild(chip);
@@ -96,6 +100,37 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
   tokenLink.target = '_blank';
   tokenLink.rel = 'noopener';
   tokenLink.dataset.action = 'goto-tokens';
+
+  // OAuth 授权按钮：已配置 OAuth 的平台可直接跳转授权（回调 /login/{platform}）
+  const oauthBtn = el('button', 'btn hidden', labels.oauthLogin);
+  oauthBtn.type = 'button';
+  oauthBtn.dataset.action = 'oauth-login';
+  oauthBtn.addEventListener('click', () => {
+    void (async () => {
+      const cfg = await getOAuthConfig(platform);
+      if (!cfg?.authorizeUrl) return;
+      const state = crypto.randomUUID().replace(/-/g, '');
+      try {
+        sessionStorage.setItem('svp-oauth-state', state);
+      } catch {
+        /* 存储不可用时跳过 state 校验 */
+      }
+      const redirectUri = `${window.location.origin}/login/${platform}`;
+      const params = new URLSearchParams({
+        client_id: cfg.clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        state,
+      });
+      if (cfg.scope) params.set('scope', cfg.scope);
+      window.location.href = `${cfg.authorizeUrl}?${params.toString()}`;
+    })();
+  });
+  const syncOauthButton = async (): Promise<void> => {
+    const cfg = await getOAuthConfig(platform).catch(() => null);
+    oauthBtn.classList.toggle('hidden', !cfg?.authorizeUrl);
+  };
+  void syncOauthButton();
 
   const tokenInput = el('input', 'input w-full');
   tokenInput.type = 'password';
@@ -132,6 +167,7 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
     step(1, labels.stepRegister, registerLink),
     step(2, labels.stepToken, tokenLink),
     step(3, labels.stepVerify),
+    oauthBtn,
     tokenInput,
     error,
   );

@@ -2,6 +2,7 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { SITE_NAME } from '@/config';
 import { DEFAULT_LOCALE, t } from '@/i18n';
+import { withBase } from '@/lib/base';
 
 const locale = DEFAULT_LOCALE;
 ---
@@ -24,10 +25,10 @@ const locale = DEFAULT_LOCALE;
       {t(locale, 'home.intro')}
     </p>
     <div class="mt-8 flex items-center justify-center gap-3">
-      <a href="/project" class="btn btn-primary" data-i18n="nav.projects">
+      <a href={withBase("/project")} class="btn btn-primary" data-i18n="nav.projects">
         {t(locale, 'nav.projects')}
       </a>
-      <a href="/about" class="btn" data-i18n="nav.about">{t(locale, 'nav.about')}</a>
+      <a href={withBase("/about")} class="btn" data-i18n="nav.about">{t(locale, 'nav.about')}</a>
     </div>
   </section>
 
@@ -55,7 +56,7 @@ const locale = DEFAULT_LOCALE;
     <div class="mb-4 flex items-center justify-between">
       <h2 class="text-xl font-semibold" data-i18n="home.latest">{t(locale, 'home.latest')}</h2>
       <a
-        href="/project"
+        href={withBase("/project")}
         class="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
       >
         <span data-i18n="home.viewAll">{t(locale, 'home.viewAll')}</span> →

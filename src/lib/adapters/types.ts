@@ -3,6 +3,7 @@ import type {
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
+  ReleaseReactionInfo,
   IssueInfo,
   ReleaseInfo,
   RepoInfo,
@@ -98,6 +99,12 @@ export interface GitPlatformAdapter {
     tag: string,
     body: string,
   ): Promise<number>;
+
+  /** release 表情互动列表（平台不支持时返回空数组） */
+  listReleaseReactions(user: string, repo: string, releaseId: number): Promise<ReleaseReactionInfo[]>;
+
+  /** 在 release 上添加 👍 互动（需登录且与稿件同平台） */
+  createReleaseReaction(token: string, user: string, repo: string, releaseId: number): Promise<void>;
 
   /** 上传 release 附件 */
   uploadReleaseAsset(

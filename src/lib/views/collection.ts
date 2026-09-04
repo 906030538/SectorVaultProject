@@ -1,6 +1,7 @@
 import { LICENSE_OPTIONS, PAGE_SIZE } from '@/config';
 import { isMockAvailable, loadEngagements, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadMockIndex } from '@/lib/index/loader';
+import { withBase } from '@/lib/base';
 import { loadSession } from '@/lib/auth';
 import { renderCard, type CardLabels } from '@/lib/ui';
 import type { Platform, RepoInfo, SubmissionEntry } from '@/types';
@@ -172,7 +173,7 @@ export async function initCollection(init: CollectionInit): Promise<void> {
     els.actions.textContent = '';
     if (!isOwner) return;
     const submit = document.createElement('a');
-    submit.href = '/new';
+    submit.href = withBase('/new');
     submit.className = 'btn btn-primary';
     submit.dataset.action = 'submit';
     submit.textContent = labels.submit;

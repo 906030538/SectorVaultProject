@@ -149,7 +149,9 @@ export interface ReadmeInput {
 /** 生成编辑器格式的 README（与 parseReadme 严格互逆）：头部携带全部稿件参数 */
 export function generateReadme(input: ReadmeInput): string {
   const header = [`*${POWERED_BY}*`, `issue: ${input.issue}`];
-  if (input.release !== undefined && input.release !== '') header.push(`release: ${input.release}`);
+  if (input.release !== undefined && input.release !== '' && input.release !== 0) {
+    header.push(`release: ${input.release}`);
+  }
   if (input.title) header.push(`title: ${input.title}`);
   if (input.type) header.push(`type: ${input.type}`);
   if (input.submittedAt) header.push(`submittedAt: ${input.submittedAt}`);

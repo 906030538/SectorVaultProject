@@ -8,6 +8,7 @@ import type { FilterState, IndexFile, Platform, SubmissionEntry, UserRecord } fr
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getIndexSources, getLineSources } from '@/lib/index/sources';
 import { isMockAvailable } from '@/lib/content';
+import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
 
 /** 已加载索引缓存，避免重复请求（设计：缓存已加载的索引） */
 const indexCache = new Map<string, IndexFile>();
@@ -92,12 +93,13 @@ function mergeIndexFiles(files: IndexFile[]): IndexFile {
   return merged;
 }
 
-/** 单源加载失败时跳过该源（多源部署下单个坏源不阻断整站） */
+/** 单源加载失败时跳过该源（多源部署下单个坏源不阻断整站）；配额超限时提示登录或切换线路 */
 function warnSourceFailure(source: IndexSource, error: unknown): void {
   console.warn(
     `[index] 源不可用，已跳过 ${source.platform}:${source.owner}/${source.repo}@${source.branch}:`,
     error,
   );
+  if (isRateLimitError(error)) showApiLimitNotice(source.platform);
 }
 
 /** 未归档索引：当前线路索引源的 current.json 合并（按配置顺序，跨源去重） */

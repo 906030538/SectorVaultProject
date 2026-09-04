@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SUPPORTED_PLATFORMS } from '@/config';
+import { withBase } from '@/lib/base';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSessionBy, saveSession, setToken } from '@/lib/auth';
 import { isMockAvailable, loadReleases, loadSubmissionContent, type ProjectFile } from '@/lib/content';
@@ -803,10 +804,10 @@ function renderDone(root: HTMLElement, labels: EditorLabels, config: EditorConfi
   panel.appendChild(el('h2', 'text-lg font-semibold', mode === 'new' ? labels.doneNew : labels.doneEdit));
   const links = el('div', 'flex gap-2');
   const collection = el('a', 'btn', labels.gotoCollection);
-  collection.href = `/view/${config.user}/${config.repo}`;
+  collection.href = withBase(`/view/${config.user}/${config.repo}`);
   collection.setAttribute('data-action', 'goto-collection');
   const submission = el('a', 'btn btn-primary', labels.gotoSubmission);
-  submission.href = `/view/${config.user}/${config.repo}/${config.slug}`;
+  submission.href = withBase(`/view/${config.user}/${config.repo}/${config.slug}`);
   submission.setAttribute('data-action', 'goto-submission');
   links.append(collection, submission);
   panel.appendChild(links);
@@ -1559,7 +1560,7 @@ export async function initEditor(
           /* 忽略清除失败 */
         }
         currentProgress = null;
-        showSuccessDialog(labels, `/view/${draft.user}/${draft.repo}/${draft.slug}`, () => {
+        showSuccessDialog(labels, withBase(`/view/${draft.user}/${draft.repo}/${draft.slug}`), () => {
           renderDone(root, labels, config, 'new');
         });
       }

@@ -6,6 +6,8 @@ import { getToken, loadSession } from '@/lib/auth';
 import type { IndexSource } from '@/config';
 import type { Platform } from '@/types';
 import type { DiscussionComment, DiscussionInfo } from '@/types';
+import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
+import { withBase } from '@/lib/base';
 
 export interface DiscussionsLabels {
   title: string;
@@ -76,8 +78,9 @@ export async function initDiscussionList(
       for (const discussion of discussions) {
         items.push({ source, discussion });
       }
-    } catch {
-      /* 单个源不可用时跳过 */
+    } catch (error) {
+      // 单个源不可用时跳过；配额超限时提示登录或切换线路
+      if (isRateLimitError(error)) showApiLimitNotice(source.platform);
     }
   }
   items.sort(
@@ -95,7 +98,7 @@ export async function initDiscussionList(
 
   for (const { source, discussion } of items) {
     const card = el('a', 'card flex flex-col gap-2 p-4');
-    card.href = `/discussions/${source.platform}/${source.owner}/${source.repo}/${discussion.number}`;
+    card.href = withBase(`/discussions/${source.platform}/${source.owner}/${source.repo}/${discussion.number}`);
     card.dataset.role = 'discussion-card';
 
     const head = el('div', 'flex flex-wrap items-center gap-2');

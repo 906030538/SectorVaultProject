@@ -3,7 +3,9 @@ import type {
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
+  ReleaseReactionInfo,
   IssueInfo,
+  Platform,
   ReleaseInfo,
   RepoInfo,
 } from '@/types';
@@ -12,14 +14,11 @@ import { decodeBase64Utf8 } from '@/lib/utils';
 import type { FileChange, GitPlatformAdapter } from './types';
 
 /**
- * AtomGit 适配器：基于 OpenAPI v5（https://docs.atomgit.com，与 Gitee v5 同源）。
+ * v5 系平台通用适配器（AtomGit / GitCode，OpenAPI 同源）。
  * 读操作中 contents/issues/releases 与 raw 支持匿名访问；
  * 仓库详情与用户仓库列表要求认证，适配器内部自动附带已保存的令牌。
  * 写操作按 v5 语义实现，需真实令牌联调验证。
  */
-
-const API_BASE = 'https://api.atomgit.com/api/v5';
-const WEB_BASE = 'https://atomgit.com';
 
 /** UTF-8 文本 → base64（分块编码避免长内容栈溢出）；AtomGit contents 接口要求 base64 */
 function utf8ToBase64(text: string): string {
@@ -32,33 +31,22 @@ function utf8ToBase64(text: string): string {
   return btoa(binary);
 }
 
+interface V5AdapterConfig {
+  platform: Platform;
+  /** API 根地址（如 https://api.atomgit.com/api/v5） */
+  apiBase: string;
+  /** 网页根地址（链接拼接用） */
+  webBase: string;
+  /** raw 文件根地址（缺省同 webBase） */
+  rawBase?: string;
+}
+
 interface RequestOptions {
   method?: string;
   query?: Record<string, string>;
   body?: unknown;
-  /** 缺省时自动使用已保存的 atomgit 令牌（可能为 null，即匿名） */
+  /** 缺省时自动使用已保存的本平台令牌（可能为 null，即匿名） */
   token?: string | null;
-}
-
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const token = options.token !== undefined ? options.token : getToken('atomgit');
-  const url = new URL(`${API_BASE}${path}`);
-  for (const [key, value] of Object.entries(options.query ?? {})) {
-    url.searchParams.set(key, value);
-  }
-  const response = await fetch(url, {
-    method: options.method ?? 'GET',
-    headers: {
-      ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
-  });
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`AtomGit API ${response.status}: ${text.slice(0, 200)}`);
-  }
-  return (await response.json()) as T;
 }
 
 interface AtomGitRepo {
@@ -71,7 +59,7 @@ interface AtomGitRepo {
   license?: string | { spdx_id?: string } | null;
 }
 
-function mapRepo(user: string, repo: AtomGitRepo): RepoInfo {
+function mapRepo(user: string, repo: AtomGitRepo, webBase: string): RepoInfo {
   const name = repo.path ?? repo.name ?? '';
   const license =
     typeof repo.license === 'string'
@@ -80,22 +68,53 @@ function mapRepo(user: string, repo: AtomGitRepo): RepoInfo {
   return {
     name,
     fullName: repo.full_name ?? `${user}/${name}`,
-    htmlUrl: repo.html_url ?? `${WEB_BASE}/${user}/${name}`,
+    htmlUrl: repo.html_url ?? `${webBase}/${user}/${name}`,
     stars: repo.stargazers_count ?? 0,
     description: repo.description ?? undefined,
     license,
   };
 }
 
-export class AtomGitAdapter implements GitPlatformAdapter {
-  readonly platform = 'atomgit' as const;
+export class V5PlatformAdapter implements GitPlatformAdapter {
+  readonly platform: Platform;
+  protected readonly apiBase: string;
+  private readonly webBase: string;
+  private readonly rawBase: string;
+
+  constructor(config: V5AdapterConfig) {
+    this.platform = config.platform;
+    this.apiBase = config.apiBase;
+    this.webBase = config.webBase;
+    this.rawBase = config.rawBase ?? config.webBase;
+  }
+
+  protected async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    const token = options.token !== undefined ? options.token : getToken(this.platform);
+    const url = new URL(`${this.apiBase}${path}`);
+    for (const [key, value] of Object.entries(options.query ?? {})) {
+      url.searchParams.set(key, value);
+    }
+    const response = await fetch(url, {
+      method: options.method ?? 'GET',
+      headers: {
+        ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`${this.platform} API ${response.status}: ${text.slice(0, 200)}`);
+    }
+    return (await response.json()) as T;
+  }
 
   async getViewer(token: string): Promise<AuthInfo> {
-    const user = await request<{ login: string; name?: string; avatar_url?: string }>('/user', {
+    const user = await this.request<{ login: string; name?: string; avatar_url?: string }>('/user', {
       token,
     });
     return {
-      platform: 'atomgit',
+      platform: this.platform,
       login: user.login,
       name: user.name ?? undefined,
       avatarUrl: user.avatar_url ?? '',
@@ -104,18 +123,18 @@ export class AtomGitAdapter implements GitPlatformAdapter {
 
   async listRepos(user: string, prefix?: string): Promise<RepoInfo[]> {
     // AtomGit 用户仓库接口要求认证，读取本站已保存的令牌
-    const repos = await request<AtomGitRepo[]>(`/users/${encodeURIComponent(user)}/repos`);
+    const repos = await this.request<AtomGitRepo[]>(`/users/${encodeURIComponent(user)}/repos`);
     const filtered = prefix ? repos.filter((r) => (r.path ?? r.name ?? '').startsWith(prefix)) : repos;
-    return filtered.map((repo) => mapRepo(user, repo));
+    return filtered.map((repo) => mapRepo(user, repo, this.webBase));
   }
 
   async getRepo(user: string, repo: string): Promise<RepoInfo> {
-    const data = await request<AtomGitRepo>(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}`);
-    return mapRepo(user, data);
+    const data = await this.request<AtomGitRepo>(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}`);
+    return mapRepo(user, data, this.webBase);
   }
 
   async listDir(user: string, repo: string, path = '', ref?: string): Promise<FileInfo[]> {
-    const entries = await request<Array<{ type: string; name: string; path: string; size?: number }>>(
+    const entries = await this.request<Array<{ type: string; name: string; path: string; size?: number }>>(
       `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/contents/${path}`,
       { query: ref ? { ref } : {} },
     );
@@ -129,7 +148,7 @@ export class AtomGitAdapter implements GitPlatformAdapter {
   }
 
   async readFile(user: string, repo: string, path: string, ref?: string): Promise<string> {
-    const file = await request<{ type?: string; content?: string }>(
+    const file = await this.request<{ type?: string; content?: string }>(
       `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/contents/${path}`,
       { query: ref ? { ref } : {} },
     );
@@ -140,11 +159,11 @@ export class AtomGitAdapter implements GitPlatformAdapter {
   }
 
   rawUrl(user: string, repo: string, path: string): string {
-    return `${WEB_BASE}/${user}/${repo}/raw/HEAD/${path}`;
+    return `${this.rawBase}/${user}/${repo}/raw/HEAD/${path}`;
   }
 
   async listReleases(user: string, repo: string): Promise<ReleaseInfo[]> {
-    const releases = await request<Array<{
+    const releases = await this.request<Array<{
       id?: number;
       tag_name?: string;
       name?: string | null;
@@ -157,7 +176,7 @@ export class AtomGitAdapter implements GitPlatformAdapter {
       tag: r.tag_name ?? '',
       name: r.name ?? r.tag_name ?? '',
       body: r.body ?? '',
-      htmlUrl: r.html_url ?? `${WEB_BASE}/${user}/${repo}/releases/${r.tag_name ?? ''}`,
+      htmlUrl: r.html_url ?? `${this.webBase}/${user}/${repo}/releases/${r.tag_name ?? ''}`,
       reactions: 0,
       assets: (r.assets ?? []).map((a) => ({
         id: a.id,
@@ -169,7 +188,7 @@ export class AtomGitAdapter implements GitPlatformAdapter {
   }
 
   async listIssues(user: string, repo: string): Promise<IssueInfo[]> {
-    const issues = await request<Array<{
+    const issues = await this.request<Array<{
       number: number | string;
       title: string;
       html_url?: string;
@@ -181,14 +200,14 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     return (issues ?? []).map((i) => ({
       number: Number(i.number),
       title: i.title,
-      htmlUrl: i.html_url ?? `${WEB_BASE}/${user}/${repo}/issues/${i.number}`,
+      htmlUrl: i.html_url ?? `${this.webBase}/${user}/${repo}/issues/${i.number}`,
       comments: i.comments ?? 0,
       createdAt: i.created_at ?? '',
     }));
   }
 
   discussionsUrl(owner: string, repo: string): string {
-    return `${WEB_BASE}/${owner}/${repo}`;
+    return `${this.webBase}/${owner}/${repo}`;
   }
 
   // AtomGit 仓库级 Discussions API 形态未定，暂不支持
@@ -209,7 +228,7 @@ export class AtomGitAdapter implements GitPlatformAdapter {
   }
 
   wikiUrl(owner: string, repo: string): string {
-    return `${WEB_BASE}/${owner}/${repo}/docs`;
+    return `${this.webBase}/${owner}/${repo}/docs`;
   }
 
   // ---- 写操作（v5 语义；需真实令牌联调验证） ----
@@ -225,13 +244,13 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     for (const change of changes) {
       const path = `${base}/${change.path}`;
       if (change.delete) {
-        const existing = await request<{ sha?: string }>(path, { token });
+        const existing = await this.request<{ sha?: string }>(path, { token });
         if (!existing.sha) throw new Error(`Cannot resolve sha for ${change.path}`);
-        await request(path, { method: 'DELETE', token, body: { sha: existing.sha, message } });
+        await this.request(path, { method: 'DELETE', token, body: { sha: existing.sha, message } });
         continue;
       }
       // 已存在的文件走 PUT 更新，否则 POST 新建；content 一律 base64（无 encoding 字段）
-      const existing = await request<{ sha?: string } | Array<unknown>>(path, {
+      const existing = await this.request<{ sha?: string } | Array<unknown>>(path, {
         token,
       }).catch(() => null);
       const body = {
@@ -241,7 +260,7 @@ export class AtomGitAdapter implements GitPlatformAdapter {
         ...(existing && !Array.isArray(existing) && existing.sha ? { sha: existing.sha } : {}),
       };
       const method = existing && !Array.isArray(existing) ? 'PUT' : 'POST';
-      await request(path, { method, token, body });
+      await this.request(path, { method, token, body });
     }
   }
 
@@ -252,7 +271,7 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     title: string,
     body: string,
   ): Promise<number> {
-    const data = await request<{ number: number | string }>(
+    const data = await this.request<{ number: number | string }>(
       `/repos/${encodeURIComponent(user)}/issues`,
       { method: 'POST', token, body: { repo, title, body } },
     );
@@ -266,11 +285,20 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     tag: string,
     body: string,
   ): Promise<number> {
-    const data = await request<{ id?: number }>(
+    const data = await this.request<{ id?: number }>(
       `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases`,
       { method: 'POST', token, body: { tag_name: tag, name: tag, body } },
     );
     return data.id ?? 0;
+  }
+
+  // v5 系平台暂无公开的 release 表情互动 API
+  async listReleaseReactions(): Promise<ReleaseReactionInfo[]> {
+    return [];
+  }
+
+  async createReleaseReaction(): Promise<void> {
+    throw new Error('AtomGit/GitCode do not support release reactions yet');
   }
 
   async uploadReleaseAsset(
@@ -281,16 +309,15 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     file: Blob,
     name: string,
   ): Promise<void> {
-    // v5 附件风格（与 Gitee attach_files 同构）；AtomGit 附件接口需真实令牌联调验证
-    const form = new FormData();
-    form.append('file', file, name);
-    const response = await fetch(
-      `${API_BASE}/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases/${releaseId}/attach_files`,
-      { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form },
-    );
-    if (!response.ok) {
-      throw new Error(`Upload release asset failed: ${response.status}`);
-    }
+    void token;
+    void user;
+    void repo;
+    void releaseId;
+    void file;
+    void name;
+    // 实测 AtomGit/GitCode 的 release 响应不含 id、附件端点按 tag 寻址且形态未公开；
+    // 未联调验证前不盲试，明确报错避免静默失败
+    throw new Error('AtomGit/GitCode release 附件上传暂不支持（平台附件接口按 tag 寻址，待联调）');
   }
 
   async deleteReleaseAsset(
@@ -300,15 +327,17 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     releaseId: number,
     assetId: number,
   ): Promise<void> {
-    await request(
-      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases/${releaseId}/attach_files/${assetId}`,
-      { method: 'DELETE', token },
-    );
+    void token;
+    void user;
+    void repo;
+    void releaseId;
+    void assetId;
+    throw new Error('AtomGit/GitCode release 附件管理暂不支持');
   }
 
   async createRepoFromTemplate(token: string, owner: string, name: string): Promise<void> {
     // AtomGit 暂无模板仓库 API：创建空仓库，由编辑器写入初始内容
-    await request('/user/repos', {
+    await this.request('/user/repos', {
       method: 'POST',
       token,
       body: { name, private: false, auto_init: false },
@@ -328,22 +357,27 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     const prBranch = `svp-index-${Date.now().toString(36)}`;
 
     // 基准提交：目标索引分支头（AtomGit 分支接口的 commit 字段为 id）
-    const baseBranch = await request<{ commit?: { id?: string; sha?: string } }>(
+    const baseBranch = await this.request<{ commit?: { id?: string; sha?: string } }>(
       `${base}/branches/${encodeURIComponent(branch)}`,
       { token },
     );
     const baseSha = baseBranch.commit?.id ?? baseBranch.commit?.sha;
     if (!baseSha) throw new Error('AtomGit: cannot resolve index branch head');
 
-    // 创建工作分支（Gitee v5 风格；失败时回退 git refs API）
+    // 创建工作分支（Gitee v5 风格；端点不存在时回退 git refs API，其他错误原样抛出）
     try {
-      await request(`${base}/branches`, {
+      await this.request(`${base}/branches`, {
         method: 'POST',
         token,
         body: { branch_name: prBranch, refs: branch },
       });
-    } catch {
-      await request(`${base}/git/refs`, {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/image repository/i.test(message)) {
+        throw new Error('索引仓为镜像仓库，平台禁止写入；请将其重建为普通仓库后再投稿');
+      }
+      if (!/\b404\b|not found/i.test(message)) throw error;
+      await this.request(`${base}/git/refs`, {
         method: 'POST',
         token,
         body: { ref: `refs/heads/${prBranch}`, sha: baseSha },
@@ -354,11 +388,11 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     for (const change of changes) {
       if (change.delete) continue;
       const path = `${base}/contents/${change.path}`;
-      const existing = await request<{ sha?: string }>(path, {
+      const existing = await this.request<{ sha?: string }>(path, {
         token,
         query: { ref: prBranch },
       }).catch(() => null);
-      await request(path, {
+      await this.request(path, {
         method: existing ? 'PUT' : 'POST',
         token,
         query: { ref: prBranch },
@@ -374,7 +408,7 @@ export class AtomGitAdapter implements GitPlatformAdapter {
     }
 
     // 创建 PR（同仓分支：head 直用分支名）
-    const pr = await request<{ number?: number | string; html_url?: string }>(
+    const pr = await this.request<{ number?: number | string; html_url?: string }>(
       `${base}/pulls`,
       {
         method: 'POST',
@@ -382,6 +416,6 @@ export class AtomGitAdapter implements GitPlatformAdapter {
         body: { title, head: prBranch, base: branch, body: '*Powered by Sector Vault Project*' },
       },
     );
-    return pr.html_url ?? `${WEB_BASE}/${owner}/${repo}/pulls/${pr.number ?? ''}`;
+    return pr.html_url ?? `${this.webBase}/${owner}/${repo}/pulls/${pr.number ?? ''}`;
   }
 }

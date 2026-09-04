@@ -4,6 +4,7 @@ const TOKEN_KEY: Record<Platform, string> = {
   github: 'svp-token-github',
   gitee: 'svp-token-gitee',
   atomgit: 'svp-token-atomgit',
+  gitcode: 'svp-token-gitcode',
 };
 
 /** GitHub Device Flow / GitHub App 的 OAuth Client ID（部署时通过构建配置注入） */

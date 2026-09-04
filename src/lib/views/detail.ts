@@ -12,6 +12,13 @@ import {
   type ProjectFile,
 } from '@/lib/content';
 import { findEntry } from '@/lib/index/loader';
+import { getToken, loadSessionBy } from '@/lib/auth';
+import { openAuthDialog } from '@/lib/auth-dialog';
+import { buildAuthLabels } from '@/lib/labels';
+import { normalizeLocale, type Locale } from '@/i18n';
+import type { ReleaseReactionInfo } from '@/types';
+import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
+import { withBase } from '@/lib/base';
 import type { IssueInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
 
 export interface DetailLabels {
@@ -35,6 +42,8 @@ export interface DetailLabels {
   compressed: string;
   attachments: string;
   interactions: string;
+  like: string;
+  liked: string;
   loadError: string;
   license: string;
   stars: string;
@@ -254,8 +263,27 @@ function renderFiles(
   els.files.appendChild(ul);
 }
 
-function renderRelease(release: ReleaseInfo | null, labels: DetailLabels, els: DetailElements): void {
+/** release 表情互动的类型 → emoji */
+const REACTION_EMOJI: Record<string, string> = {
+  '+1': '👍',
+  '-1': '👎',
+  laugh: '😄',
+  confused: '😕',
+  heart: '❤️',
+  hooray: '🎉',
+  rocket: '🚀',
+  eyes: '👀',
+};
+
+function renderRelease(
+  init: DetailInit,
+  platform: Platform,
+  release: ReleaseInfo | null,
+  labels: DetailLabels,
+  els: DetailElements,
+): void {
   if (!release) return;
+  const { user, repo, locale } = init;
   const box = document.createElement('div');
   box.className = 'card p-4';
   const h = document.createElement('h3');
@@ -269,11 +297,84 @@ function renderRelease(release: ReleaseInfo | null, labels: DetailLabels, els: D
   h.appendChild(link);
   box.appendChild(h);
 
-  const interactions = document.createElement('p');
-  interactions.className = 'mt-1 text-sm text-slate-500 dark:text-slate-400';
+  // 互动记录：emoji 计数 + 点赞按钮（在关联 release 上添加 👍）
+  const interactions = document.createElement('div');
+  interactions.className = 'mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400';
   interactions.dataset.role = 'interactions';
-  interactions.textContent = `${labels.interactions}: 👍 ${release.reactions}`;
+  interactions.appendChild(document.createTextNode(`${labels.interactions}:`));
+  const chips = document.createElement('span');
+  chips.className = 'flex flex-wrap items-center gap-1.5';
+  chips.dataset.role = 'reaction-chips';
+  interactions.appendChild(chips);
+  const likeBtn = document.createElement('button');
+  likeBtn.type = 'button';
+  likeBtn.className = 'btn px-2.5 py-1 text-xs';
+  likeBtn.dataset.action = 'like-release';
+  likeBtn.textContent = `👍 ${labels.like}`;
+  const likeStatus = document.createElement('span');
+  likeStatus.className = 'text-xs text-slate-400';
+  likeStatus.dataset.role = 'like-status';
+  interactions.append(likeBtn, likeStatus);
   box.appendChild(interactions);
+
+  const refresh = async (): Promise<void> => {
+    let reactions: ReleaseReactionInfo[] = [];
+    try {
+      const adapter = await getAdapterAsync(platform);
+      reactions = await adapter.listReleaseReactions(user, repo, release.id);
+    } catch {
+      /* 平台不支持或读取失败时回退 release 汇总计数 */
+    }
+    const groups = new Map<string, number>();
+    for (const reaction of reactions) {
+      groups.set(reaction.content, (groups.get(reaction.content) ?? 0) + 1);
+    }
+    chips.textContent = '';
+    if (groups.size > 0) {
+      for (const [content, count] of groups) {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.dataset.reaction = content;
+        chip.textContent = `${REACTION_EMOJI[content] ?? content} ${count}`;
+        chips.appendChild(chip);
+      }
+    } else if (release.reactions > 0) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = `👍 ${release.reactions}`;
+      chips.appendChild(chip);
+    } else {
+      chips.appendChild(document.createTextNode('–'));
+    }
+    // 当前用户已点赞时置为已赞状态
+    const viewer = loadSessionBy(platform)?.login;
+    const liked =
+      viewer !== undefined && reactions.some((r) => r.user === viewer && r.content === '+1');
+    likeBtn.disabled = liked;
+    likeBtn.textContent = `👍 ${liked ? labels.liked : labels.like}`;
+  };
+  void refresh();
+
+  likeBtn.addEventListener('click', () => {
+    void (async () => {
+      const token = getToken(platform);
+      if (!token) {
+        void openAuthDialog(buildAuthLabels(normalizeLocale(locale) as Locale));
+        return;
+      }
+      likeBtn.disabled = true;
+      likeStatus.textContent = '…';
+      try {
+        const adapter = await getAdapterAsync(platform);
+        await adapter.createReleaseReaction(token, user, repo, release.id);
+        likeStatus.textContent = '';
+        await refresh();
+      } catch (error) {
+        likeBtn.disabled = false;
+        likeStatus.textContent = error instanceof Error ? error.message.slice(0, 60) : labels.loadError;
+      }
+    })();
+  });
 
   if (release.assets.length > 0) {
     const assetTitle = document.createElement('p');
@@ -349,7 +450,10 @@ export async function initDetail(init: DetailInit): Promise<void> {
   const platform: Platform = entry.platform;
   // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
   const [content, repoInfo, releases, issues] = await Promise.all([
-    loadSubmissionContent(platform, user, repo, slug),
+    loadSubmissionContent(platform, user, repo, slug).catch((error) => {
+      if (isRateLimitError(error)) showApiLimitNotice(platform);
+      throw error;
+    }),
     loadRepoInfo(platform, user, repo).catch(() => null),
     loadReleases(platform, user, repo).catch(() => []),
     loadIssues(platform, user, repo).catch(() => []),
@@ -381,7 +485,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   renderFiles(init, platform, content.baseDir, content.parsed.files, els);
 
   const release = releases.find((r) => r.tag === slug) ?? null;
-  renderRelease(release, labels, els);
+  renderRelease(init, platform, release, labels, els);
 
   const issue = issues.find((i) => i.title === slug) ?? null;
   renderIssues(issue, labels, els);
@@ -462,7 +566,7 @@ function renderAuthor(
   info.className = 'flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-sm';
 
   const userLink = document.createElement('a');
-  userLink.href = `/user/${entry.owner}`;
+  userLink.href = withBase(`/user/${entry.owner}`);
   userLink.className = 'font-medium hover:text-emerald-600 dark:hover:text-emerald-400';
   userLink.textContent = entry.owner;
   info.appendChild(userLink);

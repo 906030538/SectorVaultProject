@@ -37,6 +37,31 @@ export const INDEX_PATHS = {
 /** 部署配置文件：其 indexes 字段覆盖默认索引源，允许配置多个索引 */
 export const DEPLOYMENT_CONFIG_URL = '/deployment.json';
 
+/** OAuth 提供方配置（deployment.json 的 oauth 段或构建环境变量注入） */
+export interface OAuthProviderConfig {
+  clientId: string;
+  /** 隐式公开的机密（静态站点无法保密，仅自部署场景使用） */
+  clientSecret?: string;
+  authorizeUrl?: string;
+  /** 令牌交换端点；浏览器跨域受限时可配置代理地址 */
+  tokenUrl?: string;
+  scope?: string;
+}
+
+/** 各平台 OAuth 默认端点（AtomGit/GitCode 暂无公开 OAuth，可经部署配置补充） */
+export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; scope: string }>> = {
+  github: {
+    authorizeUrl: 'https://github.com/login/oauth/authorize',
+    tokenUrl: 'https://github.com/login/oauth/access_token',
+    scope: 'repo',
+  },
+  gitee: {
+    authorizeUrl: 'https://gitee.com/oauth/authorize',
+    tokenUrl: 'https://gitee.com/oauth/token',
+    scope: 'projects issues user_info',
+  },
+};
+
 /** 主站点仓库（discussions / wiki 来源） */
 export const MAIN_REPO = {
   owner: 'SectorVault',
@@ -45,7 +70,7 @@ export const MAIN_REPO = {
 };
 
 /** 支持的 git 平台 */
-export const SUPPORTED_PLATFORMS: Platform[] = ['github', 'gitee', 'atomgit'];
+export const SUPPORTED_PLATFORMS: Platform[] = ['github', 'gitee', 'atomgit', 'gitcode'];
 
 /** 默认许可证选项：CC0、CC4.0（含细分系列） */
 export const LICENSE_OPTIONS: { value: string; label?: string; labelKey?: MessageKey }[] = [
@@ -64,6 +89,7 @@ export const REPO_TEMPLATES: Partial<Record<Platform, { owner: string; repo: str
   github: [{ owner: 'SectorVault', repo: 'svp-template' }],
   gitee: [{ owner: 'SectorVault', repo: 'svp-template' }],
   atomgit: [{ owner: 'SectorVault', repo: 'svp-template' }],
+  gitcode: [{ owner: 'SectorVault', repo: 'svp-template' }],
 };
 
 /** 内容仓正文头部固定标识 */

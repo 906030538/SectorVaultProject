@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -34,9 +34,10 @@ jobs:
       - name: Build
         env:
           # 项目页部署在 <user>.github.io/<repo> 子路径下
-          ASTRO_SITE: https://${{ github.repository_owner }}.github.io
-          ASTRO_BASE: /${{ github.event.repository.name }}
-        run: npm run build
+          ASTRO_SITE: https://svp.lyoko.cn
+          # ASTRO_SITE: https://${{ github.repository_owner }}.github.io
+          # ASTRO_BASE: /${{ github.event.repository.name }}
+        run: npx astro build
 
       - name: Check
         run: npx astro check
@@ -53,4 +54,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

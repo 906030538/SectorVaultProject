@@ -10,3 +10,4 @@ dist/
 # 本地凭据与 wrangler 状态
 .vscode/
 .wrangler/
+.dev.vars

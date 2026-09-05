@@ -24,20 +24,5 @@
       "repo": "SectorVaultProject",
       "branch": "index"
     }
-  ],
-  "oauth": {
-    "gitee": {
-      "id": "0715c0c7ff892ba18c797963ee9771d53e537d1be5a2a72d7d475937cd873537",
-      "secret": "3441ed3b8c342361d6b11a01585e7dc5fed96e7a078b954204af835ff65917dc"
-    },
-    "atomgit": {
-      "id": "f1b16bb0456241ed920113c33ad7edc2",
-      "secret": "48af9096498f49b5bc738d1323059f9e"
-    },
-    "github": {
-      "clientId": "",
-      "deviceCodeUrl": "/gh-oauth/device/code",
-      "tokenUrl": "/gh-oauth/access_token"
-    }
-  }
+  ]
 }

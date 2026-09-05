@@ -23,11 +23,22 @@ public/deployment.json   # 索引源与 OAuth 配置
    - Framework preset：**Astro**
    - Build command：`npm run build`
    - Build output directory：`dist`
-3. 部署完成后，在 `public/deployment.json` 中：
-   - 填入 `oauth.github.clientId`（GitHub App / OAuth App 的 Client ID，设备授权流无需 client secret）；
-   - `deviceCodeUrl` / `tokenUrl` 保持默认的 `/gh-oauth/*` 代理路径；
-   - 自定义域名时 Pages 自动签发证书，无需额外配置；
-4. 若使用回调式 OAuth（`/login/github`），GitHub App 的回调地址填 `https://<域名>/login/github`。
+3. OAuth 配置（**密钥全部走 Pages 环境变量，不进 deployment.json**）——
+   Pages → Settings → Variables and Secrets 添加：
+
+   | 变量 | 用途 |
+   | --- | --- |
+   | `OAUTH_GITHUB_CLIENT_ID` | GitHub 设备授权流 / 回调流 clientId |
+   | `OAUTH_GITEE_CLIENT_ID` + `OAUTH_GITEE_CLIENT_SECRET` | Gitee OAuth（token 交换在服务端代理完成） |
+   | `OAUTH_ATOMGIT_CLIENT_ID` + `OAUTH_ATOMGIT_CLIENT_SECRET` | AtomGit OAuth（同上） |
+   | `OAUTH_GITCODE_CLIENT_ID` | GitCode（暂仅 clientId 下发） |
+
+   - 前端经 `GET /oauth/env` 获取各平台 clientId（secret 永不下发）；
+   - Gitee / AtomGit 的 token 交换走 `POST /oauth/{platform}/token`（Functions 注入 secret 后转发上游）；
+   - GitHub 设备流走 `/gh-oauth/*`；
+   - 本地开发在仓库根放 `.dev.vars`（已被 .gitignore 排除）写入同名变量；
+4. 若使用回调式 OAuth（`/login/github`），GitHub App 的回调地址填 `https://<域名>/login/github`；
+   Gitee / AtomGit 应用的回调地址填 `https://<域名>/login/{platform}`。
 
 ## 本地验证
 

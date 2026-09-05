@@ -50,17 +50,22 @@ export interface OAuthProviderConfig {
   scope?: string;
 }
 
-/** 各平台 OAuth 默认端点（AtomGit/GitCode 暂无公开 OAuth，可经部署配置补充） */
+/** 各平台 OAuth 默认端点（tokenUrl 指向站内 Functions 代理，secret 留在服务端环境变量） */
 export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; scope: string }>> = {
   github: {
     authorizeUrl: 'https://github.com/login/oauth/authorize',
-    tokenUrl: 'https://github.com/login/oauth/access_token',
+    tokenUrl: '/gh-oauth/access_token',
     scope: 'repo',
   },
   gitee: {
     authorizeUrl: 'https://gitee.com/oauth/authorize',
-    tokenUrl: 'https://gitee.com/oauth/token',
+    tokenUrl: '/oauth/gitee/token',
     scope: 'projects issues user_info',
+  },
+  atomgit: {
+    authorizeUrl: 'https://atomgit.com/oauth/authorize',
+    tokenUrl: '/oauth/atomgit/token',
+    scope: 'user info',
   },
 };
 

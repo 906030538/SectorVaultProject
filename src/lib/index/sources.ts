@@ -61,9 +61,22 @@ export async function getPrimaryIndexSource(): Promise<IndexSource> {
 
 let oauthPromise: Promise<Record<string, OAuthProviderConfig>> | undefined;
 
-/** 部署配置的 OAuth 提供方（deployment.json 的 oauth 段；GitHub clientId 亦可经环境变量注入） */
+/** 部署配置的 OAuth 提供方：deployment.json oauth 段 + 服务端 /oauth/env（密钥仅存环境变量时使用） */
 export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>> {
   oauthPromise ??= (async () => {
+    const merged: Record<string, OAuthProviderConfig> = {};
+    // 服务端环境变量下发的 clientId（Cloudflare Pages Functions /oauth/env）
+    try {
+      const response = await fetch(withBase('/oauth/env'));
+      if (response.ok) {
+        const envConfig = (await response.json()) as Record<string, { clientId?: string }>;
+        for (const [platform, entry] of Object.entries(envConfig)) {
+          if (entry?.clientId) merged[platform] = { clientId: entry.clientId };
+        }
+      }
+    } catch {
+      /* 非 Functions 部署时无此端点 */
+    }
     try {
       const response = await fetch(withBase(DEPLOYMENT_CONFIG_URL));
       if (response.ok) {
@@ -88,10 +101,9 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
                   ((raw as Record<string, unknown>).secret as string | undefined),
               }
             : undefined;
-        const merged: Record<string, OAuthProviderConfig> = {};
         for (const [platform, raw] of Object.entries(config.oauth ?? {})) {
           const normalized = normalizeProvider(raw as unknown as Record<string, unknown> | undefined);
-          if (normalized) merged[platform] = normalized;
+          if (normalized?.clientId) merged[platform] = normalized;
         }
         // 顶层 github.clientId 与 oauth.github 合并（后者优先）
         if (config.github?.clientId && !merged.github?.clientId) {

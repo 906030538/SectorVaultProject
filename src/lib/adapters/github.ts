@@ -4,6 +4,7 @@ import type {
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
+  IssueCommentInfo,
   ReleaseReactionInfo,
   IssueInfo,
   ReleaseInfo,
@@ -168,6 +169,42 @@ export class GitHubAdapter implements GitPlatformAdapter {
         comments: i.comments,
         createdAt: i.created_at,
       }));
+  }
+
+  async listIssueComments(
+    user: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<IssueCommentInfo[]> {
+    const { data } = await autoClient().rest.issues.listComments({
+      owner: user,
+      repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    });
+    return (Array.isArray(data) ? data : []).map((c) => ({
+      id: c.id,
+      author: c.user?.login,
+      authorUrl: c.user?.html_url,
+      body: c.body ?? '',
+      createdAt: c.created_at,
+      htmlUrl: c.html_url,
+    }));
+  }
+
+  async createIssueComment(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number,
+    body: string,
+  ): Promise<void> {
+    await client(token).rest.issues.createComment({
+      owner: user,
+      repo,
+      issue_number: issueNumber,
+      body,
+    });
   }
 
   discussionsUrl(owner: string, repo: string): string {

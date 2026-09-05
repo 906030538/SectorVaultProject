@@ -3,6 +3,7 @@ import type {
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
+  IssueCommentInfo,
   ReleaseReactionInfo,
   IssueInfo,
   Platform,
@@ -229,6 +230,44 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
 
   wikiUrl(owner: string, repo: string): string {
     return `${this.webBase}/${owner}/${repo}/docs`;
+  }
+
+  // ---- Issue 评论（v5 语义） ----
+
+  async listIssueComments(
+    user: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<IssueCommentInfo[]> {
+    const comments = await this.request<Array<{
+      id?: number;
+      body?: string;
+      created_at?: string;
+      html_url?: string;
+      user?: { login?: string; html_url?: string } | null;
+    }>>(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`);
+    return (comments ?? []).map((c) => ({
+      id: c.id ?? 0,
+      author: c.user?.login,
+      authorUrl: c.user?.html_url,
+      body: c.body ?? '',
+      createdAt: c.created_at ?? '',
+      htmlUrl: c.html_url,
+    }));
+  }
+
+  async createIssueComment(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number,
+    body: string,
+  ): Promise<void> {
+    await this.request(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`, {
+      method: 'POST',
+      token,
+      body: { body },
+    });
   }
 
   // ---- 写操作（v5 语义；需真实令牌联调验证） ----

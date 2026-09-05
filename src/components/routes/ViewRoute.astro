@@ -180,7 +180,7 @@ void (async () => {
             meta: pick('repo-meta'),
             actions: pick('actions'),
             tabs: pick('tabs'),
-            list: pick('list'),
+            list: root.querySelector('[data-component="list"]')!,
             empty: pick('empty'),
             pageInfo: root.querySelector('[data-role="page-info"]')!,
             prev: root.querySelector<HTMLButtonElement>('[data-action="prev"]')!,

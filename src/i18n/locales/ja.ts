@@ -81,6 +81,13 @@ const ja: Record<MessageKey, string> = {
   'detail.interactions': 'リアクション',
   'detail.like': 'いいね',
   'detail.liked': 'いいね済み',
+  'detail.commentsDisabled': 'コメント欄は無効です',
+  'detail.noComments': '返信はまだありません',
+  'detail.viewIssue': '元の issue を見る',
+  'detail.commentPh': '返信を入力…（Markdown）',
+  'detail.commentSubmit': '返信を投稿',
+  'detail.commentFailed': '返信に失敗しました。ログイン状態を確認してください',
+  'detail.loginToComment': 'このプラットフォームにログインすると返信できます',
   'detail.loadError': 'コンテンツの読み込みに失敗しました',
 
   'params.with': 'パラメータあり',

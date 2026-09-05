@@ -81,6 +81,13 @@ const zhTW: Record<MessageKey, string> = {
   'detail.interactions': '互動記錄',
   'detail.like': '點讚',
   'detail.liked': '已點讚',
+  'detail.commentsDisabled': '評論區已停用',
+  'detail.noComments': '暫無回覆',
+  'detail.viewIssue': '前往原 issue',
+  'detail.commentPh': '寫下回覆…（Markdown）',
+  'detail.commentSubmit': '發表回覆',
+  'detail.commentFailed': '回覆失敗，請檢查登入狀態',
+  'detail.loginToComment': '登入目前平台帳號後可回覆',
   'detail.loadError': '內容載入失敗',
 
   'params.with': '有參',

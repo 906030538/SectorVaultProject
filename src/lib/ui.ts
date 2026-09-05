@@ -1,5 +1,6 @@
 import type { EngagementStats, SubmissionEntry } from '@/types';
 import faviconUrl from '../../favicon.svg?url';
+import logoSmallUrl from '../../logo-small.svg?url';
 import { POSTS_DIR } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { withBase } from '@/lib/base';
@@ -18,7 +19,20 @@ export function setAvatar(img: HTMLImageElement, url: string): void {
   img.src = url;
 }
 
-/** 封面图：解析索引 cover（完整 URL 或相对文件名）为 raw 地址后插入；失败保留 ♪ 占位 */
+/** 无封面/加载失败时的默认占位：logo-small.svg */
+export function coverPlaceholder(): HTMLDivElement {
+  const div = document.createElement('div');
+  div.className =
+    'flex aspect-video w-full items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800';
+  const logo = document.createElement('img');
+  logo.src = logoSmallUrl;
+  logo.alt = '';
+  logo.className = 'h-8 w-auto opacity-70';
+  div.appendChild(logo);
+  return div;
+}
+
+/** 封面图：解析索引 cover（完整 URL 或相对文件名）为 raw 地址后插入；无封面或加载失败时保留 logo 占位 */
 export async function applyCover(entry: SubmissionEntry, coverLink: HTMLElement): Promise<void> {
   if (!entry.cover) return;
   let src: string | null = entry.cover.startsWith('http') ? entry.cover : null;
@@ -117,11 +131,7 @@ export function renderCard(
   const coverLink = document.createElement('a');
   coverLink.href = withBase(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   coverLink.className = 'block w-32 shrink-0';
-  const placeholder = document.createElement('div');
-  placeholder.className =
-    'flex aspect-video w-full items-center justify-center rounded-lg bg-slate-100 text-2xl text-slate-300 dark:bg-slate-800 dark:text-slate-600';
-  placeholder.textContent = '♪';
-  coverLink.appendChild(placeholder);
+  coverLink.appendChild(coverPlaceholder());
   // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
   void applyCover(entry, coverLink);
 

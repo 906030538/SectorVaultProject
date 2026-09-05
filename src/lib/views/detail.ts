@@ -17,9 +17,20 @@ import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
 import { normalizeLocale, type Locale } from '@/i18n';
 import type { ReleaseReactionInfo } from '@/types';
-import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
+import { applyCover, isRateLimitError, showApiLimitNotice } from '@/lib/ui';
 import { withBase } from '@/lib/base';
-import type { IssueInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
+import type { IssueCommentInfo, IssueInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className?: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
 
 export interface DetailLabels {
   paramsWith: string;
@@ -44,6 +55,13 @@ export interface DetailLabels {
   interactions: string;
   like: string;
   liked: string;
+  commentsDisabled: string;
+  noComments: string;
+  viewIssue: string;
+  commentPh: string;
+  commentSubmit: string;
+  commentFailed: string;
+  loginToComment: string;
   loadError: string;
   license: string;
   stars: string;
@@ -402,32 +420,165 @@ function renderRelease(
   els.release.appendChild(box);
 }
 
-function renderIssues(issue: IssueInfo | null, labels: DetailLabels, els: DetailElements): void {
+/** 渲染单条 issue 评论（Markdown 安全渲染） */
+function renderIssueComment(comment: IssueCommentInfo, locale: string): HTMLElement {
+  const item = document.createElement('article');
+  item.className = 'card p-3';
+  item.dataset.role = 'issue-comment';
+  const head = document.createElement('p');
+  head.className = 'flex flex-wrap items-center gap-2 text-sm';
+  const author = comment.author
+    ? comment.authorUrl
+      ? (() => {
+          const a = document.createElement('a');
+          a.href = comment.authorUrl!;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.className = 'font-medium hover:text-emerald-600 dark:hover:text-emerald-400';
+          a.textContent = comment.author;
+          return a;
+        })()
+      : el('span', undefined, comment.author)
+    : document.createElement('span');
+  head.append(
+    author,
+    el('span', 'mx-1 text-slate-400', '·'),
+    document.createElement(
+      'span',
+      'text-xs text-slate-400',
+      new Date(comment.createdAt).toLocaleDateString(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }),
+    ),
+  );
+  if (comment.htmlUrl) {
+    const link = el('a', 'ml-auto text-xs text-emerald-600 hover:underline dark:text-emerald-400', '↗');
+    link.href = comment.htmlUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    head.appendChild(link);
+  }
+  item.appendChild(head);
+  const body = document.createElement('div', 'prose-svp mt-2 text-sm');
+  body.innerHTML = DOMPurify.sanitize(marked.parse(comment.body, { async: false })) as string;
+  item.appendChild(body);
+  return item;
+}
+
+/**
+ * 评论区：issue 存在时 API 加载回复列表 + 同平台登录显示评论框；
+ * issue 不存在显示"评论区已禁用"；无该平台登录态提示登录当前平台。
+ */
+async function renderIssueSection(
+  init: DetailInit,
+  platform: Platform,
+  issue: IssueInfo | null,
+  labels: DetailLabels,
+  els: DetailElements,
+): Promise<void> {
+  const { user, repo, locale } = init;
   const box = document.createElement('div');
   box.className = 'card p-4';
   const h = document.createElement('h3');
   h.className = 'font-semibold';
   h.textContent = labels.comments;
   box.appendChild(h);
+
   if (!issue) {
-    const p = document.createElement('p');
-    p.className = 'mt-2 text-sm text-slate-400';
-    p.textContent = '–';
+    // 未创建关联 issue（发布时未勾选评论区）
+    const p = document.createElement('p', 'mt-2 text-sm text-slate-400', labels.commentsDisabled);
+    p.dataset.role = 'comments-disabled';
     box.appendChild(p);
-  } else {
-    const link = document.createElement('a');
-    link.href = issue.htmlUrl;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.className =
-      'mt-2 inline-flex items-center gap-2 text-sm text-emerald-600 hover:underline dark:text-emerald-400';
-    link.textContent = `#${issue.number} ${issue.title}`;
-    const count = document.createElement('span');
-    count.className = 'text-xs text-slate-400';
-    count.dataset.role = 'comment-count';
-    count.textContent = `💬 ${issue.comments}`;
-    box.append(link, count);
+    els.issues.appendChild(box);
+    return;
   }
+
+  // 标题行：issue 链接 + 评论数 + 跳转原 issue 按钮
+  const head = document.createElement('p');
+  head.className = 'mt-2 flex flex-wrap items-center gap-2 text-sm';
+  const link = document.createElement('a');
+  link.href = issue.htmlUrl;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
+  link.textContent = `#${issue.number} ${issue.title}`;
+  const count = document.createElement('span', 'text-xs text-slate-400');
+  count.dataset.role = 'comment-count';
+  head.append(link, count);
+  const original = document.createElement('a', 'btn ml-auto px-2.5 py-1 text-xs', `${labels.viewIssue} ↗`);
+  original.href = issue.htmlUrl;
+  original.target = '_blank';
+  original.rel = 'noopener';
+  original.dataset.action = 'goto-issue';
+  head.appendChild(original);
+  box.appendChild(head);
+
+  // 回复列表（API 加载）
+  const list = el('div', 'mt-3 flex flex-col gap-2');
+  list.dataset.role = 'issue-comments';
+  const loading = el('p', 'mt-3 text-sm text-slate-400', '…');
+  box.appendChild(list);
+  box.appendChild(loading);
+
+  const adapter = await getAdapterAsync(platform);
+  const loadComments = async (): Promise<IssueCommentInfo[]> => {
+    let comments: IssueCommentInfo[] = [];
+    try {
+      comments = await adapter.listIssueComments(user, repo, issue.number);
+    } catch {
+      /* 评论加载失败时保留空列表 */
+    }
+    loading.remove();
+    list.textContent = '';
+    count.textContent = `💬 ${comments.length}`;
+    if (comments.length === 0) {
+      list.appendChild(el('p', 'text-sm text-slate-400', labels.noComments));
+    } else {
+      for (const comment of comments) list.appendChild(renderIssueComment(comment, locale));
+    }
+    return comments;
+  };
+  void loadComments();
+
+  // 评论输入：有该平台登录态时显示输入框 + 评论按钮；否则提示登录当前平台
+  const footer = el('div', 'mt-3');
+  footer.dataset.role = 'issue-comment-form';
+  const token = getToken(platform);
+  if (token) {
+    const textarea = el('textarea', 'input min-h-20');
+    textarea.placeholder = labels.commentPh;
+    textarea.dataset.field = 'issue-comment';
+    const status = el('p', 'hidden text-xs');
+    status.dataset.role = 'comment-status';
+    const submit = el('button', 'btn btn-primary self-start', labels.commentSubmit);
+    submit.type = 'button';
+    submit.dataset.action = 'submit-comment';
+    submit.addEventListener('click', () => {
+      void (async () => {
+        const body = textarea.value.trim();
+        if (!body) return;
+        submit.disabled = true;
+        status.classList.add('hidden');
+        try {
+          await adapter.createIssueComment(token, user, repo, issue.number, body);
+          textarea.value = '';
+          await loadComments();
+        } catch (error) {
+          status.className = 'text-xs text-rose-600';
+          status.textContent = error instanceof Error ? error.message.slice(0, 80) : labels.commentFailed;
+          status.classList.remove('hidden');
+        } finally {
+          submit.disabled = false;
+        }
+      })();
+    });
+    footer.append(textarea, status, submit);
+  } else {
+    footer.appendChild(el('p', 'text-sm text-slate-400', labels.loginToComment));
+  }
+  box.appendChild(footer);
   els.issues.appendChild(box);
 }
 
@@ -459,6 +610,26 @@ export async function initDetail(init: DetailInit): Promise<void> {
     loadIssues(platform, user, repo).catch(() => []),
   ]);
 
+  // 封面（有则先于参数显示；相对文件名经 applyCover 解析为 raw 地址）
+  const figure = document.createElement('figure');
+  figure.dataset.role = 'detail-cover';
+  figure.className = 'mb-2 hidden overflow-hidden rounded-xl';
+  const coverHolder = document.createElement('div');
+  coverHolder.className =
+    'flex aspect-video w-full max-w-xl items-center justify-center rounded-xl bg-slate-100 text-4xl text-slate-300 dark:bg-slate-800 dark:text-slate-600';
+  coverHolder.textContent = '♪';
+  figure.appendChild(coverHolder);
+  els.meta.before(figure);
+  if (entry.cover) {
+    figure.classList.remove('hidden');
+    void applyCover(entry, figure).then(() => {
+      const img = figure.querySelector('img');
+      if (img) img.className = 'aspect-video w-full max-w-xl rounded-xl object-cover';
+    });
+  } else {
+    figure.remove();
+  }
+
   // 元数据列表（视频链接来自稿件 README 头部，逗号分隔）
   els.meta.textContent = '';
   const videos = (content.parsed.attrs.videos ?? '')
@@ -488,7 +659,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   renderRelease(init, platform, release, labels, els);
 
   const issue = issues.find((i) => i.title === slug) ?? null;
-  renderIssues(issue, labels, els);
+  await renderIssueSection(init, platform, issue, labels, els);
 }
 
 function buildMetaList(
@@ -530,22 +701,60 @@ function buildMetaList(
     li.appendChild(strong);
     videos.forEach((url, index) => {
       if (index > 0) li.appendChild(document.createTextNode('、'));
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.title = url;
-      link.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
-      try {
-        link.textContent = new URL(url).hostname;
-      } catch {
-        link.textContent = url;
-      }
-      li.appendChild(link);
+      li.appendChild(renderVideoLink(url));
     });
     list.appendChild(li);
   }
   return list;
+}
+
+/** 视频平台的轻量 icon（内联 SVG，避免外链与许可问题） */
+const VIDEO_ICONS: Record<string, string> = {
+  bilibili:
+    '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M17.813 4.653h.854c2.51.017 4.545 2.086 4.543 4.596v5.176c0 2.51-2.034 4.545-4.545 4.545H5.335c-2.51 0-4.545-2.034-4.545-4.545V9.25c0-2.51 2.034-4.545 4.545-4.545h.804l-1.072-1.88a.86.86 0 0 1 .322-1.176.86.86 0 0 1 1.176.322l1.403 2.458h7.264l1.395-2.443a.86.86 0 0 1 1.176-.322.86.86 0 0 1 .322 1.176l-1.008 1.813zM7.425 7.613v3.974c0 .475.386.86.86.86s.86-.385.86-.86V7.613a.86.86 0 0 0-.86-.86.86.86 0 0 0-.86.86zm7.43 0v3.974c0 .475.386.86.86.86s.86-.385.86-.86V7.613a.86.86 0 0 0-.86-.86.86.86 0 0 0-.86.86z" fill-rule="evenodd"/></svg>',
+  youtube:
+    '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.51A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.123 2.136c1.872.51 9.377.51 9.377.51s7.505 0 9.378-.51A3.02 3.02 0 0 0 23.5 17.8C24 15.93 24 12 24 12s0-3.93-.5-5.81zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>',
+  nicovideo:
+    '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M7.38 4.01h9.24c1.9 0 2.79.2 3.52.64.74.44 1.07.92 1.36 1.85.28.92.28 1.84.28 3.74v3.52c0 1.9 0 2.82-.28 3.74-.29.93-.62 1.41-1.36 1.85-.73.44-1.62.64-3.52.64H7.38c-1.9 0-2.79-.2-3.52-.64-.74-.44-1.07-.92-1.36-1.85C2.22 16.58 2.2 15.66 2.2 13.76v-3.52c0-1.9.02-2.82.3-3.74.29-.93.62-1.41 1.36-1.85.73-.44 1.62-.64 3.52-.64zm1.36 10.36h1.92l1.76-2.65 1.76 2.65h1.94l-2.7-4.02 2.54-3.78h-1.9l-1.64 2.5-1.64-2.5H8.8l2.53 3.78-2.6 4.02z"/></svg>',
+  generic:
+    '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm6 4v8l7-4-7-4z" fill-rule="evenodd"/></svg>',
+};
+
+/** 平台识别（按域名） */
+function videoIconKey(hostname: string): string {
+  if (/(^|\.)bilibili\.com$|(^|\.)b23\.tv$/.test(hostname)) return 'bilibili';
+  if (/(^|\.)youtube\.com$|(^|\.)youtu\.be$/.test(hostname)) return 'youtube';
+  if (/(^|\.)nicovideo\.jp$|(^|\.)nico\.ms$/.test(hostname)) return 'nicovideo';
+  return 'generic';
+}
+
+/** 视频链接显示名：平台 icon + 视频 ID（path 末段或 v=/sm 等查询参数） */
+function renderVideoLink(url: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.title = url;
+  link.className = 'inline-flex items-center gap-1 text-emerald-600 hover:underline dark:text-emerald-400';
+
+  let hostname = '';
+  let videoId = '';
+  try {
+    const parsed = new URL(url);
+    hostname = parsed.hostname;
+    videoId = parsed.searchParams.get('v')
+      ?? parsed.pathname.split('/').filter(Boolean).pop()
+      ?? '';
+  } catch {
+    videoId = url;
+  }
+  const icon = document.createElement('span');
+  icon.className = 'inline-flex text-base leading-none';
+  icon.innerHTML = VIDEO_ICONS[videoIconKey(hostname)] ?? VIDEO_ICONS.generic!;
+  const text = document.createElement('span');
+  text.textContent = videoId || hostname;
+  link.append(icon, text);
+  return link;
 }
 
 function renderAuthor(

@@ -81,6 +81,13 @@ const en: Record<MessageKey, string> = {
   'detail.interactions': 'Interactions',
   'detail.like': 'Like',
   'detail.liked': 'Liked',
+  'detail.commentsDisabled': 'Comments are disabled',
+  'detail.noComments': 'No replies yet',
+  'detail.viewIssue': 'View original issue',
+  'detail.commentPh': 'Write a reply… (Markdown)',
+  'detail.commentSubmit': 'Post reply',
+  'detail.commentFailed': 'Failed to reply, please check your sign-in status',
+  'detail.loginToComment': 'Sign in on this platform to reply',
   'detail.loadError': 'Failed to load content',
 
   'params.with': 'With params',

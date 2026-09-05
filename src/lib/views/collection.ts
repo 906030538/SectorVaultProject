@@ -1,10 +1,11 @@
 import { LICENSE_OPTIONS, PAGE_SIZE } from '@/config';
 import { isMockAvailable, loadEngagements, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadMockIndex } from '@/lib/index/loader';
+import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { withBase } from '@/lib/base';
 import { loadSession } from '@/lib/auth';
 import { renderCard, type CardLabels } from '@/lib/ui';
-import type { Platform, RepoInfo, SubmissionEntry } from '@/types';
+import type { IndexFile, Platform, RepoInfo, SubmissionEntry } from '@/types';
 
 export interface CollectionLabels extends CardLabels {
   submit: string;
@@ -38,18 +39,42 @@ export interface CollectionInit {
   els: CollectionElements;
 }
 
-/** 汇总该仓库下全部稿件（演示模式读本地索引，否则遍历索引仓） */
+/** 汇总该仓库下全部稿件：先遍历索引源，确定平台后并行尝试内容仓本地索引（svp-archive.json，发布即写入、可能领先于索引 PR） */
 async function loadRepoEntries(user: string, repo: string): Promise<SubmissionEntry[]> {
-  let all: SubmissionEntry[];
+  const fromIndex: SubmissionEntry[] = [];
+  let platform: Platform | null = null;
+  // 本地索引加载（确定平台后立即发起，与索引遍历并行；失败静默降级为仅索引数据）
+  let localArchive: Promise<SubmissionEntry[]> = Promise.resolve([]);
+  const startLocalArchive = (p: Platform): void => {
+    localArchive = (async () => {
+      const adapter = await getAdapterAsync(p);
+      const raw = await adapter.readFile(user, repo, 'svp-archive.json');
+      const archive = JSON.parse(raw) as IndexFile;
+      return Array.isArray(archive.submissions)
+        ? archive.submissions.filter((e) => e.owner === user && e.repo === repo)
+        : [];
+    })().catch(() => [] as SubmissionEntry[]);
+  };
+
   if (await isMockAvailable()) {
-    all = (await loadMockIndex()).submissions;
+    fromIndex.push(...(await loadMockIndex()).submissions.filter((e) => e.owner === user && e.repo === repo));
+    platform = fromIndex[0]?.platform ?? null;
+    if (platform) startLocalArchive(platform);
   } else {
-    all = [];
-    for await (const entry of iterateAllSubmissions()) all.push(entry);
+    for await (const entry of iterateAllSubmissions()) {
+      if (entry.owner !== user || entry.repo !== repo) continue;
+      fromIndex.push(entry);
+      if (!platform) {
+        platform = entry.platform;
+        startLocalArchive(platform);
+      }
+    }
   }
-  return all
-    .filter((e) => e.owner === user && e.repo === repo)
-    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+
+  // 合并：同 slug 以本地索引为准（发布时直接写入，时间戳/属性更新）
+  const bySlug = new Map(fromIndex.map((entry) => [entry.slug, entry]));
+  for (const entry of await localArchive) bySlug.set(entry.slug, entry);
+  return [...bySlug.values()].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }
 
 function dialogShell(title: string): { overlay: HTMLElement; body: HTMLElement } {

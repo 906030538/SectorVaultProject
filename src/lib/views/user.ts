@@ -8,7 +8,7 @@ import {
 } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSessionBy } from '@/lib/auth';
-import { applyCover, setAvatar } from '@/lib/ui';
+import { applyCover, coverPlaceholder, setAvatar } from '@/lib/ui';
 import { withBase } from '@/lib/base';
 import { isMockAvailable, loadAbout, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadActiveIndex, loadMockIndex } from '@/lib/index/loader';
@@ -99,13 +99,7 @@ function miniCard(entry: SubmissionEntry, locale: string): HTMLElement {
   link.href = withBase(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   link.dataset.role = 'mini-card';
 
-  link.appendChild(
-    el(
-      'div',
-      'flex aspect-video w-full items-center justify-center bg-slate-100 text-2xl text-slate-300 dark:bg-slate-800 dark:text-slate-600',
-      '♪',
-    ),
-  );
+  link.appendChild(coverPlaceholder());
   // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
   void applyCover(entry, link);
 

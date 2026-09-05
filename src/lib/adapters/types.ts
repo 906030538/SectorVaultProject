@@ -3,6 +3,7 @@ import type {
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
+  IssueCommentInfo,
   ReleaseReactionInfo,
   IssueInfo,
   ReleaseInfo,
@@ -48,6 +49,18 @@ export interface GitPlatformAdapter {
 
   /** Issue 列表（留言） */
   listIssues(user: string, repo: string): Promise<IssueInfo[]>;
+
+  /** issue 评论列表 */
+  listIssueComments(user: string, repo: string, issueNumber: number): Promise<IssueCommentInfo[]>;
+
+  /** 向 issue 添加评论（需登录且与稿件同平台） */
+  createIssueComment(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number,
+    body: string,
+  ): Promise<void>;
 
   /** Discussions 页面地址 */
   discussionsUrl(owner: string, repo: string): string;

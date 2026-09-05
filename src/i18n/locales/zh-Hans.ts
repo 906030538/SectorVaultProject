@@ -79,6 +79,13 @@ const zhCN = {
   'detail.interactions': '互动记录',
   'detail.like': '点赞',
   'detail.liked': '已点赞',
+  'detail.commentsDisabled': '评论区已禁用',
+  'detail.noComments': '暂无回复',
+  'detail.viewIssue': '前往原 issue',
+  'detail.commentPh': '写下回复…（Markdown）',
+  'detail.commentSubmit': '发表回复',
+  'detail.commentFailed': '回复失败，请检查登录状态',
+  'detail.loginToComment': '登录当前平台账号后可回复',
   'detail.loadError': '内容加载失败',
 
   'params.with': '有参',

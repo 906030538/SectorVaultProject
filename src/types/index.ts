@@ -149,6 +149,16 @@ export interface IssueInfo {
   createdAt: string;
 }
 
+/** Issue 评论 */
+export interface IssueCommentInfo {
+  id: number;
+  author?: string;
+  authorUrl?: string;
+  body: string;
+  createdAt: string;
+  htmlUrl?: string;
+}
+
 /** 平台讨论（Discussion）条目 */
 export interface DiscussionInfo {
   number: number;

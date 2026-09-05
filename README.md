@@ -1,6 +1,6 @@
 # Sector Vault Project — 索引仓
 
-去中心储存的基于 Git 的无头 CMS（Sector Vault Project）的**索引数据仓**。本仓库只包含一系列 JSON 数据与必要的配置文件，为[主站点](https://github.com/906030538/DecentCMS)提供投稿与用户的索引服务。
+去中心储存的基于 Git 的无头 CMS（Sector Vault Project）的**索引数据仓**。本仓库只包含一系列 JSON 数据与必要的配置文件，为[主站点](https://svp.lyoko.cn)提供投稿与用户的索引服务。
 
 - 主站点与索引数据共仓库，通过不同分支管理；本目录规范即索引分支的内容。
 - 索引分支允许所有人提交 PR，门禁校验格式通过后自动合入。

@@ -221,4 +221,10 @@ function isActive(href: string): boolean {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeMenus();
   });
+
+  // OAuth 回退入口：/?auth=1 自动打开授权对话框（在监听器就绪后触发）
+  if (new URLSearchParams(window.location.search).get('auth') === '1') {
+    window.history.replaceState(null, '', window.location.pathname);
+    void openAuthDialog(buildAuthLabels(getClientLocale()));
+  }
 </script>

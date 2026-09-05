@@ -50,6 +50,13 @@ export interface OAuthProviderConfig {
   scope?: string;
 }
 
+/** 各平台 token 交换直连端点（无 Functions 代理的静态部署回退用；需 clientSecret） */
+export const DIRECT_TOKEN_ENDPOINTS: Partial<Record<Platform, string>> = {
+  github: 'https://github.com/login/oauth/access_token',
+  gitee: 'https://gitee.com/oauth/token',
+  atomgit: 'https://atomgit.com/oauth/token',
+};
+
 /** 各平台 OAuth 默认端点（tokenUrl 指向站内 Functions 代理，secret 留在服务端环境变量） */
 export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; scope: string }>> = {
   github: {

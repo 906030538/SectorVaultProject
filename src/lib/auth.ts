@@ -64,26 +64,68 @@ export function logout(): void {
  * 3. 轮询 https://github.com/login/oauth/access_token 获取 token
  * 需要部署时配置 PUBLIC_GITHUB_CLIENT_ID；生产环境建议通过后端代理避免暴露 client。
  */
-export async function requestDeviceCode(): Promise<{
+export interface DeviceCodeInfo {
   userCode: string;
   verificationUri: string;
   deviceCode: string;
   interval: number;
-}> {
-  if (!GITHUB_CLIENT_ID) {
-    throw new Error('GitHub OAuth client id is not configured');
-  }
-  const response = await fetch('https://github.com/login/device/code', {
+}
+
+/** GitHub App 设备授权流第一步：获取 user_code（clientId 来自 deployment.json 或环境变量） */
+export async function requestDeviceCode(
+  clientId: string,
+  deviceCodeUrl = 'https://github.com/login/device/code',
+): Promise<DeviceCodeInfo> {
+  const response = await fetch(deviceCodeUrl, {
     method: 'POST',
     headers: { Accept: 'application/json' },
-    body: new URLSearchParams({ client_id: GITHUB_CLIENT_ID, scope: 'repo' }),
+    body: new URLSearchParams({ client_id: clientId, scope: 'repo' }),
   });
   if (!response.ok) throw new Error(`Device flow failed: ${response.status}`);
-  const data = await response.json();
+  // GitHub API 返回 snake_case（user_code / verification_uri / device_code）
+  const data = (await response.json()) as Record<string, unknown>;
   return {
-    userCode: data.user_code,
-    verificationUri: data.verification_uri,
-    deviceCode: data.device_code,
-    interval: data.interval ?? 5,
+    userCode: (data.user_code as string) ?? '',
+    verificationUri: (data.verification_uri as string) ?? 'https://github.com/login/device',
+    deviceCode: (data.device_code as string) ?? '',
+    interval: (data.interval as number) ?? 5,
   };
+}
+
+/** 设备授权流轮询：用户确认前 pending，确认后返回 access_token；支持取消 */
+export async function pollDeviceToken(
+  clientId: string,
+  deviceCode: string,
+  intervalSeconds: number,
+  signal?: AbortSignal,
+  tokenUrl = 'https://github.com/login/oauth/access_token',
+): Promise<string> {
+  const intervalMs = Math.max(1, intervalSeconds) * 1000;
+  for (;;) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        device_code: deviceCode,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      }),
+    });
+    if (!response.ok) throw new Error(`Device token poll failed: ${response.status}`);
+    const data = (await response.json()) as {
+      access_token?: string;
+      error?: string;
+      error_description?: string;
+      interval?: number;
+    };
+    if (data.access_token) return data.access_token;
+    if (data.error === 'authorization_pending') continue;
+    if (data.error === 'slow_down') {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      continue;
+    }
+    throw new Error(data.error_description ?? data.error ?? 'Device flow failed');
+  }
 }

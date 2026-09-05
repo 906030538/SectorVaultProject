@@ -132,6 +132,7 @@ export function buildAuthLabels(locale: Locale): AuthLabels {
     demoHint: t(locale, 'auth.demoHint'),
     cancel: t(locale, 'common.cancel'),
     oauthLogin: t(locale, 'auth.oauthLogin'),
+    deviceLogin: t(locale, 'auth.deviceLogin'),
   };
 }
 

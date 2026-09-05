@@ -45,6 +45,8 @@ export interface OAuthProviderConfig {
   authorizeUrl?: string;
   /** 令牌交换端点；浏览器跨域受限时可配置代理地址 */
   tokenUrl?: string;
+  /** 设备授权码端点（GitHub App 设备流）；默认 github.com/login/device/code */
+  deviceCodeUrl?: string;
   scope?: string;
 }
 

@@ -20,6 +20,7 @@ const zhCN = {
   'auth.stepVerify': '在下方粘贴令牌完成验证',
   'auth.register': '前往注册',
   'auth.tokenPage': '令牌管理页',
+  'auth.deviceLogin': 'GitHub App 设备授权登录',
   'auth.oauthLogin': '使用 OAuth 授权登录',
   'login.title': '登录',
   'login.exchanging': '正在获取令牌…',

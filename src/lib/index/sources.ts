@@ -67,8 +67,16 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
     try {
       const response = await fetch(withBase(DEPLOYMENT_CONFIG_URL));
       if (response.ok) {
-        const config = (await response.json()) as { oauth?: Record<string, OAuthProviderConfig> };
+        const config = (await response.json()) as {
+          oauth?: Record<string, OAuthProviderConfig>;
+          /** 顶层 github.clientId 简写（GitHub App 认证） */
+          github?: { clientId?: string };
+        };
         const merged = { ...(config.oauth ?? {}) };
+        // 顶层 github.clientId 与 oauth.github 合并（后者优先）
+        if (config.github?.clientId && !merged.github?.clientId) {
+          merged.github = { ...(merged.github ?? {}), clientId: config.github.clientId };
+        }
         if (GITHUB_CLIENT_ID && !merged.github?.clientId) {
           merged.github = { ...(merged.github ?? {}), clientId: GITHUB_CLIENT_ID };
         }

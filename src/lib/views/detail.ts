@@ -439,11 +439,11 @@ function renderIssueComment(comment: IssueCommentInfo, locale: string): HTMLElem
           return a;
         })()
       : el('span', undefined, comment.author)
-    : document.createElement('span');
+    : el('span');
   head.append(
     author,
     el('span', 'mx-1 text-slate-400', '·'),
-    document.createElement(
+    el(
       'span',
       'text-xs text-slate-400',
       new Date(comment.createdAt).toLocaleDateString(locale, {
@@ -461,7 +461,7 @@ function renderIssueComment(comment: IssueCommentInfo, locale: string): HTMLElem
     head.appendChild(link);
   }
   item.appendChild(head);
-  const body = document.createElement('div', 'prose-svp mt-2 text-sm');
+  const body = el('div', 'prose-svp mt-2 text-sm');
   body.innerHTML = DOMPurify.sanitize(marked.parse(comment.body, { async: false })) as string;
   item.appendChild(body);
   return item;
@@ -488,7 +488,7 @@ async function renderIssueSection(
 
   if (!issue) {
     // 未创建关联 issue（发布时未勾选评论区）
-    const p = document.createElement('p', 'mt-2 text-sm text-slate-400', labels.commentsDisabled);
+    const p = el('p', 'mt-2 text-sm text-slate-400', labels.commentsDisabled);
     p.dataset.role = 'comments-disabled';
     box.appendChild(p);
     els.issues.appendChild(box);
@@ -504,10 +504,10 @@ async function renderIssueSection(
   link.rel = 'noopener';
   link.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
   link.textContent = `#${issue.number} ${issue.title}`;
-  const count = document.createElement('span', 'text-xs text-slate-400');
+  const count = el('span', 'text-xs text-slate-400');
   count.dataset.role = 'comment-count';
   head.append(link, count);
-  const original = document.createElement('a', 'btn ml-auto px-2.5 py-1 text-xs', `${labels.viewIssue} ↗`);
+  const original = el('a', 'btn ml-auto px-2.5 py-1 text-xs', `${labels.viewIssue} ↗`);
   original.href = issue.htmlUrl;
   original.target = '_blank';
   original.rel = 'noopener';

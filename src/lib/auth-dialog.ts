@@ -2,6 +2,7 @@ import { saveSession, setToken } from '@/lib/auth';
 import { isMockAvailable } from '@/lib/content';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getOAuthConfig } from '@/lib/index/sources';
+import { pollDeviceToken, requestDeviceCode } from '@/lib/auth';
 import type { Platform } from '@/types';
 
 export interface AuthLabels {
@@ -15,6 +16,7 @@ export interface AuthLabels {
   tokenPage: string;
   tokenPh: string;
   oauthLogin: string;
+  deviceLogin: string;
   tokenSave: string;
   tokenBad: string;
   demoHint: string;
@@ -44,6 +46,73 @@ function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 /** 导航栏登录：授权指引对话框（选平台 → 注册 → 创建令牌 → 验证登录） */
+/** GitHub App 设备授权对话框：显示 user_code + 引导链接，轮询令牌成功后保存登录态 */
+function openDeviceDialog(
+  device: { userCode: string; verificationUri: string; deviceCode: string; interval: number },
+  clientId: string,
+  deviceTokenUrlRef?: string,
+): void {
+  const overlay = el('div', 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4');
+  overlay.dataset.role = 'device-dialog';
+  const card = el('div', 'card flex w-full max-w-sm flex-col gap-3 p-6');
+  card.appendChild(el('h2', 'text-lg font-semibold', 'GitHub App 授权'));
+  const steps = el('ol', 'list-inside list-decimal space-y-1 text-sm text-slate-600 dark:text-slate-300');
+  const open = el('a', 'text-emerald-600 hover:underline dark:text-emerald-400', device.verificationUri);
+  open.href = device.verificationUri;
+  open.target = '_blank';
+  open.rel = 'noopener';
+  const li1 = el('li');
+  li1.append('打开 ', open);
+  const li2 = el('li');
+  li2.append('输入验证码：');
+  const code = el('code', 'select-all rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-base font-bold dark:bg-slate-800', device.userCode);
+  li2.appendChild(code);
+  const li3 = el('li', undefined, '授权后本页将自动完成登录');
+  steps.append(li1, li2, li3);
+  card.appendChild(steps);
+  const status = el('p', 'text-sm text-slate-400');
+  status.dataset.role = 'device-status';
+  status.textContent = '等待授权…';
+  const cancel = el('button', 'btn self-end', '取消');
+  cancel.type = 'button';
+  cancel.dataset.action = 'cancel-device';
+  card.append(status, cancel);
+  overlay.appendChild(card);
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) overlay.remove();
+  });
+  cancel.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+  // 页面关闭/对话框移除即停止轮询
+  const controller = new AbortController();
+  const observer = new MutationObserver(() => {
+    if (!document.body.contains(overlay)) controller.abort();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  void (async () => {
+    try {
+      const token = await pollDeviceToken(
+        clientId,
+        device.deviceCode,
+        device.interval,
+        controller.signal,
+        (deviceTokenUrlRef as string | undefined) ?? undefined,
+      );
+      const viewer = await (await getAdapterAsync('github')).getViewer(token);
+      setToken('github', token);
+      saveSession(viewer);
+      window.location.reload();
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      status.className = 'text-sm text-rose-600';
+      status.textContent = err instanceof Error ? err.message.slice(0, 100) : '授权失败';
+    } finally {
+      observer.disconnect();
+    }
+  })();
+}
+
 export async function openAuthDialog(labels: AuthLabels): Promise<void> {
   const overlay = el('div', 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4');
   overlay.dataset.role = 'auth-dialog';
@@ -126,10 +195,35 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
       window.location.href = `${cfg.authorizeUrl}?${params.toString()}`;
     })();
   });
+  // GitHub App 设备授权（无需回调地址与 client secret，适合零后端静态站）
+  const deviceBtn = el('button', 'btn hidden', labels.deviceLogin);
+  deviceBtn.type = 'button';
+  deviceBtn.dataset.action = 'device-login';
   const syncOauthButton = async (): Promise<void> => {
     const cfg = await getOAuthConfig(platform).catch(() => null);
     oauthBtn.classList.toggle('hidden', !cfg?.authorizeUrl);
+    deviceBtn.classList.toggle('hidden', platform !== 'github' || !cfg?.clientId);
   };
+  deviceBtn.addEventListener('click', () => {
+    void (async () => {
+      deviceBtn.setAttribute('disabled', '');
+      try {
+        const cfg = await getOAuthConfig('github');
+        if (!cfg?.clientId) return;
+        const device = await requestDeviceCode(cfg.clientId, (cfg as { deviceCodeUrl?: string }).deviceCodeUrl);
+        openDeviceDialog(
+          device,
+          cfg.clientId,
+          (cfg as { tokenUrl?: string }).tokenUrl,
+        );
+      } catch (err) {
+        error.textContent = err instanceof Error ? err.message.slice(0, 80) : labels.tokenBad;
+        error.classList.remove('hidden');
+      } finally {
+        deviceBtn.removeAttribute('disabled');
+      }
+    })();
+  });
   void syncOauthButton();
 
   const tokenInput = el('input', 'input w-full');
@@ -168,6 +262,7 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
     step(2, labels.stepToken, tokenLink),
     step(3, labels.stepVerify),
     oauthBtn,
+    deviceBtn,
     tokenInput,
     error,
   );

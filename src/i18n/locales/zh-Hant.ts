@@ -22,6 +22,7 @@ const zhTW: Record<MessageKey, string> = {
   'auth.stepVerify': '在下方貼上權杖完成驗證',
   'auth.register': '前往註冊',
   'auth.tokenPage': '權杖管理頁',
+  'auth.deviceLogin': 'GitHub App 設備授權登入',
   'auth.oauthLogin': '使用 OAuth 授權登入',
   'login.title': '登入',
   'login.exchanging': '正在取得權杖…',

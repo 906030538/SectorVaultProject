@@ -22,6 +22,7 @@ const ja: Record<MessageKey, string> = {
   'auth.stepVerify': '下にトークンを貼り付けて検証',
   'auth.register': '登録する',
   'auth.tokenPage': 'トークン設定',
+  'auth.deviceLogin': 'GitHub App デバイス認証でログイン',
   'auth.oauthLogin': 'OAuth でログイン',
   'login.title': 'ログイン',
   'login.exchanging': 'トークンを取得しています…',

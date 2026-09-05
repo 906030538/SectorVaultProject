@@ -22,6 +22,7 @@ const en: Record<MessageKey, string> = {
   'auth.stepVerify': 'Paste the token below to verify',
   'auth.register': 'Sign up',
   'auth.tokenPage': 'Token settings',
+  'auth.oauthUnavailable': 'OAuth is not configured for this platform; use a token instead',
   'auth.deviceLogin': 'GitHub App device sign-in',
   'auth.oauthLogin': 'Sign in with OAuth',
   'login.title': 'Sign in',

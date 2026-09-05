@@ -133,6 +133,7 @@ export function buildAuthLabels(locale: Locale): AuthLabels {
     cancel: t(locale, 'common.cancel'),
     oauthLogin: t(locale, 'auth.oauthLogin'),
     deviceLogin: t(locale, 'auth.deviceLogin'),
+    oauthUnavailable: t(locale, 'auth.oauthUnavailable'),
   };
 }
 

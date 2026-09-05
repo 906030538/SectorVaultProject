@@ -16,6 +16,7 @@ export interface AuthLabels {
   tokenPage: string;
   tokenPh: string;
   oauthLogin: string;
+  oauthUnavailable: string;
   deviceLogin: string;
   tokenSave: string;
   tokenBad: string;
@@ -46,6 +47,15 @@ function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 /** 导航栏登录：授权指引对话框（选平台 → 注册 → 创建令牌 → 验证登录） */
+/** OAuth state 随机串（crypto.randomUUID 仅安全上下文可用，降级 Math.random） */
+function randomState(): string {
+  try {
+    return crypto.randomUUID().replace(/-/g, '');
+  } catch {
+    return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  }
+}
+
 /** GitHub App 设备授权对话框：显示 user_code + 引导链接，轮询令牌成功后保存登录态 */
 function openDeviceDialog(
   device: { userCode: string; verificationUri: string; deviceCode: string; interval: number },
@@ -175,10 +185,16 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
   oauthBtn.type = 'button';
   oauthBtn.dataset.action = 'oauth-login';
   oauthBtn.addEventListener('click', () => {
+    oauthBtn.setAttribute('disabled', '');
     void (async () => {
+      try {
       const cfg = await getOAuthConfig(platform);
-      if (!cfg?.authorizeUrl) return;
-      const state = crypto.randomUUID().replace(/-/g, '');
+      if (!cfg?.authorizeUrl) {
+        error.textContent = labels.oauthUnavailable;
+        error.classList.remove('hidden');
+        return;
+      }
+      const state = randomState();
       try {
         sessionStorage.setItem('svp-oauth-state', state);
       } catch {
@@ -193,16 +209,23 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
       });
       if (cfg.scope) params.set('scope', cfg.scope);
       window.location.href = `${cfg.authorizeUrl}?${params.toString()}`;
+      } catch (err) {
+        error.textContent = err instanceof Error ? err.message.slice(0, 80) : labels.tokenBad;
+        error.classList.remove('hidden');
+        oauthBtn.removeAttribute('disabled');
+      }
     })();
   });
   // GitHub App 设备授权（无需回调地址与 client secret，适合零后端静态站）
   const deviceBtn = el('button', 'btn hidden', labels.deviceLogin);
   deviceBtn.type = 'button';
   deviceBtn.dataset.action = 'device-login';
+  // 互斥：GitHub 优先显示 App 设备授权（无需回调/secret），其余平台显示 OAuth 跳转
   const syncOauthButton = async (): Promise<void> => {
     const cfg = await getOAuthConfig(platform).catch(() => null);
-    oauthBtn.classList.toggle('hidden', !cfg?.authorizeUrl);
-    deviceBtn.classList.toggle('hidden', platform !== 'github' || !cfg?.clientId);
+    const useDevice = platform === 'github' && !!cfg?.clientId;
+    deviceBtn.classList.toggle('hidden', !useDevice);
+    oauthBtn.classList.toggle('hidden', useDevice || !cfg?.authorizeUrl);
   };
   deviceBtn.addEventListener('click', () => {
     void (async () => {

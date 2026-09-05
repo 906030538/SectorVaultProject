@@ -33,6 +33,11 @@
     "atomgit": {
       "id": "f1b16bb0456241ed920113c33ad7edc2",
       "secret": "48af9096498f49b5bc738d1323059f9e"
+    },
+    "github": {
+      "clientId": "",
+      "deviceCodeUrl": "/gh-oauth/device/code",
+      "tokenUrl": "/gh-oauth/access_token"
     }
   }
 }

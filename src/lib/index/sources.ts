@@ -72,7 +72,27 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
           /** 顶层 github.clientId 简写（GitHub App 认证） */
           github?: { clientId?: string };
         };
-        const merged = { ...(config.oauth ?? {}) };
+        // 兼容 id/secret 简写（gitee/atomgit 常用）→ clientId/clientSecret
+        const normalizeProvider = (
+          raw: Record<string, unknown> | undefined,
+        ): OAuthProviderConfig | undefined =>
+          raw
+            ? {
+                ...(raw as unknown as OAuthProviderConfig),
+                clientId:
+                  ((raw as Record<string, unknown>).clientId as string | undefined) ??
+                  ((raw as Record<string, unknown>).id as string | undefined) ??
+                  '',
+                clientSecret:
+                  ((raw as Record<string, unknown>).clientSecret as string | undefined) ??
+                  ((raw as Record<string, unknown>).secret as string | undefined),
+              }
+            : undefined;
+        const merged: Record<string, OAuthProviderConfig> = {};
+        for (const [platform, raw] of Object.entries(config.oauth ?? {})) {
+          const normalized = normalizeProvider(raw as unknown as Record<string, unknown> | undefined);
+          if (normalized) merged[platform] = normalized;
+        }
         // 顶层 github.clientId 与 oauth.github 合并（后者优先）
         if (config.github?.clientId && !merged.github?.clientId) {
           merged.github = { ...(merged.github ?? {}), clientId: config.github.clientId };

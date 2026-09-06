@@ -45,16 +45,17 @@ export interface OAuthProviderConfig {
   authorizeUrl?: string;
   /** 令牌交换端点；浏览器跨域受限时可配置代理地址 */
   tokenUrl?: string;
-  /** 设备授权码端点（GitHub App 设备流）；默认 github.com/login/device/code */
+  /** 设备授权码端点（GitHub App 设备流）；默认走站内 /gh-oauth 代理避免 CORS */
   deviceCodeUrl?: string;
   scope?: string;
 }
 
-/** 各平台 OAuth 默认端点（tokenUrl 指向站内 Functions 代理，secret 留在服务端环境变量） */
-export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; scope: string }>> = {
+/** 各平台 OAuth 默认端点（tokenUrl / deviceCodeUrl 指向站内 Functions 代理，secret 留在服务端环境变量） */
+export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; deviceCodeUrl?: string; scope: string }>> = {
   github: {
     authorizeUrl: 'https://github.com/login/oauth/authorize',
     tokenUrl: '/gh-oauth/access_token',
+    deviceCodeUrl: '/gh-oauth/device/code',
     scope: 'repo',
   },
   gitee: {

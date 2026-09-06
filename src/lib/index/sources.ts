@@ -179,7 +179,8 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
 /** 平台的可用 OAuth 配置（含默认端点；未配置 clientId 时返回 null） */
 export async function getOAuthConfig(
   platform: Platform,
-): Promise<Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> | null> {
+): Promise<(Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> &
+  Partial<Pick<OAuthProviderConfig, 'deviceCodeUrl'>>) | null> {
   const providers = await getOAuthProviders();
   const custom = providers[platform];
   if (!custom?.clientId) return null;
@@ -188,9 +189,11 @@ export async function getOAuthConfig(
     clientId: custom.clientId,
     authorizeUrl: custom.authorizeUrl ?? preset?.authorizeUrl ?? '',
     tokenUrl: custom.tokenUrl ?? preset?.tokenUrl ?? '',
+    deviceCodeUrl: custom.deviceCodeUrl ?? preset?.deviceCodeUrl,
     scope: custom.scope ?? preset?.scope ?? '',
     ...(custom.clientSecret ? { clientSecret: custom.clientSecret } : {}),
-  } as Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>>;
+  } as Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> &
+    Partial<Pick<OAuthProviderConfig, 'deviceCodeUrl'>>;
 }
 
 /** 线路偏好（选定的托管平台）存储键；未设置 = 全部平台 */

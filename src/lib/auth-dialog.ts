@@ -236,11 +236,11 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
       try {
         const cfg = await getOAuthConfig('github');
         if (!cfg?.clientId) return;
-        const device = await requestDeviceCode(cfg.clientId, (cfg as { deviceCodeUrl?: string }).deviceCodeUrl);
+        const device = await requestDeviceCode(cfg.clientId, cfg.deviceCodeUrl);
         openDeviceDialog(
           device,
           cfg.clientId,
-          (cfg as { tokenUrl?: string }).tokenUrl,
+          cfg.tokenUrl,
         );
       } catch (err) {
         error.textContent = err instanceof Error ? err.message.slice(0, 80) : labels.tokenBad;

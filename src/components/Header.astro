@@ -138,30 +138,42 @@ function isActive(href: string): boolean {
   import { openAuthDialog } from '@/lib/auth-dialog';
   import { buildAuthLabels } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
-  import { logout } from '@/lib/auth';
+  import { loadSession, loadSessionBy, logout } from '@/lib/auth';
+  import { getStoredLine } from '@/lib/index/sources';
   import { t } from '@/i18n';
   import { setAvatar } from '@/lib/ui';
   import { withBase } from '@/lib/base';
+  import { SUPPORTED_PLATFORMS } from '@/config';
+  import type { Platform } from '@/types';
 
-  // 已登录时以头像 + 用户名替换登录按钮（登录态保存在 localStorage）
-  const area = document.getElementById('user-area');
+  // 已登录时以头像 + 用户名替换登录按钮（登录态保存在 localStorage）。
+  // 已选线路时按线路平台取会话：该平台未登录则保留登录按钮（弹窗预选该平台）；
+  // 未选线路时回退最近一次登录。
+  const storedLine = getStoredLine();
+  const linePlatform = SUPPORTED_PLATFORMS.includes(storedLine as Platform)
+    ? (storedLine as Platform)
+    : null;
+  const preferred = linePlatform === 'gitcode' ? null : linePlatform;
   let session: { login?: string; name?: string; avatarUrl?: string } | null = null;
+  const area = document.getElementById('user-area');
   if (area) {
+    session = linePlatform ? loadSessionBy(linePlatform) : loadSession();
     try {
-      const raw = localStorage.getItem('svp-session');
-      session = raw ? JSON.parse(raw) : null;
-      if (session?.login && session?.avatarUrl) {
+      if (session?.login) {
         area.textContent = '';
         const link = document.createElement('a');
         link.href = withBase(`/user/${encodeURIComponent(session.login)}`);
         link.className = 'flex items-center gap-2';
-        const img = document.createElement('img');
-        setAvatar(img, session.avatarUrl);
-        img.alt = session.login;
-        img.className = 'h-7 w-7 rounded-full';
+        if (session.avatarUrl) {
+          const img = document.createElement('img');
+          setAvatar(img, session.avatarUrl);
+          img.alt = session.login;
+          img.className = 'h-7 w-7 rounded-full';
+          link.appendChild(img);
+        }
         const name = document.createElement('span');
         name.textContent = session.name ?? session.login;
-        link.append(img, name);
+        link.appendChild(name);
         area.appendChild(link);
         // 登出：清除全部平台令牌与会话后刷新
         const logoutBtn = document.createElement('button');
@@ -182,17 +194,17 @@ function isActive(href: string): boolean {
     const loginBtn = area.querySelector('button');
     if (loginBtn) {
       loginBtn.addEventListener('click', () => {
-        void openAuthDialog(buildAuthLabels(getClientLocale()));
+        void openAuthDialog(buildAuthLabels(getClientLocale()), preferred ?? undefined);
       });
     }
   }
 
   // 导航栏投稿按钮：已登录跳转新建投稿页，未登录与登录按钮一致（打开授权对话框）
   const submitLink = document.querySelector<HTMLAnchorElement>('[data-role="nav-submit"]');
-  if (submitLink && !session?.login) {
+  if (submitLink && !loadSession()?.login) {
     submitLink.addEventListener('click', (event) => {
       event.preventDefault();
-      void openAuthDialog(buildAuthLabels(getClientLocale()));
+      void openAuthDialog(buildAuthLabels(getClientLocale()), preferred ?? undefined);
     });
   }
 
@@ -225,6 +237,6 @@ function isActive(href: string): boolean {
   // OAuth 回退入口：/?auth=1 自动打开授权对话框（在监听器就绪后触发）
   if (new URLSearchParams(window.location.search).get('auth') === '1') {
     window.history.replaceState(null, '', window.location.pathname);
-    void openAuthDialog(buildAuthLabels(getClientLocale()));
+    void openAuthDialog(buildAuthLabels(getClientLocale()), preferred ?? undefined);
   }
 </script>

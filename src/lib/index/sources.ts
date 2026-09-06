@@ -1,4 +1,5 @@
 import {
+  CONTENT_REPO_PREFIX,
   DEFAULT_INDEX_SOURCES,
   DEFAULT_OAUTH_ENDPOINTS,
   DEPLOYMENT_CONFIG_URL,
@@ -10,9 +11,22 @@ import { GITHUB_CLIENT_ID } from '@/lib/auth';
 import { withBase } from '@/lib/base';
 import type { Platform } from '@/types';
 
-/** 部署配置结构：indexes 为索引源列表 */
+/** 部署配置结构 */
 export interface DeploymentConfig {
+  /** 索引源列表 */
   indexes?: unknown;
+  /** 内容仓默认前缀（新建集合对话框） */
+  repoPrefix?: unknown;
+  /** 各平台模板仓列表（新建集合对话框；仅支持模板生成的平台生效） */
+  templates?: Record<string, unknown[]>;
+}
+
+/** 模板仓配置（deployment.json 的 templates 段条目） */
+export interface RepoTemplateConfig {
+  /** 展示名；缺省为 owner/repo */
+  name?: string;
+  owner: string;
+  repo: string;
 }
 
 const PLATFORM_SET = new Set<string>(SUPPORTED_PLATFORMS);
@@ -32,26 +46,66 @@ function normalizeSource(raw: unknown): IndexSource | null {
   };
 }
 
+/** 容错解析单条模板仓配置 */
+function normalizeTemplate(raw: unknown): RepoTemplateConfig | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const { name, owner, repo } = raw as Record<string, unknown>;
+  if (typeof owner !== 'string' || !owner) return null;
+  if (typeof repo !== 'string' || !repo) return null;
+  return { owner, repo, ...(typeof name === 'string' && name ? { name } : {}) };
+}
+
+let configPromise: Promise<DeploymentConfig | null> | undefined;
+
+/** 部署配置（deployment.json）；加载失败或损坏时返回 null */
+function loadDeploymentConfig(): Promise<DeploymentConfig | null> {
+  configPromise ??= (async () => {
+    try {
+      const response = await fetch(withBase(DEPLOYMENT_CONFIG_URL));
+      if (response.ok) return (await response.json()) as DeploymentConfig;
+    } catch {
+      /* 配置不可用时使用内置默认 */
+    }
+    return null;
+  })();
+  return configPromise;
+}
+
 let sourcesPromise: Promise<IndexSource[]> | undefined;
 
 /** 生效的索引源列表：deployment.json 的 indexes 优先，缺失或损坏时回退默认源 */
 export function getIndexSources(): Promise<IndexSource[]> {
   sourcesPromise ??= (async () => {
-    try {
-      const response = await fetch(withBase(DEPLOYMENT_CONFIG_URL));
-      if (response.ok) {
-        const config = (await response.json()) as DeploymentConfig;
-        const list = (Array.isArray(config.indexes) ? config.indexes : [])
-          .map(normalizeSource)
-          .filter((source): source is IndexSource => source !== null);
-        if (list.length > 0) return list;
-      }
-    } catch {
-      /* 配置不可用时使用内置默认 */
-    }
+    const config = await loadDeploymentConfig();
+    const list = (Array.isArray(config?.indexes) ? config?.indexes : [])
+      .map(normalizeSource)
+      .filter((source): source is IndexSource => source !== null);
+    if (list.length > 0) return list;
     return DEFAULT_INDEX_SOURCES;
   })();
   return sourcesPromise;
+}
+
+/** 内容仓默认前缀（新建集合对话框）；deployment.json 的 repoPrefix 优先 */
+export async function getRepoPrefix(): Promise<string> {
+  const config = await loadDeploymentConfig();
+  return typeof config?.repoPrefix === 'string' && config.repoPrefix.trim()
+    ? config.repoPrefix.trim()
+    : CONTENT_REPO_PREFIX;
+}
+
+const templatesPromises: Partial<Record<Platform, Promise<RepoTemplateConfig[]>>> = {};
+
+/** 平台可用的模板仓列表（deployment.json 的 templates 段） */
+export function getRepoTemplates(platform: Platform): Promise<RepoTemplateConfig[]> {
+  templatesPromises[platform] ??= (async () => {
+    const config = await loadDeploymentConfig();
+    const raw = config?.templates?.[platform];
+    return (Array.isArray(raw) ? raw : [])
+      .map(normalizeTemplate)
+      .filter((template): template is RepoTemplateConfig => template !== null);
+  })();
+  return templatesPromises[platform]!;
 }
 
 /** 主索引源：第一个配置的源，作为索引 PR 的写入目标 */

@@ -11,8 +11,8 @@ import type {
   RepoInfo,
 } from '@/types';
 import { getToken } from '@/lib/auth';
-import { decodeBase64Utf8 } from '@/lib/utils';
-import type { FileChange, GitPlatformAdapter } from './types';
+import { baseRepoReadme, decodeBase64Utf8, emptyLocalArchive, spdxLicenseText } from '@/lib/utils';
+import type { CreateRepoOptions, FileChange, GitPlatformAdapter, PlatformUserProfile, RepoOwnerChoice } from './types';
 
 /**
  * v5 系平台通用适配器（AtomGit / GitCode，OpenAPI 同源）。
@@ -78,6 +78,7 @@ function mapRepo(user: string, repo: AtomGitRepo, webBase: string): RepoInfo {
 
 export class V5PlatformAdapter implements GitPlatformAdapter {
   readonly platform: Platform;
+  readonly supportsRepoTemplate = false;
   protected readonly apiBase: string;
   private readonly webBase: string;
   private readonly rawBase: string;
@@ -119,6 +120,17 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       login: user.login,
       name: user.name ?? undefined,
       avatarUrl: user.avatar_url ?? '',
+    };
+  }
+
+  async getUser(user: string): Promise<PlatformUserProfile> {
+    const data = await this.request<{ login?: string; name?: string; avatar_url?: string }>(
+      `/users/${encodeURIComponent(user)}`,
+    );
+    return {
+      login: data.login ?? user,
+      name: data.name ?? undefined,
+      avatarUrl: data.avatar_url ?? undefined,
     };
   }
 
@@ -374,14 +386,47 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     throw new Error('AtomGit/GitCode release 附件管理暂不支持');
   }
 
-  async createRepoFromTemplate(token: string, owner: string, name: string): Promise<void> {
-    // AtomGit 暂无模板仓库 API：创建空仓库，由编辑器写入初始内容
-    await this.request('/user/repos', {
-      method: 'POST',
-      token,
-      body: { name, private: false, auto_init: false },
-    });
-    void owner;
+  async listOwners(token: string): Promise<RepoOwnerChoice[]> {
+    const user = await this.request<{ login: string }>('/user', { token });
+    const owners: RepoOwnerChoice[] = [{ login: user.login, kind: 'user' }];
+    try {
+      const orgs = await this.request<{ login?: string; path?: string }[]>('/user/orgs', {
+        token,
+        query: { per_page: '100' },
+      });
+      for (const org of orgs) {
+        const login = org.login ?? org.path;
+        if (login && login.toLowerCase() !== user.login.toLowerCase()) {
+          owners.push({ login, kind: 'org' });
+        }
+      }
+    } catch {
+      /* 组织列表不可用时仅个人账户 */
+    }
+    return owners;
+  }
+
+  async createRepo(token: string, options: CreateRepoOptions): Promise<void> {
+    // v5 系暂无模板仓库 API：无论是否选择模板都创建空仓库，由编辑器写入初始内容
+    const { owner, name, license, licenseText } = options;
+    const viewer = await this.request<{ login: string }>('/user', { token });
+    const isOrg = owner.toLowerCase() !== viewer.login.toLowerCase();
+    const body = { name, private: false, auto_init: false };
+    if (isOrg) {
+      await this.request(`/orgs/${encodeURIComponent(owner)}/repos`, { method: 'POST', token, body });
+    } else {
+      await this.request('/user/repos', { method: 'POST', token, body });
+    }
+    // 必要文件：README + 空本地索引；许可证按选择写入根 LICENSE（空仓库可直接提交）
+    const licenseContent = licenseText ?? (license ? await spdxLicenseText(license) : null);
+    const changes: FileChange[] = [
+      { path: 'README.md', content: baseRepoReadme(name), encoding: 'utf-8' },
+      { path: 'svp-archive.json', content: emptyLocalArchive(), encoding: 'utf-8' },
+    ];
+    if (licenseContent) {
+      changes.push({ path: 'LICENSE', content: licenseContent, encoding: 'utf-8' });
+    }
+    await this.commitFiles(token, owner, name, 'Initialize Sector Vault Project repository', changes);
   }
 
   async openIndexPr(

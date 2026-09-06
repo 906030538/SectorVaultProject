@@ -25,6 +25,7 @@
       "branch": "index"
     }
   ],
+  "repoPrefix": "svp-",
   "oauth": {
     "gitee": {
       "id": "0715c0c7ff892ba18c797963ee9771d53e537d1be5a2a72d7d475937cd873537",

@@ -19,6 +19,33 @@ export interface FileChange {
   delete?: boolean;
 }
 
+/** 平台公开用户资料（个人主页头像等） */
+export interface PlatformUserProfile {
+  login: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
+/** 仓库创建属主：当前账户或其所在组织 */
+export interface RepoOwnerChoice {
+  login: string;
+  kind: 'user' | 'org';
+}
+
+/** 创建内容仓选项（新建集合对话框） */
+export interface CreateRepoOptions {
+  /** 属主：当前账户或组织登录名 */
+  owner: string;
+  /** 完整仓库名（含前缀） */
+  name: string;
+  /** 模板仓库；缺省时创建空仓库并写入必要文件 */
+  template?: { owner: string; repo: string };
+  /** 默认许可证 SPDX 标识；空值不写入 */
+  license?: string;
+  /** 自定义许可证全文（优先于 license 标识） */
+  licenseText?: string;
+}
+
 /**
  * Git 平台适配器：屏蔽 GitHub / Gitee / AtomGit 差异。
  * 读操作可匿名（受速率限制），写操作需要登录 token。
@@ -26,8 +53,14 @@ export interface FileChange {
 export interface GitPlatformAdapter {
   readonly platform: AuthInfo['platform'];
 
+  /** 是否支持从模板仓库生成（决定新建集合对话框是否展示模板下拉） */
+  readonly supportsRepoTemplate: boolean;
+
   /** 校验 token 并返回账户信息 */
   getViewer(token: string): Promise<AuthInfo>;
+
+  /** 平台公开用户资料（匿名可读，受速率限制） */
+  getUser(user: string): Promise<PlatformUserProfile>;
 
   /** 列出用户仓库；提供 prefix 时仅返回固定前缀的内容仓 */
   listRepos(user: string, prefix?: string): Promise<RepoInfo[]>;
@@ -138,14 +171,15 @@ export interface GitPlatformAdapter {
     assetId: number,
   ): Promise<void>;
 
-  /** 从模板仓库创建内容仓 */
-  createRepoFromTemplate(
-    token: string,
-    owner: string,
-    name: string,
-    template: { owner: string; repo: string },
-    license?: string,
-  ): Promise<void>;
+  /** 仓库创建属主候选：当前账户或其所在组织 */
+  listOwners(token: string): Promise<RepoOwnerChoice[]>;
+
+  /**
+   * 创建内容仓：模板可选（仅 supportsRepoTemplate 平台生效），
+   * 不使用模板时写入必要文件（README + 空本地索引）；license/licenseText
+   * 任一存在时写入根 LICENSE。
+   */
+  createRepo(token: string, options: CreateRepoOptions): Promise<void>;
 
   /** 向索引仓提交单文件 PR（fork → 分支 → 提交 → PR），返回 PR 地址 */
   openIndexPr(

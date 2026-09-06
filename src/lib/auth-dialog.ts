@@ -123,7 +123,8 @@ function openDeviceDialog(
   })();
 }
 
-export async function openAuthDialog(labels: AuthLabels): Promise<void> {
+/** 打开登录对话框；preferred 为预选平台（如当前线路） */
+export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): Promise<void> {
   const overlay = el('div', 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4');
   overlay.dataset.role = 'auth-dialog';
   const card = el('div', 'card w-full max-w-lg p-6 dark:bg-slate-900');
@@ -156,7 +157,9 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
     chips.set(p, chip);
     platformRow.appendChild(chip);
   }
-  chips.get('github')!.classList.add('btn-primary');
+  // 预选平台（当前线路无登录信息时从登录按钮进入，直接落在目标平台）
+  if (preferred && chips.has(preferred)) platform = preferred;
+  chips.get(platform)!.classList.add('btn-primary');
   card.appendChild(platformRow);
 
   const step = (index: number, text: string, extra?: HTMLElement) => {
@@ -170,12 +173,12 @@ export async function openAuthDialog(labels: AuthLabels): Promise<void> {
   };
 
   const registerLink = el('a', 'btn', labels.register);
-  registerLink.href = PLATFORM_LINKS.github.signup;
+  registerLink.href = PLATFORM_LINKS[platform].signup;
   registerLink.target = '_blank';
   registerLink.rel = 'noopener';
   registerLink.dataset.action = 'goto-register';
   const tokenLink = el('a', 'btn', labels.tokenPage);
-  tokenLink.href = PLATFORM_LINKS.github.tokens;
+  tokenLink.href = PLATFORM_LINKS[platform].tokens;
   tokenLink.target = '_blank';
   tokenLink.rel = 'noopener';
   tokenLink.dataset.action = 'goto-tokens';

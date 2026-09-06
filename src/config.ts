@@ -3,7 +3,7 @@ import type { MessageKey } from './i18n';
 
 export const SITE_NAME = 'SVP - Sector Vault Project';
 
-/** 内容仓固定前缀，可通过部署配置覆盖 */
+/** 内容仓固定前缀：内置回退值，deployment.json 的 repoPrefix 可覆盖（新建集合对话框） */
 export const CONTENT_REPO_PREFIX = 'svp-';
 
 /** 内容仓数据目录：投稿目录为 posts/[slug]（DESIGN.md 内容仓结构） */
@@ -98,13 +98,7 @@ export const LICENSE_OPTIONS: { value: string; label?: string; labelKey?: Messag
   { value: 'CC-BY-NC-ND-4.0', label: 'CC BY-NC-ND 4.0' },
 ];
 
-/** 各平台可用的内容仓模板库（主站点静态部署配置） */
-export const REPO_TEMPLATES: Partial<Record<Platform, { owner: string; repo: string }[]>> = {
-  github: [{ owner: 'SectorVault', repo: 'svp-template' }],
-  gitee: [{ owner: 'SectorVault', repo: 'svp-template' }],
-  atomgit: [{ owner: 'SectorVault', repo: 'svp-template' }],
-  gitcode: [{ owner: 'SectorVault', repo: 'svp-template' }],
-};
+/** 内容仓模板仓列表：由 deployment.json 的 templates 按平台配置（见 src/lib/index/sources.ts） */
 
 /** 内容仓正文头部固定标识 */
 export const POWERED_BY = 'Powered by Sector Vault Project';

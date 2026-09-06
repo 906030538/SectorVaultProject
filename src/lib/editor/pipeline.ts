@@ -15,6 +15,7 @@ import type {
   SubmissionType,
 } from '@/types';
 import { processFile, type EditorFile } from './files';
+import { baseRepoReadme, emptyLocalArchive, spdxLicenseText } from '@/lib/utils';
 
 export type StepState = 'pending' | 'running' | 'done' | 'warning' | 'error';
 export type StepId = 'issue' | 'files' | 'readme' | 'release' | 'assets' | 'index' | 'cover';
@@ -215,17 +216,7 @@ export async function licenseFileChange(
     repoLicense = undefined; // 仓库信息不可用时按不同处理
   }
   if (repoLicense && repoLicense === license) return null;
-
-  let text: string | null = null;
-  try {
-    const response = await fetch(`https://api.github.com/licenses/${license.toLowerCase()}`);
-    if (response.ok) text = ((await response.json()) as { body?: string }).body ?? null;
-  } catch {
-    /* 文本不可用时回退声明式内容 */
-  }
-  const content =
-    text ??
-    `${license}\n\nSPDX-License-Identifier: ${license}\n\n*Powered by Sector Vault Project*\n`;
+  const content = await spdxLicenseText(license);
   return { path: `${POSTS_DIR}/${slug}/LICENSE`, content, encoding: 'utf-8' };
 }
 
@@ -347,11 +338,6 @@ function isMissingFileError(error: unknown): boolean {
   return /\b404\b|not found|未找到/i.test(message);
 }
 
-/** 仓库 README.md 缺失时的基础结构 */
-function baseRepoReadme(repo: string): string {
-  return `# ${repo}\n\n*Powered by Sector Vault Project*\n`;
-}
-
 /**
  * 内容仓 README.md 目录更新：追加 slug 名 + slug 相对路径的链接（幂等）。
  * 返回可直接并入提交的文件变更。
@@ -432,7 +418,7 @@ async function ensureRepoInitialized(
       },
       {
         path: 'svp-archive.json',
-        content: `${JSON.stringify({ submissions: [] }, null, 2)}\n`,
+        content: emptyLocalArchive(),
         encoding: 'utf-8',
       },
     ]);

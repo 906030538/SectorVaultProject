@@ -119,13 +119,17 @@ let oauthPromise: Promise<Record<string, OAuthProviderConfig>> | undefined;
 export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>> {
   oauthPromise ??= (async () => {
     const merged: Record<string, OAuthProviderConfig> = {};
-    // 服务端环境变量下发的 clientId（Cloudflare Pages Functions /oauth/env）
+    // 服务端环境变量下发的凭据（Cloudflare Pages Functions /oauth/env）；
+    // GitHub 的 appClientId（App 设备流）与 clientId（OAuth 网页流）相互独立
     try {
       const response = await fetch(withBase('/oauth/env'));
       if (response.ok) {
-        const envConfig = (await response.json()) as Record<string, { clientId?: string }>;
+        const envConfig = (await response.json()) as Record<string, { clientId?: string; appClientId?: string }>;
         for (const [platform, entry] of Object.entries(envConfig)) {
-          if (entry?.clientId) merged[platform] = { clientId: entry.clientId };
+          const creds: OAuthProviderConfig = { clientId: '' };
+          if (entry?.appClientId) creds.appClientId = entry.appClientId;
+          if (entry?.clientId) creds.clientId = entry.clientId;
+          if (creds.clientId || creds.appClientId) merged[platform] = creds;
         }
       }
     } catch {
@@ -176,24 +180,26 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
   return oauthPromise;
 }
 
-/** 平台的可用 OAuth 配置（含默认端点；未配置 clientId 时返回 null） */
+/** 平台的可用 OAuth 配置（含默认端点）；clientId（网页流）与 appClientId（设备流）均未配置时返回 null */
 export async function getOAuthConfig(
   platform: Platform,
 ): Promise<(Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> &
-  Partial<Pick<OAuthProviderConfig, 'deviceCodeUrl'>>) | null> {
+  Partial<Pick<OAuthProviderConfig, 'appClientId' | 'deviceCodeUrl' | 'deviceTokenUrl' | 'clientSecret'>>) | null> {
   const providers = await getOAuthProviders();
   const custom = providers[platform];
-  if (!custom?.clientId) return null;
+  if (!custom?.clientId && !custom?.appClientId) return null;
   const preset = DEFAULT_OAUTH_ENDPOINTS[platform];
   return {
-    clientId: custom.clientId,
+    clientId: custom.clientId ?? '',
     authorizeUrl: custom.authorizeUrl ?? preset?.authorizeUrl ?? '',
     tokenUrl: custom.tokenUrl ?? preset?.tokenUrl ?? '',
     deviceCodeUrl: custom.deviceCodeUrl ?? preset?.deviceCodeUrl,
+    deviceTokenUrl: custom.deviceTokenUrl ?? preset?.deviceTokenUrl,
     scope: custom.scope ?? preset?.scope ?? '',
+    ...(custom.appClientId ? { appClientId: custom.appClientId } : {}),
     ...(custom.clientSecret ? { clientSecret: custom.clientSecret } : {}),
   } as Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> &
-    Partial<Pick<OAuthProviderConfig, 'deviceCodeUrl'>>;
+    Partial<Pick<OAuthProviderConfig, 'appClientId' | 'deviceCodeUrl' | 'deviceTokenUrl' | 'clientSecret'>>;
 }
 
 /** 线路偏好（选定的托管平台）存储键；未设置 = 全部平台 */

@@ -41,14 +41,15 @@ public/deployment.json   # 索引源与 OAuth 配置
 
    | 变量 | 用途 |
    | --- | --- |
-   | `OAUTH_GITHUB_CLIENT_ID` | GitHub 设备授权流 / 回调流 clientId |
+   | `OAUTH_GITHUB_APP_ID` | GitHub App 设备授权流（`/gh-oauth/*` 透传，无需 secret） |
+   | `OAUTH_GITHUB_CLIENT_ID` + `OAUTH_GITHUB_CLIENT_SECRET` | GitHub OAuth 网页流（token 交换在 `/oauth/github/token` 服务端注入 secret） |
    | `OAUTH_GITEE_CLIENT_ID` + `OAUTH_GITEE_CLIENT_SECRET` | Gitee OAuth（token 交换在服务端代理完成） |
    | `OAUTH_ATOMGIT_CLIENT_ID` + `OAUTH_ATOMGIT_CLIENT_SECRET` | AtomGit OAuth（同上） |
    | `OAUTH_GITCODE_CLIENT_ID` | GitCode（暂仅 clientId 下发） |
 
-   - 前端经 `GET /oauth/env` 获取各平台 clientId（secret 永不下发）；
+   - 前端经 `GET /oauth/env` 获取配置（github 返回 `appClientId` / `clientId` 两套凭据，secret 永不下发）；
+   - GitHub 设备流走 `/gh-oauth/*`（client_id = App ID）；GitHub OAuth 网页流 token 交换走 `POST /oauth/github/token`（服务端注入 secret）；
    - Gitee / AtomGit 的 token 交换走 `POST /oauth/{platform}/token`（Functions 注入 secret 后转发上游）；
-   - GitHub 设备流走 `/gh-oauth/*`；
    - 本地开发在仓库根放 `.dev.vars`（已被 .gitignore 排除）写入同名变量；
 4. 若使用回调式 OAuth（`/login/github`），GitHub App 的回调地址填 `https://<域名>/login/github`；
    Gitee / AtomGit 应用的回调地址填 `https://<域名>/login/{platform}`。

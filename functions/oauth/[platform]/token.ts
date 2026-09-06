@@ -1,13 +1,17 @@
-// Cloudflare Pages Functions：Gitee / AtomGit OAuth token 交换代理
-// POST /oauth/gitee/token  → https://gitee.com/oauth/token
+// Cloudflare Pages Functions：OAuth 网页流 token 交换代理
+// POST /oauth/github/token  → https://github.com/login/oauth/access_token
+// POST /oauth/gitee/token   → https://gitee.com/oauth/token
 // POST /oauth/atomgit/token → https://atomgit.com/oauth/token
 // 客户端只需携带 code + redirect_uri；client_id / client_secret 由服务端
 // 环境变量注入后转发，secret 永不出现在浏览器。
 //
-// 环境变量：OAUTH_GITEE_CLIENT_ID/SECRET、OAUTH_ATOMGIT_CLIENT_ID/SECRET
+// 环境变量：OAUTH_GITHUB_CLIENT_ID/SECRET、OAUTH_GITEE_CLIENT_ID/SECRET、OAUTH_ATOMGIT_CLIENT_ID/SECRET
+// （GitHub App 设备流不经此代理，走 /gh-oauth/access_token 透传）
 
 interface PagesFunctionEnv {
   ASSETS: { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
+  OAUTH_GITHUB_CLIENT_ID?: string;
+  OAUTH_GITHUB_CLIENT_SECRET?: string;
   OAUTH_GITEE_CLIENT_ID?: string;
   OAUTH_GITEE_CLIENT_SECRET?: string;
   OAUTH_ATOMGIT_CLIENT_ID?: string;
@@ -19,6 +23,7 @@ declare type PagesFunction<E = { ASSETS: { fetch(input: RequestInfo, init?: Requ
 ) => Response | Promise<Response>;
 
 const TARGETS: Record<string, { url: string; idKey: string; secretKey: string }> = {
+  github: { url: 'https://github.com/login/oauth/access_token', idKey: 'OAUTH_GITHUB_CLIENT_ID', secretKey: 'OAUTH_GITHUB_CLIENT_SECRET' },
   gitee: { url: 'https://gitee.com/oauth/token', idKey: 'OAUTH_GITEE_CLIENT_ID', secretKey: 'OAUTH_GITEE_CLIENT_SECRET' },
   atomgit: { url: 'https://atomgit.com/oauth/token', idKey: 'OAUTH_ATOMGIT_CLIENT_ID', secretKey: 'OAUTH_ATOMGIT_CLIENT_SECRET' },
 };

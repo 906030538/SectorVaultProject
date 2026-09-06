@@ -67,7 +67,7 @@ const locale = DEFAULT_LOCALE;
       if (oauthError) {
         throw new Error(params.get('error_description') ?? oauthError);
       }
-      if (!cfg || !cfg.authorizeUrl || !cfg.tokenUrl) {
+      if (!cfg || !cfg.clientId || !cfg.authorizeUrl || !cfg.tokenUrl) {
         throw new Error(`OAuth for ${platform} is not configured`);
       }
       if (!code) {

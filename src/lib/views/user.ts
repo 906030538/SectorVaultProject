@@ -1,18 +1,14 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import {
-  CONTENT_REPO_PREFIX,
-  LICENSE_OPTIONS,
-  MOCK_PIPELINE_STEP_DELAY,
-  REPO_TEMPLATES,
-} from '@/config';
+import { CONTENT_REPO_PREFIX, LICENSE_OPTIONS, MOCK_PIPELINE_STEP_DELAY, SUPPORTED_PLATFORMS } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSessionBy } from '@/lib/auth';
 import { applyCover, coverPlaceholder, setAvatar } from '@/lib/ui';
 import { withBase } from '@/lib/base';
 import { isMockAvailable, loadAbout, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadActiveIndex, loadMockIndex } from '@/lib/index/loader';
-import type { IndexFile, Platform, SubmissionEntry } from '@/types';
+import { getRepoPrefix, getRepoTemplates } from '@/lib/index/sources';
+import type { AuthInfo, IndexFile, Platform, SubmissionEntry } from '@/types';
 
 export interface UserLabels {
   space: string;
@@ -27,9 +23,14 @@ export interface UserLabels {
   repoName: string;
   owner: string;
   template: string;
+  templateNone: string;
   license: string;
-  licenseDefault: string;
+  licenseNone: string;
+  licenseCustom: string;
+  licenseCustomPh: string;
+  licenseCustomRequired: string;
   create: string;
+  creating: string;
   cancel: string;
   created: string;
   createFailed: string;
@@ -159,46 +160,95 @@ function dialogShell(title: string): { overlay: HTMLElement; body: HTMLElement }
   return { overlay, body };
 }
 
-/** 新建集合：前缀 + 名称、属主、模板库、默认许可证 */
-function openCreateDialog(init: UserInit, platform: Platform): void {
+/**
+ * 新建集合对话框：前缀 + 名称、属主（账户/组织）、模板库（可不使用）、默认许可证（可自定义）。
+ * 前缀与模板列表来自 deployment.json（repoPrefix / templates），属主含账户所在组织。
+ */
+async function openCreateDialog(init: UserInit, platform: Platform): Promise<void> {
   const { labels } = init;
   const session = loadSessionBy(platform)!;
   const { overlay, body } = dialogShell(labels.newCollection);
 
+  // 名称行：前缀（部署配置默认，可改）+ 名称 + 属主下拉（右侧）
   const nameRow = el('div', 'flex flex-col gap-1');
   nameRow.appendChild(el('label', 'text-xs text-slate-500', labels.repoName));
   const nameInputs = el('div', 'flex gap-2');
-  const prefixInput = el('input', 'input w-24');
+  const prefixInput = el('input', 'input w-24 shrink-0');
   prefixInput.value = CONTENT_REPO_PREFIX;
   prefixInput.setAttribute('data-field', 'prefix');
-  const nameInput = el('input', 'input flex-1');
+  prefixInput.setAttribute('aria-label', labels.prefix);
+  void getRepoPrefix().then((value) => {
+    prefixInput.value = value;
+  });
+  const nameInput = el('input', 'input min-w-0 flex-1');
   nameInput.placeholder = 'my-songs';
   nameInput.setAttribute('data-field', 'repo-name');
-  nameInputs.append(prefixInput, nameInput);
-  nameRow.appendChild(nameInputs);
 
-  const ownerSelect = el('select', 'input w-full');
+  const ownerSelect = el('select', 'input w-40 shrink-0');
   ownerSelect.setAttribute('data-field', 'owner');
+  ownerSelect.setAttribute('aria-label', labels.owner);
   const ownerOption = el('option', undefined, session.login);
   ownerOption.value = session.login;
   ownerSelect.appendChild(ownerOption);
+  nameInputs.append(prefixInput, nameInput, ownerSelect);
+  nameRow.appendChild(nameInputs);
 
-  const templates = REPO_TEMPLATES[platform] ?? [];
+  // 属主候选：账户所在组织（列表不可用时仅个人账户）
+  const adapter = await getAdapterAsync(platform);
+  const token = getToken(platform);
+  if (token && !(await isMockAvailable())) {
+    void adapter
+      .listOwners(token)
+      .then((choices) => {
+        for (const choice of choices) {
+          if (choice.kind !== 'org') continue;
+          const option = el('option', undefined, choice.login);
+          option.value = choice.login;
+          ownerSelect.appendChild(option);
+        }
+      })
+      .catch(() => {
+        /* 组织列表不可用时仅个人账户 */
+      });
+  }
+
+  // 模板下拉：deployment.json 按平台配置；仅支持模板生成的平台展示
+  const templates = adapter.supportsRepoTemplate ? await getRepoTemplates(platform) : [];
   const templateSelect = el('select', 'input w-full');
   templateSelect.setAttribute('data-field', 'template');
-  templates.forEach((template, index) => {
-    const option = el('option', undefined, `${template.owner}/${template.repo}`);
+  for (const [index, template] of templates.entries()) {
+    const option = el('option', undefined, template.name ?? `${template.owner}/${template.repo}`);
     option.value = String(index);
     templateSelect.appendChild(option);
-  });
+  }
+  const templateNone = el('option', undefined, labels.templateNone);
+  templateNone.value = '';
+  templateSelect.appendChild(templateNone);
 
+  // 默认许可证：不设置 / SPDX 预设 / 自定义全文
   const licenseSelect = el('select', 'input w-full');
   licenseSelect.setAttribute('data-field', 'license');
+  const licenseNone = el('option', undefined, labels.licenseNone);
+  licenseNone.value = '';
+  licenseSelect.appendChild(licenseNone);
   for (const option of LICENSE_OPTIONS) {
-    const node = el('option', undefined, 'label' in option ? option.label : labels.licenseDefault);
+    if (!option.value) continue;
+    const node = el('option', undefined, option.label ?? option.value);
     node.value = option.value;
     licenseSelect.appendChild(node);
   }
+  const licenseCustomOption = el('option', undefined, labels.licenseCustom);
+  licenseCustomOption.value = 'custom';
+  licenseSelect.appendChild(licenseCustomOption);
+
+  const licenseTextWrap = el('div', 'mt-2 hidden');
+  const licenseText = el('textarea', 'input min-h-32 w-full font-mono text-xs');
+  licenseText.placeholder = labels.licenseCustomPh;
+  licenseText.setAttribute('data-field', 'license-text');
+  licenseTextWrap.appendChild(licenseText);
+  licenseSelect.addEventListener('change', () => {
+    licenseTextWrap.classList.toggle('hidden', licenseSelect.value !== 'custom');
+  });
 
   const field = (label: string, control: HTMLElement) => {
     const wrap = el('div', 'mt-3 flex flex-col gap-1');
@@ -219,27 +269,46 @@ function openCreateDialog(init: UserInit, platform: Platform): void {
   create.addEventListener('click', async () => {
     const repoName = nameInput.value.trim();
     error.classList.add('hidden');
+    status.classList.add('hidden');
     if (!repoName) {
       error.textContent = labels.nameRequired;
       error.classList.remove('hidden');
       return;
     }
+    const isCustom = licenseSelect.value === 'custom';
+    const customText = licenseText.value.trim();
+    if (isCustom && !customText) {
+      error.textContent = labels.licenseCustomRequired;
+      error.classList.remove('hidden');
+      return;
+    }
     create.setAttribute('disabled', '');
-    const full = prefixInput.value.trim() + repoName;
+    status.textContent = labels.creating;
+    status.classList.remove('hidden');
+    const template =
+      templates.length && templateSelect.value !== ''
+        ? templates[Number(templateSelect.value)]
+        : undefined;
     try {
       if (await isMockAvailable()) {
         await sleep(MOCK_PIPELINE_STEP_DELAY * 2);
       } else {
-        const token = getToken(platform);
-        if (!token || !templates.length) throw new Error('missing token or template');
-        const template = templates[Number(templateSelect.value)] ?? templates[0];
-        await (await getAdapterAsync(platform)).createRepoFromTemplate(token, ownerSelect.value, full, template);
+        if (!token) throw new Error('missing token');
+        await adapter.createRepo(token, {
+          owner: ownerSelect.value,
+          name: `${prefixInput.value.trim()}${repoName}`,
+          template,
+          license: !isCustom && licenseSelect.value ? licenseSelect.value : undefined,
+          ...(isCustom ? { licenseText: customText } : {}),
+        });
       }
       status.textContent = labels.created;
-      status.classList.remove('hidden');
+      create.removeAttribute('disabled');
       setTimeout(() => overlay.remove(), 800);
-    } catch {
-      error.textContent = labels.createFailed;
+    } catch (err) {
+      status.classList.add('hidden');
+      const detail = err instanceof Error && err.message ? `：${err.message.slice(0, 160)}` : '';
+      error.textContent = `${labels.createFailed}${detail}`;
       error.classList.remove('hidden');
       create.removeAttribute('disabled');
     }
@@ -248,9 +317,9 @@ function openCreateDialog(init: UserInit, platform: Platform): void {
 
   body.append(
     nameRow,
-    field(labels.owner, ownerSelect),
-    templates.length ? field(labels.template, templateSelect) : el('span'),
+    ...(templates.length ? [field(labels.template, templateSelect)] : []),
     field(labels.license, licenseSelect),
+    licenseTextWrap,
     error,
     status,
     buttons,
@@ -265,16 +334,65 @@ export async function initUser(init: UserInit): Promise<void> {
 
   const records = index.users.filter((u) => u.owner === name);
   const platforms = [...new Set(records.map((u) => u.platform))];
-  if (!platforms.length) {
-    els.projectCollections.appendChild(el('p', 'text-sm text-slate-400', labels.noRepos));
-    return;
-  }
 
   // 同名用户存在于多个平台时，通过 ?git= 查询参数区分展示的数据
   const requested = new URLSearchParams(window.location.search).get('git');
-  const platform = requested && platforms.includes(requested as Platform)
-    ? (requested as Platform)
-    : platforms[0];
+  const platform: Platform | undefined =
+    requested && platforms.includes(requested as Platform)
+      ? (requested as Platform)
+      : (platforms[0] as Platform | undefined);
+
+  // 页面用户本人的登录会话：优先当前展示平台，其次任一平台同名会话
+  // （无索引记录的新用户也应有新建集合入口）
+  let ownerSession: AuthInfo | null = null;
+  if (platform) {
+    const session = loadSessionBy(platform);
+    if (session?.login === name) ownerSession = session;
+  }
+  if (!ownerSession) {
+    for (const p of SUPPORTED_PLATFORMS) {
+      const session = loadSessionBy(p);
+      if (session?.login === name) {
+        ownerSession = session;
+        break;
+      }
+    }
+  }
+
+  const applyAvatar = (url: string): void => {
+    const img = el('img', 'h-full w-full rounded-full object-cover');
+    setAvatar(img, url);
+    img.alt = name;
+    els.avatar.textContent = '';
+    els.avatar.appendChild(img);
+  };
+  if (ownerSession?.avatarUrl) {
+    applyAvatar(ownerSession.avatarUrl);
+  } else if (platform) {
+    // 无本平台会话时向平台 API 获取头像；获取失败保留首字母图标
+    void getAdapterAsync(platform)
+      .then((adapter) => adapter.getUser(name))
+      .then((profile) => {
+        if (profile.avatarUrl) applyAvatar(profile.avatarUrl);
+      })
+      .catch(() => {
+        /* 保留首字母图标 */
+      });
+  }
+
+  if (ownerSession) {
+    const button = el('button', 'btn btn-primary', labels.newCollection);
+    button.type = 'button';
+    button.dataset.action = 'new-collection';
+    button.addEventListener('click', () => void openCreateDialog(init, ownerSession!.platform));
+    els.actions.appendChild(button);
+  }
+
+  if (!platform) {
+    // 索引中尚无记录：仅展示登录态入口与占位
+    els.projectCollections.appendChild(el('p', 'text-sm text-slate-400', labels.noRepos));
+    return;
+  }
 
   if (platforms.length > 1) {
     for (const p of platforms) {
@@ -286,15 +404,6 @@ export async function initUser(init: UserInit): Promise<void> {
     }
   }
 
-  const platformSession = loadSessionBy(platform);
-  if (platformSession?.login === name && platformSession.avatarUrl) {
-    const img = el('img', 'h-full w-full rounded-full object-cover');
-    setAvatar(img, platformSession.avatarUrl);
-    img.alt = name;
-    els.avatar.textContent = '';
-    els.avatar.appendChild(img);
-  }
-
   const site = records.find((u) => u.platform === platform)?.pagesUrl;
   if (site) {
     const link = el('a', 'btn', labels.site);
@@ -303,14 +412,6 @@ export async function initUser(init: UserInit): Promise<void> {
     link.rel = 'noopener';
     link.dataset.action = 'goto-site';
     els.site.appendChild(link);
-  }
-
-  if (platformSession?.login === name) {
-    const button = el('button', 'btn btn-primary', labels.newCollection);
-    button.type = 'button';
-    button.dataset.action = 'new-collection';
-    button.addEventListener('click', () => openCreateDialog(init, platform));
-    els.actions.appendChild(button);
   }
 
   const repos = (records.find((u) => u.platform === platform)?.repos ?? [])

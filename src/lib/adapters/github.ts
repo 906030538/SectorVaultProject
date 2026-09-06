@@ -10,8 +10,8 @@ import type {
   ReleaseInfo,
   RepoInfo,
 } from '@/types';
-import type { FileChange, GitPlatformAdapter } from './types';
-import { decodeBase64Utf8 } from '@/lib/utils';
+import type { CreateRepoOptions, FileChange, GitPlatformAdapter, PlatformUserProfile, RepoOwnerChoice } from './types';
+import { baseRepoReadme, decodeBase64Utf8, emptyLocalArchive, spdxLicenseText } from '@/lib/utils';
 import { getToken } from '@/lib/auth';
 
 function client(token?: string): Octokit {
@@ -71,11 +71,21 @@ function mapRepo(repo: {
 
 export class GitHubAdapter implements GitPlatformAdapter {
   readonly platform = 'github' as const;
+  readonly supportsRepoTemplate = true;
 
   async getViewer(token: string): Promise<AuthInfo> {
     const { data } = await client(token).rest.users.getAuthenticated();
     return {
       platform: 'github',
+      login: data.login,
+      name: data.name ?? undefined,
+      avatarUrl: data.avatar_url,
+    };
+  }
+
+  async getUser(user: string): Promise<PlatformUserProfile> {
+    const { data } = await autoClient().rest.users.getByUsername({ username: user });
+    return {
       login: data.login,
       name: data.name ?? undefined,
       avatarUrl: data.avatar_url,
@@ -468,21 +478,69 @@ export class GitHubAdapter implements GitPlatformAdapter {
     });
   }
 
-  async createRepoFromTemplate(
-    token: string,
-    owner: string,
-    name: string,
-    template: { owner: string; repo: string },
-  ): Promise<void> {
-    await client(token).rest.repos.createUsingTemplate({
-      template_owner: template.owner,
-      template_repo: template.repo,
-      owner,
-      name,
-      private: false,
-    });
+  async listOwners(token: string): Promise<RepoOwnerChoice[]> {
+    const octokit = client(token);
+    const { data: viewer } = await octokit.rest.users.getAuthenticated();
+    const owners: RepoOwnerChoice[] = [{ login: viewer.login, kind: 'user' }];
+    try {
+      const { data: orgs } = await octokit.rest.orgs.listForAuthenticatedUser({ per_page: 100 });
+      for (const org of orgs) {
+        if (org.login.toLowerCase() !== viewer.login.toLowerCase()) {
+          owners.push({ login: org.login, kind: 'org' });
+        }
+      }
+    } catch {
+      /* 组织列表不可用时仅个人账户 */
+    }
+    return owners;
   }
 
+  async createRepo(token: string, options: CreateRepoOptions): Promise<void> {
+    const { owner, name, template, license, licenseText } = options;
+    const octokit = client(token);
+    const { data: viewer } = await octokit.rest.users.getAuthenticated();
+    const isOrg = owner.toLowerCase() !== viewer.login.toLowerCase();
+
+    if (template) {
+      await octokit.rest.repos.createUsingTemplate({
+        template_owner: template.owner,
+        template_repo: template.repo,
+        owner,
+        name,
+        private: false,
+      });
+    } else if (isOrg) {
+      // auto_init 生成首个提交，git data API 的 commitFiles 才能定位 heads/main
+      await octokit.rest.repos.createInOrg({ org: owner, name, private: false, auto_init: true });
+    } else {
+      await octokit.rest.repos.createForAuthenticatedUser({ name, private: false, auto_init: true });
+    }
+
+    // 模板仓自带基础结构；空仓库创建时补必要文件，许可证按选择写入根 LICENSE
+    const changes: FileChange[] = [];
+    if (!template) {
+      changes.push(
+        { path: 'README.md', content: baseRepoReadme(name), encoding: 'utf-8' },
+        { path: 'svp-archive.json', content: emptyLocalArchive(), encoding: 'utf-8' },
+      );
+    }
+    const licenseContent = licenseText ?? (license ? await spdxLicenseText(license) : null);
+    if (licenseContent) {
+      changes.push({ path: 'LICENSE', content: licenseContent, encoding: 'utf-8' });
+    }
+    if (!changes.length) return;
+    // 仓库异步就绪（模板生成/auto_init）时短暂重试
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.commitFiles(token, owner, name, 'Initialize Sector Vault Project repository', changes);
+        return;
+      } catch (error) {
+        const transient = /404|not found|409|empty/i.test(String(error));
+        if (attempt >= 2 || !transient) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+      }
+    }
+  }
   async openIndexPr(
     token: string,
     target: { owner: string; repo: string; branch: string },

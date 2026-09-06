@@ -23,14 +23,7 @@ const dicts: Record<Locale, Record<MessageKey, string>> = {
   ja,
 };
 
-/** 旧语言代码迁移：zh-CN / zh-TW（历史 localStorage 偏好） */
-const LEGACY_LOCALE: Record<string, Locale> = {
-  'zh-CN': 'zh-Hans',
-  'zh-TW': 'zh-Hant',
-};
-
 export function normalizeLocale(locale: string | undefined | null): Locale {
-  if (locale && locale in LEGACY_LOCALE) return LEGACY_LOCALE[locale];
   if (locale && locale in dicts) return locale as Locale;
   return DEFAULT_LOCALE;
 }

@@ -1,6 +1,6 @@
 import type { MessageKey } from './zh-Hans';
 
-const zhTW: Record<MessageKey, string> = {
+const zhHant: Record<MessageKey, string> = {
   'nav.projects': '投稿列表',
   'nav.articles': '專欄',
   'nav.discussions': '討論',
@@ -234,4 +234,4 @@ const zhTW: Record<MessageKey, string> = {
   'footer.powered': 'Powered by DecentCMS',
 };
 
-export default zhTW;
+export default zhHant;

@@ -1,4 +1,4 @@
-const zhCN = {
+const zhHans = {
   'nav.projects': '投稿列表',
   'nav.articles': '专栏',
   'nav.discussions': '讨论',
@@ -232,5 +232,5 @@ const zhCN = {
   'footer.powered': 'Powered by DecentCMS',
 };
 
-export type MessageKey = keyof typeof zhCN;
-export default zhCN;
+export type MessageKey = keyof typeof zhHans;
+export default zhHans;

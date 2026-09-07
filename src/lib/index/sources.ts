@@ -1,5 +1,6 @@
 import {
   CONTENT_REPO_PREFIX,
+  DEFAULT_FAQ_PAGES,
   DEFAULT_INDEX_SOURCES,
   DEFAULT_OAUTH_ENDPOINTS,
   DEPLOYMENT_CONFIG_URL,
@@ -19,6 +20,8 @@ export interface DeploymentConfig {
   repoPrefix?: unknown;
   /** 各平台模板仓列表（新建集合对话框；仅支持模板生成的平台生效） */
   templates?: Record<string, unknown[]>;
+  /** FAQ 目录（wiki 页面名；缺省用内置列表） */
+  faqPages?: unknown;
 }
 
 /** 模板仓配置（deployment.json 的 templates 段条目） */
@@ -106,6 +109,21 @@ export function getRepoTemplates(platform: Platform): Promise<RepoTemplateConfig
       .filter((template): template is RepoTemplateConfig => template !== null);
   })();
   return templatesPromises[platform]!;
+}
+
+let faqPagesPromise: Promise<string[]> | undefined;
+
+/** FAQ 目录（wiki 页面名列表）：deployment.json 的 faqPages 优先，缺省用内置回退 */
+export function getFaqPages(): Promise<string[]> {
+  faqPagesPromise ??= (async () => {
+    const config = await loadDeploymentConfig();
+    const raw = config?.faqPages;
+    const list = (Array.isArray(raw) ? raw : [])
+      .filter((page): page is string => typeof page === 'string' && !!page.trim())
+      .map((page) => page.trim());
+    return list.length > 0 ? list : DEFAULT_FAQ_PAGES;
+  })();
+  return faqPagesPromise;
 }
 
 /** 主索引源：第一个配置的源，作为索引 PR 的写入目标 */

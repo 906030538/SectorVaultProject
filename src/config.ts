@@ -37,6 +37,9 @@ export const INDEX_PATHS = {
 /** 部署配置文件：其 indexes 字段覆盖默认索引源，允许配置多个索引 */
 export const DEPLOYMENT_CONFIG_URL = '/deployment.json';
 
+/** FAQ 目录回退列表（wiki 页面名；deployment.json 的 faqPages 可覆盖） */
+export const DEFAULT_FAQ_PAGES: string[] = ['Home', '项目介绍', '内容管理', '用户帐户-注册'];
+
 /** OAuth 提供方配置（deployment.json 的 oauth 段或构建环境变量注入） */
 export interface OAuthProviderConfig {
   clientId: string;

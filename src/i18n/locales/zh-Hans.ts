@@ -136,12 +136,15 @@ const zhHans = {
   'faq.viewSource': '前往 Wiki 源页面',
   'faq.loadError': 'Wiki 内容加载失败',
   'faq.empty': '此页面暂无内容',
+  'faq.toc': '目录',
+  'faq.home': '首页',
 
   'about.title': '网站介绍',
   'about.arch': '架构',
   'about.archText':
     'Sector Vault Project 是一个去中心化的工程分享站点：稿件全文与媒体保存在投稿者自己的内容仓库中，主站点仅维护按月归档的轻量索引。用户空间可独立部署为静态页面，索引仓库开放 PR 投稿。',
   'about.advantages': '优势',
+  'about.indexRepos': '索引仓库',
   'about.advantage1': '内容储存在你自己的 Git 仓库，平台迁移零成本',
   'about.advantage2': '索引与站点共仓库分支管理，开源透明',
   'about.advantage3': '支持 GitHub / Gitee / AtomGit 多平台',

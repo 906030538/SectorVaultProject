@@ -139,12 +139,15 @@ const en: Record<MessageKey, string> = {
   'faq.viewSource': 'View wiki source',
   'faq.loadError': 'Failed to load wiki content',
   'faq.empty': 'This page has no content yet',
+  'faq.toc': 'Contents',
+  'faq.home': 'Home',
 
   'about.title': 'About',
   'about.arch': 'Architecture',
   'about.archText':
     'Sector Vault Project is a decentralized project-sharing site: full content and media live in the author’s own content repository, while the main site maintains only a lightweight, monthly-archived index. User spaces can be deployed standalone, and the index repository accepts submissions via PR.',
   'about.advantages': 'Advantages',
+  'about.indexRepos': 'Index repositories',
   'about.advantage1': 'Content lives in your own Git repository — zero-cost migration',
   'about.advantage2': 'Index and site share one repository on separate branches, fully open',
   'about.advantage3': 'Supports GitHub / Gitee / AtomGit',

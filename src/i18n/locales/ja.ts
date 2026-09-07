@@ -139,12 +139,15 @@ const ja: Record<MessageKey, string> = {
   'faq.viewSource': 'Wiki のソースへ',
   'faq.loadError': 'Wiki の読み込みに失敗しました',
   'faq.empty': 'このページには内容がありません',
+  'faq.toc': '目次',
+  'faq.home': 'ホーム',
 
   'about.title': 'サイト紹介',
   'about.arch': 'アーキテクチャ',
   'about.archText':
     'Sector Vault Project は分散型の作品共有サイトです。作品本文とメディアは投稿者自身のコンテンツリポジトリに保存され、メインサイトは月ごとにアーカイブされる軽量なインデックスのみを管理します。ユーザースペースは単独での静的デプロイにも対応し、インデックスリポジトリは PR による投稿を受け付けます。',
   'about.advantages': 'メリット',
+  'about.indexRepos': '索引リポジトリ',
   'about.advantage1': 'コンテンツは自分の Git リポジトリに保存され、移行コストはゼロ',
   'about.advantage2': 'インデックスとサイトは同一リポジトリの別ブランチで管理、完全にオープン',
   'about.advantage3': 'GitHub / Gitee / AtomGit に対応',

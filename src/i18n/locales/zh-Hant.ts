@@ -138,12 +138,15 @@ const zhHant: Record<MessageKey, string> = {
   'faq.viewSource': '前往 Wiki 源頁面',
   'faq.loadError': 'Wiki 內容載入失敗',
   'faq.empty': '此頁面暫無內容',
+  'faq.toc': '目錄',
+  'faq.home': '首頁',
 
   'about.title': '網站介紹',
   'about.arch': '架構',
   'about.archText':
     'Sector Vault Project 是一個去中心化的工程分享站點：稿件全文與媒體保存在投稿者自己的內容倉庫中，主站點僅維護按月歸檔的輕量索引。使用者空間可獨立部署為靜態頁面，索引倉庫開放 PR 投稿。',
   'about.advantages': '優勢',
+  'about.indexRepos': '索引倉庫',
   'about.advantage1': '內容儲存在你自己的 Git 倉庫，平台遷移零成本',
   'about.advantage2': '索引與站點共倉庫分支管理，開源透明',
   'about.advantage3': '支援 GitHub / Gitee / AtomGit 多平台',

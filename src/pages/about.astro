@@ -33,6 +33,13 @@ const locale = DEFAULT_LOCALE;
   </section>
 
   <section class="card mt-4 p-6">
+    <h2 class="mb-3 text-lg font-semibold" data-i18n="about.indexRepos">
+      {t(locale, 'about.indexRepos')}
+    </h2>
+    <div class="flex flex-wrap items-center gap-2" data-component="index-badges"></div>
+  </section>
+
+  <section class="card mt-4 p-6">
     <h2 class="mb-4 text-lg font-semibold" data-i18n="about.stats">{t(locale, 'about.stats')}</h2>
     <div class="grid grid-cols-2 gap-4 text-center">
       <div>
@@ -57,6 +64,9 @@ const locale = DEFAULT_LOCALE;
 
   <script>
     import { loadLineIndexMerged } from '@/lib/index/loader';
+    import { getIndexSources } from '@/lib/index/sources';
+    import { loadRepoInfo } from '@/lib/content';
+    import type { Platform } from '@/types';
 
     try {
       // current + 归档合并：无 CI 重建 current 的线路投稿在归档里
@@ -68,5 +78,67 @@ const locale = DEFAULT_LOCALE;
     } catch {
       /* 索引加载失败时保留占位符 */
     }
+
+    // 索引仓收藏 badges：shields 风格内联 SVG，星标数经各平台适配器读取
+    const BADGE_LABEL_BG: Record<Platform, string> = {
+      github: '#24292f',
+      gitee: '#c71d23',
+      atomgit: '#2b6fe0',
+      gitcode: '#fe7300',
+    };
+    const WEB_BASE: Record<Platform, string> = {
+      github: 'https://github.com',
+      gitee: 'https://gitee.com',
+      atomgit: 'https://atomgit.com',
+      gitcode: 'https://gitcode.com',
+    };
+
+    function escXml(text: string): string {
+      return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function badgeSvg(label: string, value: string, labelBg: string): string {
+      // 11px Verdana 的近似字宽估算（与 shields flat 风格一致）
+      const labelW = Math.round(label.length * 6.3 + 14);
+      const valueW = Math.round(value.length * 6.6 + 16);
+      const total = labelW + valueW;
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="20" role="img" aria-label="${escXml(label)}: ${escXml(value)}"><title>${escXml(label)} ${escXml(value)}</title><rect width="${labelW}" height="20" rx="3" fill="${labelBg}"/><rect x="${labelW}" width="${valueW}" height="20" rx="3" fill="#059669"/><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11"><text x="${labelW / 2}" y="14">${escXml(label)}</text><text x="${labelW + valueW / 2}" y="14">${escXml(value)}</text></g></svg>`;
+    }
+
+    void (async () => {
+      const host = document.querySelector('[data-component="index-badges"]');
+      if (!host) return;
+      const seen = new Set<string>();
+      for (const source of await getIndexSources()) {
+        const key = `${source.platform}:${source.owner}/${source.repo}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const labelBg = BADGE_LABEL_BG[source.platform] ?? '#334155';
+        const label = `${source.owner}/${source.repo}`;
+        const webUrl = `${WEB_BASE[source.platform]}/${source.owner}/${source.repo}`.replace(/\.git$/, '');
+        const link = document.createElement('a');
+        link.href = webUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.title = `${key}@${source.branch}`;
+        link.innerHTML = badgeSvg(label, '★ …', labelBg);
+        host.appendChild(link);
+        const setBadge = (value: string): void => {
+          const svg = link.querySelector('svg');
+          if (svg) svg.outerHTML = badgeSvg(label, value, labelBg);
+        };
+        // 星标数异步补全；仓库详情不可读（部分平台匿名受限/失败）时显示 –
+        void loadRepoInfo(source.platform, source.owner, source.repo)
+          .then((info) => {
+            if (info?.htmlUrl) link.href = info.htmlUrl.replace(/\.git$/, '');
+            setBadge(`★ ${info ? info.stars : '–'}`);
+          })
+          .catch(() => setBadge('★ –'));
+      }
+    })();
   </script>
 </BaseLayout>

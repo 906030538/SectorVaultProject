@@ -37,6 +37,9 @@ export const INDEX_PATHS = {
 /** 部署配置文件：其 indexes 字段覆盖默认索引源，允许配置多个索引 */
 export const DEPLOYMENT_CONFIG_URL = '/deployment.json';
 
+/** FAQ 目录回退列表（wiki 页面名；deployment.json 的 faqPages 可覆盖） */
+export const DEFAULT_FAQ_PAGES: string[] = ['Home', '项目介绍', '内容管理', '用户帐户-注册'];
+
 /** OAuth 提供方配置（deployment.json 的 oauth 段或构建环境变量注入） */
 export interface OAuthProviderConfig {
   clientId: string;
@@ -53,6 +56,13 @@ export interface OAuthProviderConfig {
   deviceTokenUrl?: string;
   scope?: string;
 }
+
+/** 各平台 token 交换直连端点（无 Functions 代理的静态部署回退用；需 clientSecret） */
+export const DIRECT_TOKEN_ENDPOINTS: Partial<Record<Platform, string>> = {
+  github: 'https://github.com/login/oauth/access_token',
+  gitee: 'https://gitee.com/oauth/token',
+  atomgit: 'https://atomgit.com/oauth/token',
+};
 
 /** 各平台 OAuth 默认端点（tokenUrl / deviceCodeUrl 指向站内 Functions 代理，secret 留在服务端环境变量） */
 export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; deviceCodeUrl?: string; deviceTokenUrl?: string; scope: string }>> = {

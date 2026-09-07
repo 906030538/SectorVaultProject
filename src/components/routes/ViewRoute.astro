@@ -16,7 +16,10 @@ const locale = DEFAULT_LOCALE;
   }
   <article class="mx-auto hidden max-w-3xl" data-view-skeleton="detail">
     <header>
-      <h1 class="text-3xl font-bold" data-role="title"></h1>
+      <div class="flex flex-wrap items-center gap-3">
+        <h1 class="text-3xl font-bold" data-role="title"></h1>
+        <span class="ml-auto flex gap-2" data-role="detail-actions"></span>
+      </div>
       <p class="mt-2 text-sm text-slate-500 dark:text-slate-400" data-role="date">–</p>
       <div class="mt-4" data-role="meta"></div>
     </header>
@@ -156,6 +159,7 @@ void (async () => {
           labels: buildDetailLabels(locale),
           els: {
             title: pick('title'),
+            actions: pick('detail-actions'),
             date: pick('date'),
             meta: pick('meta'),
             body: pick('body'),

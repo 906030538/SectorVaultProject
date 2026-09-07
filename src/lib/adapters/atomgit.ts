@@ -386,6 +386,18 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     throw new Error('AtomGit/GitCode release 附件管理暂不支持');
   }
 
+  async deleteRelease(
+    token: string,
+    user: string,
+    repo: string,
+    releaseId: number,
+  ): Promise<void> {
+    await this.request(
+      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases/${releaseId}`,
+      { method: 'DELETE', token },
+    );
+  }
+
   async listOwners(token: string): Promise<RepoOwnerChoice[]> {
     const user = await this.request<{ login: string }>('/user', { token });
     const owners: RepoOwnerChoice[] = [{ login: user.login, kind: 'user' }];

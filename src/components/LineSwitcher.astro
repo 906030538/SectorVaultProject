@@ -10,26 +10,41 @@ interface Props {
 const { locale = DEFAULT_LOCALE } = Astro.props;
 ---
 
-<!-- 线路选择：切换后索引/讨论等数据使用目标平台的索引仓（各平台索引仓由 deployment.json 配置） -->
-<select
-  id="line-switcher"
-  data-role="line-switcher"
-  class="input h-8 px-2 text-xs"
-  aria-label={t(locale, 'nav.line')}
->
-</select>
+<!-- 线路选择：带文本标签；github 为全球主要线路，gitee/atomgit 为国内镜像（各平台索引仓由 deployment.json 配置） -->
+<div class="flex items-center gap-1.5">
+  <span class="text-xs text-slate-500 dark:text-slate-400" data-i18n="nav.line">{t(locale, 'nav.line')}</span>
+  <select
+    id="line-switcher"
+    data-role="line-switcher"
+    class="input h-8 px-2 text-xs"
+    aria-label={t(locale, 'nav.line')}
+  >
+  </select>
+</div>
 
 <script>
   import { getAvailablePlatforms, getStoredLine, setStoredLine } from '@/lib/index/sources';
+  import { t } from '@/i18n';
+  import type { MessageKey } from '@/i18n';
+  import { getClientLocale } from '@/lib/i18n-client';
+
+  // 线路选项文案：标注线路性质（全球主要线路 / 国内镜像）
+  const LINE_LABEL_KEY: Record<string, MessageKey> = {
+    github: 'line.github',
+    gitee: 'line.gitee',
+    atomgit: 'line.atomgit',
+    gitcode: 'line.gitcode',
+  };
 
   // 平台选项来自部署配置的索引源；切换后整页重载以刷新各线路数据
+  const locale = getClientLocale();
   const select = document.getElementById('line-switcher') as HTMLSelectElement | null;
   if (select) {
     void getAvailablePlatforms().then((platforms) => {
       for (const platform of platforms) {
         const option = document.createElement('option');
         option.value = platform;
-        option.textContent = platform;
+        option.textContent = LINE_LABEL_KEY[platform] ? t(locale, LINE_LABEL_KEY[platform]) : platform;
         select.appendChild(option);
       }
       // 无线路偏好时默认选首个平台

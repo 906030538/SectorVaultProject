@@ -26,6 +26,14 @@
     }
   ],
   "repoPrefix": "svp-",
+  "cookieDomain": "svp.lyoko.cn",
+  "oauthBase": "https://cf.svp.lyoko.cn",
+  "faqPages": [
+    "Home",
+    "项目介绍",
+    "内容管理",
+    "用户帐户-注册"
+  ],
   "oauth": {
     "gitee": {
       "id": "0715c0c7ff892ba18c797963ee9771d53e537d1be5a2a72d7d475937cd873537",

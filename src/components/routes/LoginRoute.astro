@@ -19,7 +19,8 @@ const locale = DEFAULT_LOCALE;
       <div data-role="login-error" class="hidden text-sm text-rose-600"></div>
       <div data-role="login-actions" class="hidden flex gap-2">
         <a href="/" class="btn" data-i18n="login.back">{t(locale, 'login.back')}</a>
-        <button type="button" class="btn btn-primary" data-action="retry-login">
+        <button type="button" class="btn" data-action="fallback-pat">使用令牌登录</button>
+      <button type="button" class="btn btn-primary" data-action="retry-login">
           {t(locale, 'login.retry')}
         </button>
       </div>
@@ -33,6 +34,7 @@ const locale = DEFAULT_LOCALE;
   import { getAdapterAsync } from '@/lib/adapters/lazy';
   import { getOAuthConfig } from '@/lib/index/sources';
   import { setToken, saveSession } from '@/lib/auth';
+  import { DIRECT_TOKEN_ENDPOINTS } from '@/config';
   import type { Platform } from '@/types';
 
   const segments = stripBase(window.location.pathname).split('/').filter(Boolean);
@@ -80,19 +82,32 @@ const locale = DEFAULT_LOCALE;
       }
 
       const redirectUri = `${window.location.origin}/login/${platform}`;
+      const secret = (cfg as Partial<Record<'clientSecret', string>>).clientSecret;
       const form = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
         client_id: cfg.clientId,
         redirect_uri: redirectUri,
       });
-      const secret = (cfg as Partial<Record<'clientSecret', string>>).clientSecret;
       if (secret) form.set('client_secret', secret);
-      const response = await fetch(cfg.tokenUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-        body: form.toString(),
-      });
+
+      const postToken = (url: string) =>
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+          body: form.toString(),
+        });
+
+      let response = await postToken(cfg.tokenUrl);
+
+      // 站内代理不可用（静态托管对 POST 返回 405/404）：有凭据时直连平台端点重试
+      const isSameOriginProxy = cfg.tokenUrl.startsWith('/');
+      if (!response.ok && isSameOriginProxy && [404, 405, 501].includes(response.status)) {
+        const direct = DIRECT_TOKEN_ENDPOINTS[platform as keyof typeof DIRECT_TOKEN_ENDPOINTS];
+        if (direct && secret) {
+          response = await postToken(direct);
+        }
+      }
       if (!response.ok) {
         throw new Error(`Token exchange failed: ${response.status}`);
       }
@@ -128,6 +143,13 @@ const locale = DEFAULT_LOCALE;
       errorEl.classList.remove('hidden');
       actions.classList.remove('hidden');
     }
+
+    // OAuth 不可用（如 GitHub Pages 无 Functions 代理）时回退本地令牌登录
+    root
+      .querySelector<HTMLButtonElement>('[data-action="fallback-pat"]')
+      ?.addEventListener('click', () => {
+        window.location.href = withBase('/?auth=1');
+      });
 
     retryBtn.addEventListener('click', () => {
       // 重试：清除 code 重新走授权（避免 code 已被消费）

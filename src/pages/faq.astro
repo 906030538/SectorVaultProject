@@ -24,6 +24,10 @@ const primary = DEFAULT_INDEX_SOURCES[0];
     {t(locale, 'faq.description')}
   </p>
 
+  <!-- 目录：页面列表来自 deployment.json 的 faqPages（缺省内置列表），点击站内加载 -->
+  <nav class="mb-4 flex flex-wrap gap-2" data-role="faq-toc" aria-label={t(locale, 'faq.toc')}>
+  </nav>
+
   <p class="hidden py-8 text-center text-rose-500" data-role="faq-error" data-i18n="faq.loadError">
     {t(locale, 'faq.loadError')}
   </p>
@@ -31,25 +35,65 @@ const primary = DEFAULT_INDEX_SOURCES[0];
 
   <script>
     import { loadFaqPage } from '@/lib/views/faq';
+    import { getFaqPages } from '@/lib/index/sources';
     import { getClientLocale } from '@/lib/i18n-client';
     import { t } from '@/i18n';
+    import { withBase } from '@/lib/base';
 
     const locale = getClientLocale();
-    const page = new URLSearchParams(window.location.search).get('page') || 'Home';
-    void loadFaqPage({
+    let current = new URLSearchParams(window.location.search).get('page') || 'Home';
+
+    const init = {
       owner: '906030538',
       repo: 'SectorVaultProject',
-      page,
       labels: {
         viewSource: t(locale, 'faq.viewSource'),
         loadError: t(locale, 'faq.loadError'),
         empty: t(locale, 'faq.empty'),
       },
       els: {
-        body: document.querySelector('[data-role="faq-body"]')!,
-        sourceBtn: document.querySelector('[data-role="source-btn"]')!,
+        body: document.querySelector<HTMLElement>('[data-role="faq-body"]')!,
+        sourceBtn: document.querySelector<HTMLAnchorElement>('[data-role="source-btn"]')!,
         error: document.querySelector<HTMLElement>('[data-role="faq-error"]')!,
       },
-    });
+    };
+
+    // 目录：当前页高亮，点击无刷新切换
+    const toc = document.querySelector('[data-role="faq-toc"]');
+    const homeLabel = t(locale, 'faq.home');
+    const renderToc = (pages: string[]): void => {
+      if (!toc) return;
+      toc.textContent = '';
+      for (const page of pages) {
+        const link = document.createElement('a');
+        link.href = withBase(`/faq?page=${encodeURIComponent(page)}`);
+        link.className = 'chip';
+        link.textContent = page === 'Home' ? homeLabel : page;
+        link.dataset.page = page;
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          if (page === current) return;
+          current = page;
+          window.history.replaceState(null, '', withBase(`/faq?page=${encodeURIComponent(page)}`));
+          highlight();
+          void loadFaqPage({ ...init, page });
+        });
+        toc.appendChild(link);
+      }
+      highlight();
+    };
+    const highlight = (): void => {
+      for (const link of Array.from(toc?.querySelectorAll<HTMLAnchorElement>('a') ?? [])) {
+        const active = link.dataset.page === current;
+        link.classList.toggle('font-semibold', active);
+        link.classList.toggle('text-emerald-600', active);
+        link.classList.toggle('dark:text-emerald-400', active);
+        if (active) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      }
+    };
+
+    void getFaqPages().then(renderToc);
+    void loadFaqPage({ ...init, page: current });
   </script>
 </BaseLayout>

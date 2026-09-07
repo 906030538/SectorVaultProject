@@ -146,6 +146,9 @@ export interface GitPlatformAdapter {
     body: string,
   ): Promise<number>;
 
+  /** 删除 release（平台不支持时抛错，调用方按警告降级） */
+  deleteRelease(token: string, user: string, repo: string, releaseId: number): Promise<void>;
+
   /** release 表情互动列表（平台不支持时返回空数组） */
   listReleaseReactions(user: string, repo: string, releaseId: number): Promise<ReleaseReactionInfo[]>;
 

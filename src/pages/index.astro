@@ -66,7 +66,7 @@ const locale = DEFAULT_LOCALE;
   </section>
 
   <script>
-    import { loadActiveIndex } from '@/lib/index/loader';
+    import { loadLineIndexMerged } from '@/lib/index/loader';
     import { renderCard } from '@/lib/ui';
     import { buildCardLabels } from '@/lib/labels';
     import { getClientLocale } from '@/lib/i18n-client';
@@ -75,7 +75,8 @@ const locale = DEFAULT_LOCALE;
     const labels = buildCardLabels(locale);
 
     try {
-      const index = await loadActiveIndex();
+      // current + 归档合并：无 CI 重建 current 的线路投稿在归档里
+      const index = await loadLineIndexMerged();
 
       const submissions = document.querySelector('[data-stat="submissions"]');
       if (submissions) submissions.textContent = String(index.submissions.length);

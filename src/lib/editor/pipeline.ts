@@ -270,6 +270,61 @@ async function findUserSite(user: string, mock: boolean): Promise<string | undef
   }
 }
 
+/** 构造索引仓删除变更：从投稿月份归档移除条目（条目不在该归档时返回 null） */
+export async function buildIndexRemoveChange(
+  entry: SubmissionEntry,
+  mock: boolean,
+): Promise<FileChange | null> {
+  const month = entry.submittedAt.slice(0, 7);
+  let base: IndexFile;
+  if (mock) {
+    base = await loadMockIndex();
+  } else {
+    const { index } = await loadPrimaryArchive(month);
+    base = index ?? { submissions: [], users: [] };
+  }
+  if (
+    !Array.isArray(base.submissions) ||
+    !base.submissions.some(
+      (s) => s.owner === entry.owner && s.repo === entry.repo && s.slug === entry.slug,
+    )
+  ) {
+    return null;
+  }
+  const next: IndexFile = JSON.parse(JSON.stringify(base)) as IndexFile;
+  next.submissions = next.submissions.filter(
+    (s) => !(s.owner === entry.owner && s.repo === entry.repo && s.slug === entry.slug),
+  );
+  return {
+    path: `${INDEX_PATHS.archiveDir}/${month}.json`,
+    content: `${JSON.stringify(next, null, 2)}\n`,
+    encoding: 'utf-8',
+  };
+}
+
+/** 向索引仓提交单文件 PR；源选择与稿件同平台优先，无则回退主源 */
+async function submitIndexPr(
+  token: string | null,
+  mock: boolean,
+  platform: Platform,
+  change: FileChange,
+  title: string,
+): Promise<string | undefined> {
+  if (mock) {
+    await sleep(MOCK_PIPELINE_STEP_DELAY);
+    return undefined;
+  }
+  if (!token) throw new Error('missing token');
+  const sources = await getIndexSources();
+  const source = sources.find((s) => s.platform === platform) ?? sources[0]!;
+  return (await getAdapterAsync(platform)).openIndexPr(
+    token,
+    { owner: source.owner, repo: source.repo, branch: source.branch },
+    title,
+    [change],
+  );
+}
+
 async function tryIndexPr(
   token: string | null,
   mock: boolean,
@@ -279,25 +334,151 @@ async function tryIndexPr(
   onStep('index', 'running');
   try {
     const change = await buildIndexChange(entry, mock);
-    if (!mock) {
-      if (!token) throw new Error('missing token');
-      // PR 目标优先取与稿件同平台的索引源（跨平台投稿时适配器与目标仓一致），无则回退主源
-      const sources = await getIndexSources();
-      const source = sources.find((s) => s.platform === entry.platform) ?? sources[0]!;
-      const prUrl = await (await getAdapterAsync(entry.platform)).openIndexPr(
-        token,
-        { owner: source.owner, repo: source.repo, branch: source.branch },
-        `index: +${entry.owner}/${entry.repo}/${entry.slug}`,
-        [change],
-      );
-      onStep('index', 'done', prUrl);
-    } else {
-      await sleep(MOCK_PIPELINE_STEP_DELAY);
-      onStep('index', 'done');
-    }
+    const prUrl = await submitIndexPr(
+      token,
+      mock,
+      entry.platform,
+      change,
+      `index: +${entry.owner}/${entry.repo}/${entry.slug}`,
+    );
+    onStep('index', 'done', prUrl);
   } catch (error) {
     // 平台不支持或提交失败时降级为警告，不阻断发布
     onStep('index', 'warning', error instanceof Error ? error.message : String(error));
+  }
+}
+
+/** 删除稿件步骤：文件（含仓库 README 链接与本地索引）、关联发布、主索引条目 */
+export type DeleteStepId = 'files' | 'release' | 'index';
+export type DeleteOnStep = (id: DeleteStepId, state: StepState, detail?: string) => void;
+
+/**
+ * 删除稿件：一个提交移除 slug 目录全部文件、仓库 README 目录链接与本地索引条目；
+ * 关联 release 尽力删除（失败/无 id 降级为警告）；主索引以单文件 PR 从归档移除条目。
+ * 各步骤幂等，失败后整体重试安全。关联 issue 平台 API 不支持删除，将保留。
+ */
+export async function deleteSubmission(
+  entry: SubmissionEntry,
+  token: string | null,
+  mock: boolean,
+  onStep: DeleteOnStep,
+): Promise<void> {
+  const { owner: user, repo, slug, platform } = entry;
+  let adapterPromise: ReturnType<typeof getAdapterAsync> | null = null;
+  const adapter = async () => (adapterPromise ??= getAdapterAsync(platform));
+
+  // 文件：slug 目录 + 仓库 README 链接 + 本地索引条目合并为一个提交
+  onStep('files', 'running');
+  await runDeleteStep(mock, onStep, 'files', async () => {
+    const changes: FileChange[] = [];
+    const dir = await (await adapter())
+      .listDir(user, repo, `${POSTS_DIR}/${slug}`)
+      .catch(() => []);
+    for (const file of dir.filter((e) => e.type === 'file')) {
+      changes.push({ path: file.path, content: '', delete: true });
+    }
+    try {
+      const readme = await (await adapter()).readFile(user, repo, 'README.md');
+      const pattern = new RegExp(
+        `\\n?- \\[${slug.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\]\\(${POSTS_DIR}/${slug}/\\)`,
+        'g',
+      );
+      const next = readme.replace(pattern, '');
+      if (next !== readme) {
+        changes.push({ path: 'README.md', content: next, encoding: 'utf-8' });
+      }
+    } catch {
+      /* README 缺失时跳过 */
+    }
+    try {
+      const raw = await (await adapter()).readFile(user, repo, 'svp-archive.json');
+      const archive = JSON.parse(raw) as LocalArchive;
+      const hit = (e: SubmissionEntry) => e.owner === user && e.repo === repo && e.slug === slug;
+      if (Array.isArray(archive.submissions) && archive.submissions.some(hit)) {
+        archive.submissions = archive.submissions.filter((e) => !hit(e));
+        changes.push({
+          path: 'svp-archive.json',
+          content: `${JSON.stringify(archive, null, 2)}\n`,
+          encoding: 'utf-8',
+        });
+      }
+    } catch {
+      /* 本地索引缺失时跳过 */
+    }
+    if (changes.length && !mock) {
+      await (await adapter()).commitFiles(token!, user, repo, `Delete submission ${slug}`, changes);
+    }
+  });
+
+  // 发布：无 id 或平台不支持时降级为警告
+  onStep('release', 'running');
+  if (!entry.release) {
+    onStep('release', 'warning');
+  } else {
+    await runDeleteStepWarning(mock, onStep, 'release', async () => {
+      await (await adapter()).deleteRelease(token!, user, repo, entry.release!);
+    });
+  }
+
+  // 索引：条目不在归档时视为完成
+  onStep('index', 'running');
+  try {
+    const change = await buildIndexRemoveChange(entry, mock);
+    if (!change) {
+      onStep('index', 'done');
+    } else {
+      const prUrl = await submitIndexPr(
+        token,
+        mock,
+        platform,
+        change,
+        `index: -${user}/${repo}/${slug}`,
+      );
+      onStep('index', 'done', prUrl);
+    }
+  } catch (error) {
+    onStep('index', 'warning', error instanceof Error ? error.message : String(error));
+  }
+}
+
+/** 删除步骤执行器：失败抛出（标记 error），由调用方提供重试 */
+async function runDeleteStep(
+  mock: boolean,
+  onStep: DeleteOnStep,
+  id: DeleteStepId,
+  run: () => Promise<void>,
+): Promise<void> {
+  if (mock) {
+    await sleep(MOCK_PIPELINE_STEP_DELAY);
+    onStep(id, 'done');
+    return;
+  }
+  try {
+    await run();
+    onStep(id, 'done');
+  } catch (error) {
+    onStep(id, 'error', error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+}
+
+/** 尽力执行的删除步骤：失败降级为警告，不阻断整体流程 */
+async function runDeleteStepWarning(
+  mock: boolean,
+  onStep: DeleteOnStep,
+  id: DeleteStepId,
+  run: () => Promise<void>,
+): Promise<void> {
+  if (mock) {
+    await sleep(MOCK_PIPELINE_STEP_DELAY);
+    onStep(id, 'done');
+    return;
+  }
+  try {
+    await run();
+    onStep(id, 'done');
+  } catch (error) {
+    onStep(id, 'warning', error instanceof Error ? error.message : String(error));
   }
 }
 

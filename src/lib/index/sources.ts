@@ -1,5 +1,6 @@
 import {
   CONTENT_REPO_PREFIX,
+  DEFAULT_FAQ_PAGES,
   DEFAULT_INDEX_SOURCES,
   DEFAULT_OAUTH_ENDPOINTS,
   DEPLOYMENT_CONFIG_URL,
@@ -19,6 +20,12 @@ export interface DeploymentConfig {
   repoPrefix?: unknown;
   /** 各平台模板仓列表（新建集合对话框；仅支持模板生成的平台生效） */
   templates?: Record<string, unknown[]>;
+  /** FAQ 目录（wiki 页面名；缺省用内置列表） */
+  faqPages?: unknown;
+  /** 跨子域共享 cookie 的父域（如 svp.lyoko.cn；令牌/会话/索引缓存镜像到该域） */
+  cookieDomain?: unknown;
+  /** OAuth 端点基址（如 https://cf.svp.lyoko.cn；相对 token/env 端点以其为前缀） */
+  oauthBase?: unknown;
 }
 
 /** 模板仓配置（deployment.json 的 templates 段条目） */
@@ -108,6 +115,46 @@ export function getRepoTemplates(platform: Platform): Promise<RepoTemplateConfig
   return templatesPromises[platform]!;
 }
 
+let faqPagesPromise: Promise<string[]> | undefined;
+
+/** FAQ 目录（wiki 页面名列表）：deployment.json 的 faqPages 优先，缺省用内置回退 */
+export function getFaqPages(): Promise<string[]> {
+  faqPagesPromise ??= (async () => {
+    const config = await loadDeploymentConfig();
+    const raw = config?.faqPages;
+    const list = (Array.isArray(raw) ? raw : [])
+      .filter((page): page is string => typeof page === 'string' && !!page.trim())
+      .map((page) => page.trim());
+    return list.length > 0 ? list : DEFAULT_FAQ_PAGES;
+  })();
+  return faqPagesPromise;
+}
+
+let cookieDomainPromise: Promise<string | undefined> | undefined;
+
+/** 跨子域共享 cookie 的父域（deployment.json 的 cookieDomain；未配置返回 undefined） */
+export function getCookieDomain(): Promise<string | undefined> {
+  cookieDomainPromise ??= (async () => {
+    const config = await loadDeploymentConfig();
+    return typeof config?.cookieDomain === 'string' && config.cookieDomain.trim()
+      ? config.cookieDomain.trim()
+      : undefined;
+  })();
+  return cookieDomainPromise;
+}
+
+let oauthBasePromise: Promise<string | undefined> | undefined;
+
+/** OAuth 端点基址（deployment.json 的 oauthBase，去尾斜杠；未配置返回 undefined） */
+export function getOauthBase(): Promise<string | undefined> {
+  oauthBasePromise ??= (async () => {
+    const config = await loadDeploymentConfig();
+    if (typeof config?.oauthBase !== 'string' || !config.oauthBase.trim()) return undefined;
+    return config.oauthBase.trim().replace(/\/+$/, '');
+  })();
+  return oauthBasePromise;
+}
+
 /** 主索引源：第一个配置的源，作为索引 PR 的写入目标 */
 export async function getPrimaryIndexSource(): Promise<IndexSource> {
   return (await getIndexSources())[0]!;
@@ -119,10 +166,11 @@ let oauthPromise: Promise<Record<string, OAuthProviderConfig>> | undefined;
 export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>> {
   oauthPromise ??= (async () => {
     const merged: Record<string, OAuthProviderConfig> = {};
-    // 服务端环境变量下发的凭据（Cloudflare Pages Functions /oauth/env）；
+    // 服务端环境变量下发的凭据（oauthBase 或本站的 /oauth/env Functions）；
     // GitHub 的 appClientId（App 设备流）与 clientId（OAuth 网页流）相互独立
     try {
-      const response = await fetch(withBase('/oauth/env'));
+      const base = await getOauthBase();
+      const response = await fetch(base ? `${base}/oauth/env` : withBase('/oauth/env'));
       if (response.ok) {
         const envConfig = (await response.json()) as Record<string, { clientId?: string; appClientId?: string }>;
         for (const [platform, entry] of Object.entries(envConfig)) {
@@ -180,7 +228,8 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
   return oauthPromise;
 }
 
-/** 平台的可用 OAuth 配置（含默认端点）；clientId（网页流）与 appClientId（设备流）均未配置时返回 null */
+/** 平台的可用 OAuth 配置（含默认端点）；clientId（网页流）与 appClientId（设备流）均未配置时返回 null。
+ * 相对端点（站内 Functions 代理）在有 oauthBase 时指向 worker 子域，绝对地址原样透传。 */
 export async function getOAuthConfig(
   platform: Platform,
 ): Promise<(Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> &
@@ -189,12 +238,18 @@ export async function getOAuthConfig(
   const custom = providers[platform];
   if (!custom?.clientId && !custom?.appClientId) return null;
   const preset = DEFAULT_OAUTH_ENDPOINTS[platform];
+  const base = await getOauthBase();
+  const resolveUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined;
+    if (/^https?:/i.test(url)) return url;
+    return `${base ?? ''}${url.startsWith('/') ? url : `/${url}`}`;
+  };
   return {
     clientId: custom.clientId ?? '',
-    authorizeUrl: custom.authorizeUrl ?? preset?.authorizeUrl ?? '',
-    tokenUrl: custom.tokenUrl ?? preset?.tokenUrl ?? '',
-    deviceCodeUrl: custom.deviceCodeUrl ?? preset?.deviceCodeUrl,
-    deviceTokenUrl: custom.deviceTokenUrl ?? preset?.deviceTokenUrl,
+    authorizeUrl: resolveUrl(custom.authorizeUrl ?? preset?.authorizeUrl ?? '') ?? '',
+    tokenUrl: resolveUrl(custom.tokenUrl ?? preset?.tokenUrl ?? '') ?? '',
+    deviceCodeUrl: resolveUrl(custom.deviceCodeUrl ?? preset?.deviceCodeUrl),
+    deviceTokenUrl: resolveUrl(custom.deviceTokenUrl ?? preset?.deviceTokenUrl),
     scope: custom.scope ?? preset?.scope ?? '',
     ...(custom.appClientId ? { appClientId: custom.appClientId } : {}),
     ...(custom.clientSecret ? { clientSecret: custom.clientSecret } : {}),

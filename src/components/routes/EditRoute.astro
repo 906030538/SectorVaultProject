@@ -23,8 +23,17 @@ const locale = DEFAULT_LOCALE;
   import { t } from '@/i18n';
   import { SITE_NAME } from '@/config';
 
-  // 路由匹配：/edit/:name/:repo/:slug（严格四段）；不匹配时不激活
-  const segments = stripBase(window.location.pathname).split('/').filter(Boolean);
+  // 路由匹配：/edit/:name/:repo/:slug（严格四段）；逐段解码（CJK slug 以百分号编码到达）
+  const segments = stripBase(window.location.pathname)
+    .split('/')
+    .filter(Boolean)
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    });
   const [name, repo, slug] = segments.slice(1);
   if (segments[0] === 'edit' && segments.length === 4 && name && repo && slug) {
     const root = document.querySelector<HTMLElement>('[data-route-component="edit"]')!;

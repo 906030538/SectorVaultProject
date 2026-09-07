@@ -43,6 +43,11 @@ export const onRequestGet: PagesFunction<PagesFunctionEnv> = async (context) => 
     config.gitcode = { clientId: env.OAUTH_GITCODE_CLIENT_ID };
   }
   return new Response(JSON.stringify(config), {
-    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      // 兄弟子域（svp.lyoko.cn 等静态主站）跨域读取本端点
+      'access-control-allow-origin': '*',
+    },
   });
 };

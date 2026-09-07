@@ -478,6 +478,15 @@ export class GitHubAdapter implements GitPlatformAdapter {
     });
   }
 
+  async deleteRelease(
+    token: string,
+    user: string,
+    repo: string,
+    releaseId: number,
+  ): Promise<void> {
+    await client(token).rest.repos.deleteRelease({ owner: user, repo, release_id: releaseId });
+  }
+
   async listOwners(token: string): Promise<RepoOwnerChoice[]> {
     const octokit = client(token);
     const { data: viewer } = await octokit.rest.users.getAuthenticated();

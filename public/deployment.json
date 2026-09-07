@@ -27,7 +27,10 @@
   ],
   "repoPrefix": "svp-",
   "cookieDomain": "svp.lyoko.cn",
-  "oauthBase": "https://cf.svp.lyoko.cn",
+  "oauthBases": [
+    "https://cf.svp.lyoko.cn",
+    "https://ccs.lyoko.cn"
+  ],
   "faqPages": [
     "Home",
     "项目介绍",

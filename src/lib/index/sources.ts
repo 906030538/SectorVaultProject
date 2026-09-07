@@ -22,9 +22,11 @@ export interface DeploymentConfig {
   templates?: Record<string, unknown[]>;
   /** FAQ 目录（wiki 页面名；缺省用内置列表） */
   faqPages?: unknown;
-  /** 跨子域共享 cookie 的父域（如 svp.lyoko.cn；令牌/会话/索引缓存镜像到该域） */
+  /** 跨子域共享 cookie 的父域（如 svp.lyoko.cn；令牌/会话镜像到该域） */
   cookieDomain?: unknown;
-  /** OAuth 端点基址（如 https://cf.svp.lyoko.cn；相对 token/env 端点以其为前缀） */
+  /** OAuth 代理基址列表（依次探测取首个可达；兼容旧 oauthBase 单值） */
+  oauthBases?: unknown;
+  /** OAuth 代理基址（单值，旧字段；建议改用 oauthBases 列表） */
   oauthBase?: unknown;
 }
 
@@ -143,16 +145,53 @@ export function getCookieDomain(): Promise<string | undefined> {
   return cookieDomainPromise;
 }
 
-let oauthBasePromise: Promise<string | undefined> | undefined;
+/** OAuth 代理解析结果：选中的基址与其 /oauth/env 凭据 */
+interface OauthProxyResolution {
+  base?: string;
+  env?: Record<string, { clientId?: string; appClientId?: string }>;
+}
 
-/** OAuth 端点基址（deployment.json 的 oauthBase，去尾斜杠；未配置返回 undefined） */
-export function getOauthBase(): Promise<string | undefined> {
-  oauthBasePromise ??= (async () => {
+let oauthProxyPromise: Promise<OauthProxyResolution> | undefined;
+
+/**
+ * OAuth 代理选择：依次探测 oauthBases 列表（兼容旧 oauthBase 单值），
+ * 取第一个 /oauth/env 可达的代理；全部不可用时回退本站（无基址）。
+ * 探测结果连同凭据缓存，避免二次请求。
+ */
+function resolveOauthProxy(): Promise<OauthProxyResolution> {
+  oauthProxyPromise ??= (async () => {
     const config = await loadDeploymentConfig();
-    if (typeof config?.oauthBase !== 'string' || !config.oauthBase.trim()) return undefined;
-    return config.oauthBase.trim().replace(/\/+$/, '');
+    const raw = [
+      ...(Array.isArray(config?.oauthBases) ? (config!.oauthBases as unknown[]) : []),
+      ...(typeof config?.oauthBase === 'string' && config.oauthBase.trim() ? [config.oauthBase] : []),
+    ]
+      .filter((base): base is string => typeof base === 'string' && !!base.trim())
+      .map((base) => base.trim().replace(/\/+$/, ''));
+    for (const base of [...new Set(raw)]) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4000);
+        try {
+          const response = await fetch(`${base}/oauth/env`, { signal: controller.signal });
+          if (response.ok) {
+            const env = (await response.json()) as OauthProxyResolution['env'];
+            if (env && typeof env === 'object') return { base, env };
+          }
+        } finally {
+          clearTimeout(timer);
+        }
+      } catch {
+        /* 代理不可达时尝试下一个候选 */
+      }
+    }
+    return {};
   })();
-  return oauthBasePromise;
+  return oauthProxyPromise;
+}
+
+/** OAuth 端点基址：oauthBases 中首个可达代理；未配置或全部不可达返回 undefined */
+export async function getOauthBase(): Promise<string | undefined> {
+  return (await resolveOauthProxy()).base;
 }
 
 /** 主索引源：第一个配置的源，作为索引 PR 的写入目标 */
@@ -166,13 +205,15 @@ let oauthPromise: Promise<Record<string, OAuthProviderConfig>> | undefined;
 export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>> {
   oauthPromise ??= (async () => {
     const merged: Record<string, OAuthProviderConfig> = {};
-    // 服务端环境变量下发的凭据（oauthBase 或本站的 /oauth/env Functions）；
+    // 服务端环境变量下发的凭据（oauthBases 代理或本站的 /oauth/env Functions）；
     // GitHub 的 appClientId（App 设备流）与 clientId（OAuth 网页流）相互独立
     try {
-      const base = await getOauthBase();
-      const response = await fetch(base ? `${base}/oauth/env` : withBase('/oauth/env'));
-      if (response.ok) {
-        const envConfig = (await response.json()) as Record<string, { clientId?: string; appClientId?: string }>;
+      let envConfig = (await resolveOauthProxy()).env ?? null;
+      if (!envConfig) {
+        const response = await fetch(withBase('/oauth/env'));
+        if (response.ok) envConfig = (await response.json()) as typeof envConfig;
+      }
+      if (envConfig) {
         for (const [platform, entry] of Object.entries(envConfig)) {
           const creds: OAuthProviderConfig = { clientId: '' };
           if (entry?.appClientId) creds.appClientId = entry.appClientId;

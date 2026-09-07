@@ -10,6 +10,8 @@
       "submittedAt": "2023-03-15T04:00:00.000Z",
       "publishedAt": "2023-03-15T04:00:00.000Z",
       "cover": "封面.png",
+      "issue": 5,
+      "release": 382300827,
       "paramState": "with-params",
       "songs": [
         "限りなく灰色へ"
@@ -22,7 +24,7 @@
         "ROSE"
       ],
       "languages": [
-        "zh"
+        "ja"
       ]
     }
   ],

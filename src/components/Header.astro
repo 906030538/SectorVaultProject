@@ -1,5 +1,5 @@
 ---
-import { SITE_NAME } from '@/config';
+import { DEFAULT_INDEX_SOURCES, SITE_NAME } from '@/config';
 import { t } from '@/i18n';
 import type { Locale, MessageKey } from '@/i18n';
 import LanguageSwitcher from '@/components/LanguageSwitcher.astro';
@@ -22,6 +22,19 @@ const navItems: { key: MessageKey; href: string; fold: 460 | 560 | 700 | 800 | 9
   { key: 'nav.faq', href: withBase('/faq'), fold: 800 },
   { key: 'nav.about', href: withBase('/about'), fold: 900 },
 ];
+
+/** 各平台站点根地址（问题反馈链接拼接用） */
+const WEB_BASE: Record<string, string> = {
+  github: 'https://github.com',
+  gitee: 'https://gitee.com',
+  atomgit: 'https://atomgit.com',
+  gitcode: 'https://gitcode.com',
+};
+
+/** 问题反馈：指向当前线路索引仓的 issue 列表（客户端按线路修正，此处为构建期回退值） */
+const primarySource = DEFAULT_INDEX_SOURCES[0]!;
+const feedbackHref = (source: { platform: string; owner: string; repo: string }): string =>
+  `${WEB_BASE[source.platform] ?? 'https://github.com'}/${source.owner}/${source.repo}/issues`;
 
 /**
  * 左导航逐项折叠（从最右项开始）：宽度低于该项阈值时，
@@ -84,6 +97,17 @@ function isActive(href: string): boolean {
           </a>
         ))
       }
+      <!-- 问题反馈：跳转当前线路索引仓的 issue 列表（新标签页） -->
+      <a
+        href={feedbackHref(primarySource)}
+        data-i18n="nav.feedback"
+        data-role="feedback-link"
+        target="_blank"
+        rel="noopener"
+        class:list={[...linkClasses, FOLD_INLINE[900]]}
+      >
+        {t(locale, 'nav.feedback')}
+      </a>
     </nav>
 
     <!-- 左侧导航下拉面板（内容与内联项互补显隐，JS 切换整体开合） -->
@@ -102,6 +126,16 @@ function isActive(href: string): boolean {
           </a>
         ))
       }
+      <a
+        href={feedbackHref(primarySource)}
+        data-i18n="nav.feedback"
+        data-role="feedback-link"
+        target="_blank"
+        rel="noopener"
+        class:list={['hidden', ...linkClasses, FOLD_PANEL[900]]}
+      >
+        {t(locale, 'nav.feedback')}
+      </a>
     </div>
 
     <div class="ml-auto flex shrink-0 items-center gap-2">
@@ -139,12 +173,27 @@ function isActive(href: string): boolean {
   import { buildAuthLabels } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
   import { loadSession, loadSessionBy, logout } from '@/lib/auth';
-  import { getStoredLine } from '@/lib/index/sources';
+  import { getLineSources, getStoredLine } from '@/lib/index/sources';
   import { t } from '@/i18n';
   import { setAvatar } from '@/lib/ui';
   import { withBase } from '@/lib/base';
   import { SUPPORTED_PLATFORMS } from '@/config';
   import type { Platform } from '@/types';
+
+  // 问题反馈链接：按当前线路的索引仓修正 issue 列表地址（构建期为默认线路）
+  const WEB_BASE_CLIENT: Record<Platform, string> = {
+    github: 'https://github.com',
+    gitee: 'https://gitee.com',
+    atomgit: 'https://atomgit.com',
+    gitcode: 'https://gitcode.com',
+  };
+  void getLineSources().then((sources) => {
+    const source = sources[0]!;
+    const target = `${WEB_BASE_CLIENT[source.platform] ?? 'https://github.com'}/${source.owner}/${source.repo}/issues`;
+    for (const link of Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-role="feedback-link"]'))) {
+      link.href = target;
+    }
+  });
 
   // 已登录时以头像 + 用户名替换登录按钮（登录态保存在 localStorage）。
   // 已选线路时按线路平台取会话：该平台未登录则保留登录按钮（弹窗预选该平台）；

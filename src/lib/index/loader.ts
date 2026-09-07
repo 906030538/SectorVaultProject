@@ -83,8 +83,9 @@ async function readIndexFile(
 }
 
 /**
- * 归档文件名列表（按月份倒序）：
- * 优先使用 current.json 的 archives 清单，缺失时列归档目录兜底。
+ * 归档文件名列表（按月份倒序）：目录列举与 current.json 的 archives 清单取并集。
+ * 清单可能滞后（无 CI 线路发布/恢复归档后不更新 current），以实际目录为准；
+ * 目录列举失败（部分平台匿名受限）时退回仅清单。
  */
 async function listArchiveFiles(
   source: IndexSource,
@@ -94,15 +95,16 @@ async function listArchiveFiles(
   const manifest = (current.archives ?? [])
     .map((a) => a.file)
     .filter((file) => file.endsWith('.json'));
-  if (manifest.length > 0) return [...manifest].sort().reverse();
-  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  const adapter = await getAdapterAsync(source.platform);
-  const files = await adapter.listDir(source.owner, source.repo, INDEX_PATHS.archiveDir, source.branch);
-  return files
-    .map((f) => f.name)
-    .filter((name) => name.endsWith('.json'))
-    .sort()
-    .reverse();
+  let dirListing: string[] = [];
+  try {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const adapter = await getAdapterAsync(source.platform);
+    const files = await adapter.listDir(source.owner, source.repo, INDEX_PATHS.archiveDir, source.branch);
+    dirListing = files.map((f) => f.name).filter((name) => name.endsWith('.json'));
+  } catch {
+    /* 目录列举不可用时仅用清单 */
+  }
+  return [...new Set([...dirListing, ...manifest])].sort().reverse();
 }
 
 function submissionKey(entry: SubmissionEntry): string {
@@ -157,6 +159,29 @@ export async function loadActiveIndex(signal?: AbortSignal): Promise<IndexFile> 
   for (const source of await getLineSources()) {
     try {
       parts.push(await readIndexFile(source, INDEX_PATHS.current, signal));
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      warnSourceFailure(source, error);
+    }
+  }
+  return mergeIndexFiles(parts);
+}
+
+/**
+ * 线路全量索引：current.json + 按月归档合并。
+ * 首页统计与用户主页使用：无 CI 重建 current.json 的线路（gitee/atomgit）
+ * 投稿只进归档，current 长期为空，须并入归档才是完整数据。
+ */
+export async function loadLineIndexMerged(signal?: AbortSignal): Promise<IndexFile> {
+  const parts: IndexFile[] = [];
+  for (const source of await getLineSources()) {
+    try {
+      const current = await readIndexFile(source, INDEX_PATHS.current, signal);
+      parts.push(current);
+      const archives = await listArchiveFiles(source, current, signal);
+      for (const file of archives) {
+        parts.push(await readIndexFile(source, `${INDEX_PATHS.archiveDir}/${file}`, signal));
+      }
     } catch (error) {
       if (signal?.aborted) throw error;
       warnSourceFailure(source, error);

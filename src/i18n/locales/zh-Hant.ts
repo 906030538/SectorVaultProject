@@ -69,6 +69,15 @@ const zhHant: Record<MessageKey, string> = {
   'collection.delete': '刪除',
   'collection.save': '儲存',
   'collection.deleteConfirmText': '刪除後無法復原，請輸入倉庫名確認刪除。',
+  'collection.deleteSubmissionTitle': '刪除稿件',
+  'collection.deleteSubmissionHint':
+    '將從內容倉庫刪除稿件檔案、移除本地與主索引條目並刪除關聯發佈；關聯 issue 平台不支援刪除，將保留。請輸入 slug 確認刪除。',
+  'collection.deleteStepFiles': '刪除稿件檔案',
+  'collection.deleteStepRelease': '刪除關聯發佈',
+  'collection.deleteStepIndex': '移除索引條目',
+  'collection.deleteFailed': '刪除失敗',
+  'collection.deleteDone': '刪除完成，正在重新整理',
+  'collection.loginRequired': '請先登入稿件所在平台後再刪除。',
 
   'detail.media': '倉庫媒體',
   'detail.files': '工程檔案',

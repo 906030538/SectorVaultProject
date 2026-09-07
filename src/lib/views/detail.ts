@@ -36,6 +36,7 @@ export interface DetailLabels {
   paramsWith: string;
   paramsTuned: string;
   paramsNone: string;
+  edit: string;
   date: string;
   tracks: string;
   engines: string;
@@ -69,6 +70,8 @@ export interface DetailLabels {
 
 export interface DetailElements {
   title: HTMLElement;
+  /** 标题行操作位（投稿用户本人的编辑入口） */
+  actions: HTMLElement;
   date: HTMLElement;
   meta: HTMLElement;
   body: HTMLElement;
@@ -599,6 +602,16 @@ export async function initDetail(init: DetailInit): Promise<void> {
   });
 
   const platform: Platform = entry.platform;
+
+  // 投稿用户本人（同平台登录）：标题行显示编辑入口
+  if (loadSessionBy(platform)?.login === user) {
+    const edit = document.createElement('a');
+    edit.href = withBase(`/edit/${user}/${repo}/${slug}`);
+    edit.className = 'btn';
+    edit.dataset.action = 'edit-submission';
+    edit.textContent = labels.edit;
+    els.actions.appendChild(edit);
+  }
   // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
   const [content, repoInfo, releases, issues] = await Promise.all([
     loadSubmissionContent(platform, user, repo, slug).catch((error) => {

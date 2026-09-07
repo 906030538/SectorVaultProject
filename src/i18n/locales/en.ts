@@ -69,6 +69,15 @@ const en: Record<MessageKey, string> = {
   'collection.delete': 'Delete',
   'collection.save': 'Save',
   'collection.deleteConfirmText': 'This cannot be undone. Type the repository name to confirm deletion.',
+  'collection.deleteSubmissionTitle': 'Delete submission',
+  'collection.deleteSubmissionHint':
+    'This removes the submission files from the content repository, removes its local and index entries, and deletes the linked release. Linked issues cannot be deleted via the API and will remain. Type the slug to confirm.',
+  'collection.deleteStepFiles': 'Delete submission files',
+  'collection.deleteStepRelease': 'Delete linked release',
+  'collection.deleteStepIndex': 'Remove index entry',
+  'collection.deleteFailed': 'Deletion failed',
+  'collection.deleteDone': 'Deleted, refreshing',
+  'collection.loginRequired': 'Please log in to the platform hosting this submission first.',
 
   'detail.media': 'Repository media',
   'detail.files': 'Project files',

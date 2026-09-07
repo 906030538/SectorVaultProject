@@ -67,6 +67,15 @@ const zhHans = {
   'collection.delete': '删除',
   'collection.save': '保存',
   'collection.deleteConfirmText': '删除后无法恢复，请输入仓库名确认删除。',
+  'collection.deleteSubmissionTitle': '删除稿件',
+  'collection.deleteSubmissionHint':
+    '将从内容仓库删除稿件文件、移除本地与主索引条目并删除关联发布；关联 issue 平台不支持删除，将保留。请输入 slug 确认删除。',
+  'collection.deleteStepFiles': '删除稿件文件',
+  'collection.deleteStepRelease': '删除关联发布',
+  'collection.deleteStepIndex': '移除索引条目',
+  'collection.deleteFailed': '删除失败',
+  'collection.deleteDone': '删除完成，正在刷新',
+  'collection.loginRequired': '请先登录稿件所在平台后再删除。',
 
   'detail.media': '仓库媒体',
   'detail.files': '工程文件',

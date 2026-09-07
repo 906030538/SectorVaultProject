@@ -6,7 +6,7 @@ import { getToken, loadSessionBy } from '@/lib/auth';
 import { applyCover, coverPlaceholder, setAvatar } from '@/lib/ui';
 import { withBase } from '@/lib/base';
 import { isMockAvailable, loadAbout, loadRepoInfo } from '@/lib/content';
-import { iterateAllSubmissions, loadActiveIndex, loadMockIndex } from '@/lib/index/loader';
+import { iterateAllSubmissions, loadLineIndexMerged, loadMockIndex } from '@/lib/index/loader';
 import { getRepoPrefix, getRepoTemplates } from '@/lib/index/sources';
 import type { AuthInfo, IndexFile, Platform, SubmissionEntry } from '@/types';
 
@@ -72,7 +72,8 @@ function sleep(ms: number): Promise<void> {
 
 async function loadIndex(): Promise<IndexFile> {
   if (await isMockAvailable()) return loadMockIndex();
-  return loadActiveIndex();
+  // current + 归档合并：无 CI 线路的 users 记录在归档里
+  return loadLineIndexMerged();
 }
 
 async function loadUserEntries(name: string): Promise<SubmissionEntry[]> {

@@ -69,6 +69,15 @@ const ja: Record<MessageKey, string> = {
   'collection.delete': '削除',
   'collection.save': '保存',
   'collection.deleteConfirmText': '削除すると元に戻せません。確認のためリポジトリ名を入力してください。',
+  'collection.deleteSubmissionTitle': '作品を削除',
+  'collection.deleteSubmissionHint':
+    'コンテンツリポジトリから作品ファイルを削除し、ローカルとメインの索引エントリを除去し、関連リリースを削除します。関連 issue は API で削除できないため残ります。確認のため slug を入力してください。',
+  'collection.deleteStepFiles': '作品ファイルを削除',
+  'collection.deleteStepRelease': '関連リリースを削除',
+  'collection.deleteStepIndex': '索引エントリを除去',
+  'collection.deleteFailed': '削除に失敗しました',
+  'collection.deleteDone': '削除しました。更新中',
+  'collection.loginRequired': '先に対象プラットフォームにログインしてください。',
 
   'detail.media': 'リポジトリメディア',
   'detail.files': 'プロジェクトファイル',

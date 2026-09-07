@@ -223,24 +223,27 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
   const deviceBtn = el('button', 'btn hidden', labels.deviceLogin);
   deviceBtn.type = 'button';
   deviceBtn.dataset.action = 'device-login';
-  // 互斥：GitHub 优先显示 App 设备授权（无需回调/secret），其余平台显示 OAuth 跳转
+  // GitHub：App 设备授权（appClientId）与 OAuth 网页流（clientId）凭据独立，可同时显示；
+  // 仅配置旧变量 OAUTH_GITHUB_CLIENT_ID 时回退供设备流使用。其余平台只显示 OAuth 跳转。
   const syncOauthButton = async (): Promise<void> => {
     const cfg = await getOAuthConfig(platform).catch(() => null);
-    const useDevice = platform === 'github' && !!cfg?.clientId;
+    const useDevice = platform === 'github' && !!(cfg?.appClientId ?? cfg?.clientId);
+    const useWeb = !!cfg?.clientId && !!cfg?.authorizeUrl;
     deviceBtn.classList.toggle('hidden', !useDevice);
-    oauthBtn.classList.toggle('hidden', useDevice || !cfg?.authorizeUrl);
+    oauthBtn.classList.toggle('hidden', !useWeb);
   };
   deviceBtn.addEventListener('click', () => {
     void (async () => {
       deviceBtn.setAttribute('disabled', '');
       try {
         const cfg = await getOAuthConfig('github');
-        if (!cfg?.clientId) return;
-        const device = await requestDeviceCode(cfg.clientId, (cfg as { deviceCodeUrl?: string }).deviceCodeUrl);
+        const appClientId = cfg?.appClientId ?? cfg?.clientId;
+        if (!cfg || !appClientId) return;
+        const device = await requestDeviceCode(appClientId, cfg.deviceCodeUrl);
         openDeviceDialog(
           device,
-          cfg.clientId,
-          (cfg as { tokenUrl?: string }).tokenUrl,
+          appClientId,
+          cfg.deviceTokenUrl,
         );
       } catch (err) {
         error.textContent = err instanceof Error ? err.message.slice(0, 80) : labels.tokenBad;

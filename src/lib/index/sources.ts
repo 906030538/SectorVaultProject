@@ -166,14 +166,18 @@ let oauthPromise: Promise<Record<string, OAuthProviderConfig>> | undefined;
 export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>> {
   oauthPromise ??= (async () => {
     const merged: Record<string, OAuthProviderConfig> = {};
-    // 服务端环境变量下发的 clientId（oauthBase 或本站的 /oauth/env Functions）
+    // 服务端环境变量下发的凭据（oauthBase 或本站的 /oauth/env Functions）；
+    // GitHub 的 appClientId（App 设备流）与 clientId（OAuth 网页流）相互独立
     try {
       const base = await getOauthBase();
       const response = await fetch(base ? `${base}/oauth/env` : withBase('/oauth/env'));
       if (response.ok) {
         const envConfig = (await response.json()) as Record<string, { clientId?: string; appClientId?: string }>;
         for (const [platform, entry] of Object.entries(envConfig)) {
-          if (entry?.clientId) merged[platform] = { clientId: entry.clientId };
+          const creds: OAuthProviderConfig = { clientId: '' };
+          if (entry?.appClientId) creds.appClientId = entry.appClientId;
+          if (entry?.clientId) creds.clientId = entry.clientId;
+          if (creds.clientId || creds.appClientId) merged[platform] = creds;
         }
       }
     } catch {
@@ -224,31 +228,33 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
   return oauthPromise;
 }
 
-/** 平台的可用 OAuth 配置（含默认端点；未配置 clientId 时返回 null）。相对端点以 oauthBase 为前缀。 */
+/** 平台的可用 OAuth 配置（含默认端点）；clientId（网页流）与 appClientId（设备流）均未配置时返回 null。
+ * 相对端点（站内 Functions 代理）在有 oauthBase 时指向 worker 子域，绝对地址原样透传。 */
 export async function getOAuthConfig(
   platform: Platform,
-): Promise<Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> | null> {
+): Promise<(Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> &
+  Partial<Pick<OAuthProviderConfig, 'appClientId' | 'deviceCodeUrl' | 'deviceTokenUrl' | 'clientSecret'>>) | null> {
   const providers = await getOAuthProviders();
   const custom = providers[platform];
-  if (!custom?.clientId) return null;
+  if (!custom?.clientId && !custom?.appClientId) return null;
   const preset = DEFAULT_OAUTH_ENDPOINTS[platform];
   const base = await getOauthBase();
-  // 相对端点（站内 Functions 代理）在有 oauthBase 时指向 worker 子域，绝对地址原样透传
-  const resolveUrl = (url: string | undefined): string => {
-    if (!url) return '';
+  const resolveUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined;
     if (/^https?:/i.test(url)) return url;
     return `${base ?? ''}${url.startsWith('/') ? url : `/${url}`}`;
   };
   return {
-    clientId: custom.clientId,
-    authorizeUrl: resolveUrl(custom.authorizeUrl ?? preset?.authorizeUrl ?? ''),
-    tokenUrl: resolveUrl(custom.tokenUrl ?? preset?.tokenUrl ?? ''),
+    clientId: custom.clientId ?? '',
+    authorizeUrl: resolveUrl(custom.authorizeUrl ?? preset?.authorizeUrl ?? '') ?? '',
+    tokenUrl: resolveUrl(custom.tokenUrl ?? preset?.tokenUrl ?? '') ?? '',
+    deviceCodeUrl: resolveUrl(custom.deviceCodeUrl ?? preset?.deviceCodeUrl),
+    deviceTokenUrl: resolveUrl(custom.deviceTokenUrl ?? preset?.deviceTokenUrl),
     scope: custom.scope ?? preset?.scope ?? '',
+    ...(custom.appClientId ? { appClientId: custom.appClientId } : {}),
     ...(custom.clientSecret ? { clientSecret: custom.clientSecret } : {}),
-    ...((custom.deviceCodeUrl ?? preset?.deviceCodeUrl)
-      ? { deviceCodeUrl: resolveUrl(custom.deviceCodeUrl ?? preset?.deviceCodeUrl) }
-      : {}),
-  } as Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>>;
+  } as Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> &
+    Partial<Pick<OAuthProviderConfig, 'appClientId' | 'deviceCodeUrl' | 'deviceTokenUrl' | 'clientSecret'>>;
 }
 
 /** 线路偏好（选定的托管平台）存储键；未设置 = 全部平台 */

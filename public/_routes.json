@@ -1,7 +1,18 @@
 {
   "version": 1,
   "include": [
-    "/*"
+    "/view",
+    "/view/*",
+    "/user",
+    "/user/*",
+    "/edit",
+    "/edit/*",
+    "/login",
+    "/login/*",
+    "/discussions",
+    "/discussions/*",
+    "/gh-oauth/*",
+    "/oauth/*"
   ],
   "exclude": []
 }

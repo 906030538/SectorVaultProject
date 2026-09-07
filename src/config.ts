@@ -43,13 +43,17 @@ export const DEFAULT_FAQ_PAGES: string[] = ['Home', '项目介绍', '内容管�
 /** OAuth 提供方配置（deployment.json 的 oauth 段或构建环境变量注入） */
 export interface OAuthProviderConfig {
   clientId: string;
+  /** GitHub App 设备流 clientId（与 OAuth App 的 clientId 相互独立） */
+  appClientId?: string;
   /** 隐式公开的机密（静态站点无法保密，仅自部署场景使用） */
   clientSecret?: string;
   authorizeUrl?: string;
-  /** 令牌交换端点；浏览器跨域受限时可配置代理地址 */
+  /** 网页流令牌交换端点（authorization_code，服务端代理注入 secret） */
   tokenUrl?: string;
-  /** 设备授权码端点（GitHub App 设备流）；默认 github.com/login/device/code */
+  /** 设备授权码端点（GitHub App 设备流）；默认走站内 /gh-oauth 代理避免 CORS */
   deviceCodeUrl?: string;
+  /** 设备流轮询令牌端点；与网页流 tokenUrl 分开（无 secret，client_id 为 App ID） */
+  deviceTokenUrl?: string;
   scope?: string;
 }
 
@@ -60,13 +64,13 @@ export const DIRECT_TOKEN_ENDPOINTS: Partial<Record<Platform, string>> = {
   atomgit: 'https://atomgit.com/oauth/token',
 };
 
-/** 各平台 OAuth 默认端点（tokenUrl 指向站内 Functions 代理，secret 留在服务端环境变量） */
-export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; scope: string; deviceCodeUrl?: string }>> = {
+/** 各平台 OAuth 默认端点（tokenUrl / deviceCodeUrl 指向站内 Functions 代理，secret 留在服务端环境变量） */
+export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; deviceCodeUrl?: string; deviceTokenUrl?: string; scope: string }>> = {
   github: {
     authorizeUrl: 'https://github.com/login/oauth/authorize',
-    tokenUrl: '/gh-oauth/access_token',
-    // 设备授权码端点默认走站内代理避免浏览器 CORS
+    tokenUrl: '/oauth/github/token',
     deviceCodeUrl: '/gh-oauth/device/code',
+    deviceTokenUrl: '/gh-oauth/access_token',
     scope: 'repo',
   },
   gitee: {

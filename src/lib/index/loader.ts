@@ -7,7 +7,6 @@ import {
 import type { FilterState, IndexFile, Platform, SubmissionEntry, UserRecord } from '@/types';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getIndexSources, getLineSources } from '@/lib/index/sources';
-import { readCookie, writeCookie } from '@/lib/cookies';
 import { isMockAvailable } from '@/lib/content';
 import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
 
@@ -39,46 +38,24 @@ interface LsCacheEntry {
 }
 
 function readLsCache(key: string): IndexFile | null {
-  const path = key.split(':').pop() ?? '';
-  const ttl = cacheTtlFor(path);
-  if (ttl <= 0) return null;
-  const parse = (raw: string | null): IndexFile | null => {
+  try {
+    const raw = localStorage.getItem(LS_PREFIX + key);
     if (!raw) return null;
-    try {
-      const entry = JSON.parse(raw) as LsCacheEntry;
-      return Date.now() - entry.t <= ttl ? entry.d : null;
-    } catch {
-      return null;
-    }
-  };
-  const local = parse(localStorage.getItem(LS_PREFIX + key));
-  if (local) return local;
-  // 跨子域恢复：父域 cookie（兄弟子域写入，超限的大归档不会镜像）
-  const shared = parse(readCookie(LS_PREFIX + key));
-  if (shared) {
-    try {
-      localStorage.setItem(LS_PREFIX + key, JSON.stringify({ t: Date.now(), d: shared } as LsCacheEntry));
-    } catch {
-      /* 存储不可用时忽略 */
-    }
+    const entry = JSON.parse(raw) as LsCacheEntry;
+    if (Date.now() - entry.t > cacheTtlFor(key.split(':').pop() ?? '')) return null;
+    return entry.d;
+  } catch {
+    return null;
   }
-  return shared;
 }
 
 function writeLsCache(key: string, data: IndexFile): void {
   const path = key.split(':').pop() ?? '';
-  const ttl = cacheTtlFor(path);
-  if (ttl <= 0) return;
-  const raw = JSON.stringify({ t: Date.now(), d: data } as LsCacheEntry);
+  if (cacheTtlFor(path) <= 0) return;
   try {
-    localStorage.setItem(LS_PREFIX + key, raw);
+    localStorage.setItem(LS_PREFIX + key, JSON.stringify({ t: Date.now(), d: data } as LsCacheEntry));
   } catch {
     /* 配额不足时放弃持久缓存 */
-  }
-  // 镜像到父域 cookie 与兄弟子域共享：仅 current.json（小而高频，≤2KB）。
-  // 归档条目多且大，全量镜像会随每个请求发送、撑爆 Cookie 头（HTTP 431）。
-  if (path === INDEX_PATHS.current && raw.length <= 2000) {
-    writeCookie(LS_PREFIX + key, raw, { maxAge: Math.floor(ttl / 1000) });
   }
 }
 

@@ -240,7 +240,8 @@ export function buildIndexEntry(
   };
   if (cover) base.cover = cover;
   if (ids?.issue) base.issue = ids.issue;
-  if (ids?.release) base.release = ids.release;
+  // 索引与本地归档中 release id 一律字符串（部分平台 id 超出 JS 安全整数）
+  if (ids?.release) base.release = String(ids.release);
   if (draft.type === 'project') {
     base.paramState = draft.params;
     base.songs = draft.tracks.filter(Boolean);
@@ -752,7 +753,7 @@ export async function publishSubmission(
     const entryForIndex = {
       ...entry,
       issue: progress.issue ?? undefined,
-      release: progress.releaseId ?? undefined,
+      release: progress.releaseId !== undefined ? String(progress.releaseId) : undefined,
     };
     await tryIndexPr(token, mock, entryForIndex, onStep);
     progress.indexDone = true;

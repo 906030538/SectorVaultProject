@@ -493,9 +493,14 @@ export class GitHubAdapter implements GitPlatformAdapter {
     token: string,
     user: string,
     repo: string,
-    releaseId: number,
+    releaseId: number | string,
   ): Promise<void> {
-    await client(token).rest.repos.deleteRelease({ owner: user, repo, release_id: releaseId });
+    // GitHub release id 均在安全整数范围内
+    await client(token).rest.repos.deleteRelease({
+      owner: user,
+      repo,
+      release_id: Number(releaseId),
+    });
   }
 
   async listOwners(token: string): Promise<RepoOwnerChoice[]> {

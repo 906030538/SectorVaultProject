@@ -51,8 +51,8 @@ export interface SubmissionEntry {
   paramState?: ParamStatus;
   /** 关联评论区 issue 编号（未创建时缺省） */
   issue?: number;
-  /** 关联 release id（未创建时缺省） */
-  release?: number;
+  /** 关联 release id（字符串存储：gitee 等平台 id 超出 JS 安全整数范围；未创建时缺省） */
+  release?: string;
   /** 关联曲目（多值） */
   songs?: string[];
   /** 合成引擎（多值） */

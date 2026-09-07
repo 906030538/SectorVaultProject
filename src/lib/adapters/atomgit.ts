@@ -401,7 +401,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     token: string,
     user: string,
     repo: string,
-    releaseId: number,
+    releaseId: number | string,
   ): Promise<void> {
     await this.request(
       `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases/${releaseId}`,

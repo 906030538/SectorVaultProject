@@ -1,4 +1,5 @@
 import type { AuthInfo, Platform } from '@/types';
+import { AUTH_COOKIE_MAX_AGE, deleteCookie, readCookie, writeCookie } from '@/lib/cookies';
 
 const TOKEN_KEY: Record<Platform, string> = {
   github: 'svp-token-github',
@@ -11,49 +12,86 @@ const TOKEN_KEY: Record<Platform, string> = {
 export const GITHUB_CLIENT_ID = import.meta.env.PUBLIC_GITHUB_CLIENT_ID ?? '';
 
 export function getToken(platform: Platform): string | null {
-  return localStorage.getItem(TOKEN_KEY[platform]);
+  const key = TOKEN_KEY[platform];
+  const local = localStorage.getItem(key);
+  if (local !== null) return local;
+  // 跨子域恢复：localStorage 缺失时读父域 cookie（其他子域登录写入）
+  const shared = readCookie(key);
+  if (shared) localStorage.setItem(key, shared);
+  return shared;
 }
 
 export function setToken(platform: Platform, token: string): void {
   localStorage.setItem(TOKEN_KEY[platform], token);
+  writeCookie(TOKEN_KEY[platform], token, { maxAge: AUTH_COOKIE_MAX_AGE });
 }
 
 export function clearToken(platform: Platform): void {
   localStorage.removeItem(TOKEN_KEY[platform]);
+  deleteCookie(TOKEN_KEY[platform]);
 }
 
 export function loadSession(): AuthInfo | null {
-  const raw = localStorage.getItem('svp-session');
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as AuthInfo;
-  } catch {
-    return null;
-  }
+  return parseSession('svp-session');
 }
 
 /** 指定平台的登录会话（多平台 token 并存时按平台分别保存） */
 export function loadSessionBy(platform: Platform): AuthInfo | null {
-  const raw = localStorage.getItem(`svp-session-${platform}`);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as AuthInfo;
-  } catch {
-    return null;
-  }
+  return parseSession(`svp-session-${platform}`);
+}
+
+function parseSession(key: string): AuthInfo | null {
+  const read = (source: string | null): AuthInfo | null => {
+    if (!source) return null;
+    try {
+      return JSON.parse(source) as AuthInfo;
+    } catch {
+      return null;
+    }
+  };
+  const local = read(localStorage.getItem(key));
+  if (local) return local;
+  const shared = read(readCookie(key));
+  if (shared) localStorage.setItem(key, JSON.stringify(shared));
+  return shared;
 }
 
 export function saveSession(info: AuthInfo): void {
   // svp-session 为最近登录（导航头像展示用）；各平台会话分别保存
-  localStorage.setItem('svp-session', JSON.stringify(info));
-  localStorage.setItem(`svp-session-${info.platform}`, JSON.stringify(info));
+  const raw = JSON.stringify(info);
+  localStorage.setItem('svp-session', raw);
+  localStorage.setItem(`svp-session-${info.platform}`, raw);
+  writeCookie('svp-session', raw, { maxAge: AUTH_COOKIE_MAX_AGE });
+  writeCookie(`svp-session-${info.platform}`, raw, { maxAge: AUTH_COOKIE_MAX_AGE });
 }
 
 export function logout(): void {
   localStorage.removeItem('svp-session');
+  deleteCookie('svp-session');
   for (const platform of Object.keys(TOKEN_KEY) as Platform[]) {
     clearToken(platform);
     localStorage.removeItem(`svp-session-${platform}`);
+    deleteCookie(`svp-session-${platform}`);
+  }
+}
+
+/**
+ * 已有登录态迁移：localStorage 存在而 cookie 缺失时补写镜像。
+ * 页面加载时调用，让既有用户在兄弟子域（cf.svp.lyoko.cn 等）直接可用。
+ */
+export function syncAuthToCookies(): void {
+  for (const platform of Object.keys(TOKEN_KEY) as Platform[]) {
+    const token = localStorage.getItem(TOKEN_KEY[platform]);
+    if (token && !readCookie(TOKEN_KEY[platform])) {
+      writeCookie(TOKEN_KEY[platform], token, { maxAge: AUTH_COOKIE_MAX_AGE });
+    }
+    const key = `svp-session-${platform}`;
+    const session = localStorage.getItem(key);
+    if (session && !readCookie(key)) writeCookie(key, session, { maxAge: AUTH_COOKIE_MAX_AGE });
+  }
+  const last = localStorage.getItem('svp-session');
+  if (last && !readCookie('svp-session')) {
+    writeCookie('svp-session', last, { maxAge: AUTH_COOKIE_MAX_AGE });
   }
 }
 

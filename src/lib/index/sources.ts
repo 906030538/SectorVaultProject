@@ -22,6 +22,10 @@ export interface DeploymentConfig {
   templates?: Record<string, unknown[]>;
   /** FAQ 目录（wiki 页面名；缺省用内置列表） */
   faqPages?: unknown;
+  /** 跨子域共享 cookie 的父域（如 svp.lyoko.cn；令牌/会话/索引缓存镜像到该域） */
+  cookieDomain?: unknown;
+  /** OAuth 端点基址（如 https://cf.svp.lyoko.cn；相对 token/env 端点以其为前缀） */
+  oauthBase?: unknown;
 }
 
 /** 模板仓配置（deployment.json 的 templates 段条目） */
@@ -126,6 +130,31 @@ export function getFaqPages(): Promise<string[]> {
   return faqPagesPromise;
 }
 
+let cookieDomainPromise: Promise<string | undefined> | undefined;
+
+/** 跨子域共享 cookie 的父域（deployment.json 的 cookieDomain；未配置返回 undefined） */
+export function getCookieDomain(): Promise<string | undefined> {
+  cookieDomainPromise ??= (async () => {
+    const config = await loadDeploymentConfig();
+    return typeof config?.cookieDomain === 'string' && config.cookieDomain.trim()
+      ? config.cookieDomain.trim()
+      : undefined;
+  })();
+  return cookieDomainPromise;
+}
+
+let oauthBasePromise: Promise<string | undefined> | undefined;
+
+/** OAuth 端点基址（deployment.json 的 oauthBase，去尾斜杠；未配置返回 undefined） */
+export function getOauthBase(): Promise<string | undefined> {
+  oauthBasePromise ??= (async () => {
+    const config = await loadDeploymentConfig();
+    if (typeof config?.oauthBase !== 'string' || !config.oauthBase.trim()) return undefined;
+    return config.oauthBase.trim().replace(/\/+$/, '');
+  })();
+  return oauthBasePromise;
+}
+
 /** 主索引源：第一个配置的源，作为索引 PR 的写入目标 */
 export async function getPrimaryIndexSource(): Promise<IndexSource> {
   return (await getIndexSources())[0]!;
@@ -137,11 +166,12 @@ let oauthPromise: Promise<Record<string, OAuthProviderConfig>> | undefined;
 export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>> {
   oauthPromise ??= (async () => {
     const merged: Record<string, OAuthProviderConfig> = {};
-    // 服务端环境变量下发的 clientId（Cloudflare Pages Functions /oauth/env）
+    // 服务端环境变量下发的 clientId（oauthBase 或本站的 /oauth/env Functions）
     try {
-      const response = await fetch(withBase('/oauth/env'));
+      const base = await getOauthBase();
+      const response = await fetch(base ? `${base}/oauth/env` : withBase('/oauth/env'));
       if (response.ok) {
-        const envConfig = (await response.json()) as Record<string, { clientId?: string }>;
+        const envConfig = (await response.json()) as Record<string, { clientId?: string; appClientId?: string }>;
         for (const [platform, entry] of Object.entries(envConfig)) {
           if (entry?.clientId) merged[platform] = { clientId: entry.clientId };
         }
@@ -194,7 +224,7 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
   return oauthPromise;
 }
 
-/** 平台的可用 OAuth 配置（含默认端点；未配置 clientId 时返回 null） */
+/** 平台的可用 OAuth 配置（含默认端点；未配置 clientId 时返回 null）。相对端点以 oauthBase 为前缀。 */
 export async function getOAuthConfig(
   platform: Platform,
 ): Promise<Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> | null> {
@@ -202,12 +232,22 @@ export async function getOAuthConfig(
   const custom = providers[platform];
   if (!custom?.clientId) return null;
   const preset = DEFAULT_OAUTH_ENDPOINTS[platform];
+  const base = await getOauthBase();
+  // 相对端点（站内 Functions 代理）在有 oauthBase 时指向 worker 子域，绝对地址原样透传
+  const resolveUrl = (url: string | undefined): string => {
+    if (!url) return '';
+    if (/^https?:/i.test(url)) return url;
+    return `${base ?? ''}${url.startsWith('/') ? url : `/${url}`}`;
+  };
   return {
     clientId: custom.clientId,
-    authorizeUrl: custom.authorizeUrl ?? preset?.authorizeUrl ?? '',
-    tokenUrl: custom.tokenUrl ?? preset?.tokenUrl ?? '',
+    authorizeUrl: resolveUrl(custom.authorizeUrl ?? preset?.authorizeUrl ?? ''),
+    tokenUrl: resolveUrl(custom.tokenUrl ?? preset?.tokenUrl ?? ''),
     scope: custom.scope ?? preset?.scope ?? '',
     ...(custom.clientSecret ? { clientSecret: custom.clientSecret } : {}),
+    ...((custom.deviceCodeUrl ?? preset?.deviceCodeUrl)
+      ? { deviceCodeUrl: resolveUrl(custom.deviceCodeUrl ?? preset?.deviceCodeUrl) }
+      : {}),
   } as Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>>;
 }
 

@@ -172,13 +172,16 @@ function isActive(href: string): boolean {
   import { openAuthDialog } from '@/lib/auth-dialog';
   import { buildAuthLabels } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
-  import { loadSession, loadSessionBy, logout } from '@/lib/auth';
+  import { loadSession, loadSessionBy, logout, syncAuthToCookies } from '@/lib/auth';
   import { getLineSources, getStoredLine } from '@/lib/index/sources';
   import { t } from '@/i18n';
   import { setAvatar } from '@/lib/ui';
   import { withBase } from '@/lib/base';
   import { SUPPORTED_PLATFORMS } from '@/config';
   import type { Platform } from '@/types';
+
+  // 既有登录态迁移：localStorage 有而父域 cookie 缺失时补写（供兄弟子域共享）
+  syncAuthToCookies();
 
   // 问题反馈链接：按当前线路的索引仓修正 issue 列表地址（构建期为默认线路）
   const WEB_BASE_CLIENT: Record<Platform, string> = {

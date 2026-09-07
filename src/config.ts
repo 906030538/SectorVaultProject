@@ -61,10 +61,12 @@ export const DIRECT_TOKEN_ENDPOINTS: Partial<Record<Platform, string>> = {
 };
 
 /** 各平台 OAuth 默认端点（tokenUrl 指向站内 Functions 代理，secret 留在服务端环境变量） */
-export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; scope: string }>> = {
+export const DEFAULT_OAUTH_ENDPOINTS: Partial<Record<Platform, { authorizeUrl: string; tokenUrl: string; scope: string; deviceCodeUrl?: string }>> = {
   github: {
     authorizeUrl: 'https://github.com/login/oauth/authorize',
     tokenUrl: '/gh-oauth/access_token',
+    // 设备授权码端点默认走站内代理避免浏览器 CORS
+    deviceCodeUrl: '/gh-oauth/device/code',
     scope: 'repo',
   },
   gitee: {

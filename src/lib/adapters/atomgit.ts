@@ -294,24 +294,35 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     const base = `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/contents`;
     for (const change of changes) {
       const path = `${base}/${change.path}`;
-      if (change.delete) {
-        const existing = await this.request<{ sha?: string }>(path, { token });
-        if (!existing.sha) throw new Error(`Cannot resolve sha for ${change.path}`);
-        await this.request(path, { method: 'DELETE', token, body: { sha: existing.sha, message } });
-        continue;
+      // v5 系读后写存在短暂延迟：连续提交时分支头已前进，旧基准写入会返回
+      // "Update is not a fast forward"。重取 sha 并退避重试。
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          if (change.delete) {
+            const existing = await this.request<{ sha?: string }>(path, { token });
+            if (!existing.sha) throw new Error(`Cannot resolve sha for ${change.path}`);
+            await this.request(path, { method: 'DELETE', token, body: { sha: existing.sha, message } });
+            break;
+          }
+          // 已存在的文件走 PUT 更新，否则 POST 新建；content 一律 base64（无 encoding 字段）
+          const existing = await this.request<{ sha?: string } | Array<unknown>>(path, {
+            token,
+          }).catch(() => null);
+          const body = {
+            content:
+              change.encoding === 'base64' ? change.content : utf8ToBase64(change.content),
+            message,
+            ...(existing && !Array.isArray(existing) && existing.sha ? { sha: existing.sha } : {}),
+          };
+          const method = existing && !Array.isArray(existing) ? 'PUT' : 'POST';
+          await this.request(path, { method, token, body });
+          break;
+        } catch (error) {
+          const message_ = error instanceof Error ? error.message : String(error);
+          if (attempt >= 2 || !/fast forward/i.test(message_)) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+        }
       }
-      // 已存在的文件走 PUT 更新，否则 POST 新建；content 一律 base64（无 encoding 字段）
-      const existing = await this.request<{ sha?: string } | Array<unknown>>(path, {
-        token,
-      }).catch(() => null);
-      const body = {
-        content:
-          change.encoding === 'base64' ? change.content : utf8ToBase64(change.content),
-        message,
-        ...(existing && !Array.isArray(existing) && existing.sha ? { sha: existing.sha } : {}),
-      };
-      const method = existing && !Array.isArray(existing) ? 'PUT' : 'POST';
-      await this.request(path, { method, token, body });
     }
   }
 

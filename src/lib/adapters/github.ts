@@ -314,52 +314,63 @@ export class GitHubAdapter implements GitPlatformAdapter {
     changes: FileChange[],
   ): Promise<void> {
     const octokit = client(token);
-    const { data: refData } = await octokit.rest.git.getRef({
-      owner: user,
-      repo,
-      ref: 'heads/main',
-    });
-    const baseCommit = refData.object.sha;
-    const { data: baseTree } = await octokit.rest.git.getTree({
-      owner: user,
-      repo,
-      tree_sha: baseCommit,
-    });
-
-    const tree = await Promise.all(
-      changes.map(async (change) => {
-        if (change.delete) {
-          return { path: change.path, mode: '100644' as const, type: 'blob' as const, sha: null };
-        }
-        const { data: blob } = await octokit.rest.git.createBlob({
+    // refs API 在分支头被并发推进时报 "Update is not a fast forward"：
+    // 重取基准引用后整体重试
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const { data: refData } = await octokit.rest.git.getRef({
           owner: user,
           repo,
-          content: change.content,
-          encoding: change.encoding ?? 'utf-8',
+          ref: 'heads/main',
         });
-        return { path: change.path, mode: '100644' as const, type: 'blob' as const, sha: blob.sha };
-      }),
-    );
+        const baseCommit = refData.object.sha;
+        const { data: baseTree } = await octokit.rest.git.getTree({
+          owner: user,
+          repo,
+          tree_sha: baseCommit,
+        });
 
-    const { data: newTree } = await octokit.rest.git.createTree({
-      owner: user,
-      repo,
-      base_tree: baseTree.sha,
-      tree,
-    });
-    const { data: commit } = await octokit.rest.git.createCommit({
-      owner: user,
-      repo,
-      message,
-      tree: newTree.sha,
-      parents: [baseCommit],
-    });
-    await octokit.rest.git.updateRef({
-      owner: user,
-      repo,
-      ref: 'heads/main',
-      sha: commit.sha,
-    });
+        const tree = await Promise.all(
+          changes.map(async (change) => {
+            if (change.delete) {
+              return { path: change.path, mode: '100644' as const, type: 'blob' as const, sha: null };
+            }
+            const { data: blob } = await octokit.rest.git.createBlob({
+              owner: user,
+              repo,
+              content: change.content,
+              encoding: change.encoding ?? 'utf-8',
+            });
+            return { path: change.path, mode: '100644' as const, type: 'blob' as const, sha: blob.sha };
+          }),
+        );
+
+        const { data: newTree } = await octokit.rest.git.createTree({
+          owner: user,
+          repo,
+          base_tree: baseTree.sha,
+          tree,
+        });
+        const { data: commit } = await octokit.rest.git.createCommit({
+          owner: user,
+          repo,
+          message,
+          tree: newTree.sha,
+          parents: [baseCommit],
+        });
+        await octokit.rest.git.updateRef({
+          owner: user,
+          repo,
+          ref: 'heads/main',
+          sha: commit.sha,
+        });
+        return;
+      } catch (error) {
+        const text = error instanceof Error ? error.message : String(error);
+        if (attempt >= 2 || !/not a fast forward/i.test(text)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+      }
+    }
   }
 
   async createIssue(

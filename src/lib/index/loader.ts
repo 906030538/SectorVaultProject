@@ -75,8 +75,11 @@ function writeLsCache(key: string, data: IndexFile): void {
   } catch {
     /* 配额不足时放弃持久缓存 */
   }
-  // 镜像到父域 cookie 与兄弟子域共享（超限自动跳过）
-  writeCookie(LS_PREFIX + key, raw, { maxAge: Math.floor(ttl / 1000) });
+  // 镜像到父域 cookie 与兄弟子域共享：仅 current.json（小而高频，≤2KB）。
+  // 归档条目多且大，全量镜像会随每个请求发送、撑爆 Cookie 头（HTTP 431）。
+  if (path === INDEX_PATHS.current && raw.length <= 2000) {
+    writeCookie(LS_PREFIX + key, raw, { maxAge: Math.floor(ttl / 1000) });
+  }
 }
 
 async function readIndexFile(

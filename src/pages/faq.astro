@@ -24,14 +24,22 @@ const primary = DEFAULT_INDEX_SOURCES[0];
     {t(locale, 'faq.description')}
   </p>
 
-  <!-- 目录：页面列表来自 deployment.json 的 faqPages（缺省内置列表），点击站内加载 -->
-  <nav class="mb-4 flex flex-wrap gap-2" data-role="faq-toc" aria-label={t(locale, 'faq.toc')}>
-  </nav>
+  <!-- 目录：桌面端左侧列表（吸附），窄屏回退顶部横排；页面列表来自 deployment.json 的 faqPages -->
+  <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
+    <nav
+      class="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 p-2 dark:border-slate-800 lg:sticky lg:top-20 lg:w-56 lg:min-w-0 lg:shrink-0 lg:flex-col"
+      data-role="faq-toc"
+      aria-label={t(locale, 'faq.toc')}
+    >
+    </nav>
 
-  <p class="hidden py-8 text-center text-rose-500" data-role="faq-error" data-i18n="faq.loadError">
-    {t(locale, 'faq.loadError')}
-  </p>
-  <div class="card prose-svp p-6" data-role="faq-body"></div>
+    <div class="min-w-0 flex-1">
+      <p class="hidden py-8 text-center text-rose-500" data-role="faq-error" data-i18n="faq.loadError">
+        {t(locale, 'faq.loadError')}
+      </p>
+      <div class="card prose-svp p-6" data-role="faq-body"></div>
+    </div>
+  </div>
 
   <script>
     import { loadFaqPage } from '@/lib/views/faq';
@@ -58,16 +66,19 @@ const primary = DEFAULT_INDEX_SOURCES[0];
       },
     };
 
-    // 目录：当前页高亮，点击无刷新切换
+    // 目录：当前页高亮，点击无刷新切换（桌面左侧列表样式）
     const toc = document.querySelector('[data-role="faq-toc"]');
     const homeLabel = t(locale, 'faq.home');
+    const TOC_LINK_CLASS =
+      'rounded-md px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white';
+    const TOC_ACTIVE_CLASS = 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
     const renderToc = (pages: string[]): void => {
       if (!toc) return;
       toc.textContent = '';
       for (const page of pages) {
         const link = document.createElement('a');
         link.href = withBase(`/faq?page=${encodeURIComponent(page)}`);
-        link.className = 'chip';
+        link.className = TOC_LINK_CLASS;
         link.textContent = page === 'Home' ? homeLabel : page;
         link.dataset.page = page;
         link.addEventListener('click', (event) => {
@@ -85,9 +96,7 @@ const primary = DEFAULT_INDEX_SOURCES[0];
     const highlight = (): void => {
       for (const link of Array.from(toc?.querySelectorAll<HTMLAnchorElement>('a') ?? [])) {
         const active = link.dataset.page === current;
-        link.classList.toggle('font-semibold', active);
-        link.classList.toggle('text-emerald-600', active);
-        link.classList.toggle('dark:text-emerald-400', active);
+        for (const cls of TOC_ACTIVE_CLASS.split(' ')) link.classList.toggle(cls, active);
         if (active) link.setAttribute('aria-current', 'page');
         else link.removeAttribute('aria-current');
       }

@@ -52,8 +52,8 @@ const primary = DEFAULT_INDEX_SOURCES[0];
         empty: t(locale, 'faq.empty'),
       },
       els: {
-        body: document.querySelector('[data-role="faq-body"]')!,
-        sourceBtn: document.querySelector('[data-role="source-btn"]')!,
+        body: document.querySelector<HTMLElement>('[data-role="faq-body"]')!,
+        sourceBtn: document.querySelector<HTMLAnchorElement>('[data-role="source-btn"]')!,
         error: document.querySelector<HTMLElement>('[data-role="faq-error"]')!,
       },
     };

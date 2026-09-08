@@ -107,6 +107,12 @@ const en: Record<MessageKey, string> = {
   'detail.commentFailed': 'Failed to reply, please check your sign-in status',
   'detail.loginToComment': 'Sign in on this platform to reply',
   'detail.loadError': 'Failed to load content',
+  'detail.deleted': 'Submission deleted',
+  'detail.deletedHint': 'The source submission was removed from the content repository; the local index cache has been cleared.',
+  'detail.back': 'Go back',
+  'detail.viewCollection': 'View collection',
+  'detail.viewUser': 'View user',
+  'detail.sourceRepo': 'Open source repository',
 
   'params.with': 'With params',
   'params.tuned': 'Tuned',

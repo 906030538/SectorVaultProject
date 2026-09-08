@@ -75,6 +75,12 @@ export function buildDetailLabels(locale: Locale): DetailLabels {
     commentFailed: t(locale, 'detail.commentFailed'),
     loginToComment: t(locale, 'detail.loginToComment'),
     loadError: t(locale, 'detail.loadError'),
+    deleted: t(locale, 'detail.deleted'),
+    deletedHint: t(locale, 'detail.deletedHint'),
+    back: t(locale, 'detail.back'),
+    viewCollection: t(locale, 'detail.viewCollection'),
+    viewUser: t(locale, 'detail.viewUser'),
+    sourceRepo: t(locale, 'detail.sourceRepo'),
     license: t(locale, 'label.license'),
     stars: t(locale, 'label.stars'),
   };

@@ -107,6 +107,12 @@ const zhHant: Record<MessageKey, string> = {
   'detail.commentFailed': '回覆失敗，請檢查登入狀態',
   'detail.loginToComment': '登入目前平台帳號後可回覆',
   'detail.loadError': '內容載入失敗',
+  'detail.deleted': '稿件已刪除',
+  'detail.deletedHint': '源稿件已從內容倉庫移除，本地索引快取已清除。',
+  'detail.back': '後退',
+  'detail.viewCollection': '查看合集',
+  'detail.viewUser': '查看使用者',
+  'detail.sourceRepo': '跳轉源倉庫',
 
   'params.with': '有參',
   'params.tuned': '微調',

@@ -7,6 +7,7 @@ import {
 import type { FilterState, IndexFile, Platform, SubmissionEntry, UserRecord } from '@/types';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getIndexSources, getLineSources } from '@/lib/index/sources';
+import { writeCookie } from '@/lib/cookies';
 import { isMockAvailable } from '@/lib/content';
 import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
 
@@ -80,6 +81,61 @@ async function readIndexFile(
   indexCache.set(key, parsed);
   writeLsCache(key, parsed);
   return parsed;
+}
+
+/**
+ * 从索引缓存（内存 + localStorage + current.json 的父域 cookie 镜像）移除指定稿件条目。
+ * 源稿件 404（已删除）时调用，避免已删稿件在缓存 TTL 内继续出现在列表与检索。
+ */
+export function forgetSubmissionFromCache(target: {
+  platform: Platform;
+  owner: string;
+  repo: string;
+  slug: string;
+}): void {
+  const hit = (entry: SubmissionEntry): boolean =>
+    entry.platform === target.platform &&
+    entry.owner === target.owner &&
+    entry.repo === target.repo &&
+    entry.slug === target.slug;
+  const purge = (index: IndexFile): IndexFile | null =>
+    Array.isArray(index.submissions) && index.submissions.some(hit)
+      ? { ...index, submissions: index.submissions.filter((entry) => !hit(entry)) }
+      : null;
+  const persist = (key: string, data: IndexFile, timestamp: number): void => {
+    const raw = JSON.stringify({ t: timestamp, d: data } as LsCacheEntry);
+    try {
+      localStorage.setItem(LS_PREFIX + key, raw);
+    } catch {
+      /* 存储不可用时忽略 */
+    }
+    // 与 writeLsCache 相同的镜像策略：仅 current.json 且 ≤2KB
+    const path = key.split(':').pop() ?? '';
+    if (path === INDEX_PATHS.current && raw.length <= 2000) {
+      writeCookie(LS_PREFIX + key, raw, { maxAge: Math.floor(cacheTtlFor(path) / 1000) });
+    }
+  };
+
+  for (const [key, index] of indexCache) {
+    const next = purge(index);
+    if (next) indexCache.set(key, next);
+  }
+  let storageKeys: string[] = [];
+  try {
+    storageKeys = Object.keys(localStorage).filter((k) => k.startsWith(LS_PREFIX));
+  } catch {
+    storageKeys = [];
+  }
+  for (const storageKey of storageKeys) {
+    try {
+      const entry = JSON.parse(localStorage.getItem(storageKey) ?? '') as LsCacheEntry;
+      if (!entry?.d) continue;
+      const next = purge(entry.d);
+      if (next) persist(storageKey.slice(LS_PREFIX.length), next, entry.t);
+    } catch {
+      /* 跳过损坏的缓存项 */
+    }
+  }
 }
 
 /**

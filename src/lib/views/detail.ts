@@ -11,7 +11,7 @@ import {
   type MediaItem,
   type ProjectFile,
 } from '@/lib/content';
-import { findEntry } from '@/lib/index/loader';
+import { findEntry, forgetSubmissionFromCache } from '@/lib/index/loader';
 import { getToken, loadSessionBy } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
@@ -30,6 +30,60 @@ function el<K extends keyof HTMLElementTagNameMap>(
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
+}
+
+/** 各平台站点根地址（删除态的跳转源仓库用） */
+const WEB_BASE: Record<Platform, string> = {
+  github: 'https://github.com',
+  gitee: 'https://gitee.com',
+  atomgit: 'https://atomgit.com',
+  gitcode: 'https://gitcode.com',
+};
+
+/** 源稿件不存在判定：404/Not Found，或空仓库（内容已被清空） */
+function isSubmissionMissingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b404\b|not found|git repository is empty|未找到/i.test(message);
+}
+
+/** 源稿件已删除：提示 + 后退/集合/用户/源仓库导航（缓存已由调用方清除） */
+function renderDeleted(
+  entry: SubmissionEntry,
+  labels: DetailLabels,
+  els: DetailElements,
+): void {
+  els.date.textContent = '';
+  els.meta.textContent = '';
+  els.body.textContent = '';
+
+  const box = el('div', 'card flex flex-col items-center gap-4 p-10 text-center');
+  box.dataset.role = 'deleted-notice';
+  box.appendChild(el('h2', 'text-xl font-semibold', labels.deleted));
+  box.appendChild(el('p', 'text-sm text-slate-500 dark:text-slate-400', labels.deletedHint));
+  const buttons = el('div', 'mt-2 flex flex-wrap justify-center gap-2');
+
+  const back = el('button', 'btn', labels.back);
+  back.type = 'button';
+  back.dataset.action = 'go-back';
+  back.addEventListener('click', () => window.history.back());
+
+  const collection = el('a', 'btn', labels.viewCollection);
+  collection.href = withBase(`/view/${entry.owner}/${entry.repo}`);
+  collection.dataset.action = 'goto-collection';
+
+  const user = el('a', 'btn', labels.viewUser);
+  user.href = withBase(`/user/${entry.owner}`);
+  user.dataset.action = 'goto-user';
+
+  const source = el('a', 'btn btn-primary', labels.sourceRepo);
+  source.href = `${WEB_BASE[entry.platform]}/${entry.owner}/${entry.repo}`;
+  source.target = '_blank';
+  source.rel = 'noopener';
+  source.dataset.action = 'goto-source-repo';
+
+  buttons.append(back, collection, user, source);
+  box.appendChild(buttons);
+  els.body.appendChild(box);
 }
 
 export interface DetailLabels {
@@ -64,6 +118,12 @@ export interface DetailLabels {
   commentFailed: string;
   loginToComment: string;
   loadError: string;
+  deleted: string;
+  deletedHint: string;
+  back: string;
+  viewCollection: string;
+  viewUser: string;
+  sourceRepo: string;
   license: string;
   stars: string;
 }
@@ -613,7 +673,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
     els.actions.appendChild(edit);
   }
   // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
-  const [content, repoInfo, releases, issues] = await Promise.all([
+  const loaded = await Promise.all([
     loadSubmissionContent(platform, user, repo, slug).catch((error) => {
       if (isRateLimitError(error)) showApiLimitNotice(platform);
       throw error;
@@ -621,7 +681,17 @@ export async function initDetail(init: DetailInit): Promise<void> {
     loadRepoInfo(platform, user, repo).catch(() => null),
     loadReleases(platform, user, repo).catch(() => []),
     loadIssues(platform, user, repo).catch(() => []),
-  ]);
+  ]).catch((error: unknown) => {
+    // 源稿件 404：视为已删除——清除索引缓存并展示引导界面
+    if (isSubmissionMissingError(error)) {
+      forgetSubmissionFromCache(entry);
+      renderDeleted(entry, labels, els);
+      return null;
+    }
+    throw error;
+  });
+  if (!loaded) return;
+  const [content, repoInfo, releases, issues] = loaded;
 
   // 封面（有则先于参数显示；相对文件名经 applyCover 解析为 raw 地址）
   const figure = document.createElement('figure');

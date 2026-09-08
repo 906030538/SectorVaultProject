@@ -105,6 +105,12 @@ const zhHans = {
   'detail.commentFailed': '回复失败，请检查登录状态',
   'detail.loginToComment': '登录当前平台账号后可回复',
   'detail.loadError': '内容加载失败',
+  'detail.deleted': '稿件已删除',
+  'detail.deletedHint': '源稿件已从内容仓库移除，本地索引缓存已清除。',
+  'detail.back': '后退',
+  'detail.viewCollection': '查看集合',
+  'detail.viewUser': '查看用户',
+  'detail.sourceRepo': '跳转源仓库',
 
   'params.with': '有参',
   'params.tuned': '微调',

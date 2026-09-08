@@ -107,6 +107,12 @@ const ja: Record<MessageKey, string> = {
   'detail.commentFailed': '返信に失敗しました。ログイン状態を確認してください',
   'detail.loginToComment': 'このプラットフォームにログインすると返信できます',
   'detail.loadError': 'コンテンツの読み込みに失敗しました',
+  'detail.deleted': '作品は削除されました',
+  'detail.deletedHint': 'ソース作品はコンテンツリポジトリから削除されました。ローカルの索引キャッシュを消去しました。',
+  'detail.back': '戻る',
+  'detail.viewCollection': 'コレクションを見る',
+  'detail.viewUser': 'ユーザーを見る',
+  'detail.sourceRepo': 'ソースリポジトリへ',
 
   'params.with': 'パラメータあり',
   'params.tuned': '調整済み',

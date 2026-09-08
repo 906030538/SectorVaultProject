@@ -258,6 +258,7 @@ const ja: Record<MessageKey, string> = {
   'editor.gotoSubmission': '作品を見る',
   'editor.errTitle': 'タイトルは必須です',
   'editor.errSlug': 'slug は必須です',
+  'editor.errSlugPattern': 'slug は英数字・アンダースコア・ハイフン・仮名・漢字・ハングルのみ使用できます',
   'editor.errRepo': '投稿リポジトリを選択してください',
   'editor.errPassword': '暗号化ファイルにはパスワードが必要です',
   'editor.errCoverType': 'カバーは画像である必要があります',

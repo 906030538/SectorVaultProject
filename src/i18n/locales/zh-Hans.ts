@@ -255,6 +255,7 @@ const zhHans = {
   'editor.gotoSubmission': '查看稿件',
   'editor.errTitle': '标题必填',
   'editor.errSlug': 'slug 不能为空',
+  'editor.errSlugPattern': 'slug 只能包含字母、数字、下划线、连字符、假名、汉字与谚文',
   'editor.errRepo': '请选择投稿仓库',
   'editor.errPassword': '加密文件需要密码',
   'editor.errCoverType': '封面必须是图片',

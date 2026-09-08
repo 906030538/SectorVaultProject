@@ -9,6 +9,13 @@ export const CONTENT_REPO_PREFIX = 'svp-';
 /** 内容仓数据目录：投稿目录为 posts/[slug]（DESIGN.md 内容仓结构） */
 export const POSTS_DIR = 'posts';
 
+/**
+ * slug 合法字符（与索引仓 schema/submission.schema.json 的 pattern 保持一致）：
+ * ASCII 字母数字、下划线、连字符、平假名/片假名、CJK 汉字（含扩展A与兼容）、谚文。
+ * 不含空格、点、斜杠与全角符号。
+ */
+export const SLUG_PATTERN = /^[0-9A-Za-z_\-\u3041-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uAC00-\uD7A3\u3130-\u318F]+$/;
+
 /** 默认分页条数 */
 export const PAGE_SIZE = 10;
 

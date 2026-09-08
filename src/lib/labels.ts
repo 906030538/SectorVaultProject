@@ -233,6 +233,7 @@ export function buildEditorLabels(locale: Locale): EditorLabels {
     gotoSubmission: t(locale, 'editor.gotoSubmission'),
     errTitle: t(locale, 'editor.errTitle'),
     errSlug: t(locale, 'editor.errSlug'),
+    errSlugPattern: t(locale, 'editor.errSlugPattern'),
     errRepo: t(locale, 'editor.errRepo'),
     errPassword: t(locale, 'editor.errPassword'),
     errCoverType: t(locale, 'editor.errCoverType'),

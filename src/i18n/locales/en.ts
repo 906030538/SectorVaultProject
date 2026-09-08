@@ -258,6 +258,7 @@ const en: Record<MessageKey, string> = {
   'editor.gotoSubmission': 'View submission',
   'editor.errTitle': 'Title is required',
   'editor.errSlug': 'slug must not be empty',
+  'editor.errSlugPattern': 'Slug may only contain letters, digits, underscore, hyphen, kana, CJK characters and hangul',
   'editor.errRepo': 'Select a content repository',
   'editor.errPassword': 'Encrypted files require a password',
   'editor.errCoverType': 'Cover must be an image',

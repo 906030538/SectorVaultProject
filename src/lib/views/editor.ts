@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SUPPORTED_PLATFORMS } from '@/config';
+import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, SUPPORTED_PLATFORMS } from '@/config';
 import { withBase } from '@/lib/base';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSessionBy, saveSession, setToken } from '@/lib/auth';
@@ -91,6 +91,7 @@ export interface EditorLabels {
   gotoSubmission: string;
   errTitle: string;
   errSlug: string;
+  errSlugPattern: string;
   errRepo: string;
   errPassword: string;
   errCoverType: string;
@@ -862,6 +863,8 @@ function validate(state: EditorState, labels: EditorLabels, mode: 'new' | 'edit'
   if (mode === 'new') {
     if (!state.repo) errors.push(labels.errRepo);
     if (!state.slug) errors.push(labels.errSlug);
+    // 与索引仓 schema 的 slug pattern 一致（回退生成的 日期-标题 也一并在发布时校验）
+    else if (!SLUG_PATTERN.test(state.slug)) errors.push(labels.errSlugPattern);
   }
   if (state.cover && !state.cover.type.startsWith('image/')) errors.push(labels.errCoverType);
   for (const file of state.files) {
@@ -984,8 +987,15 @@ export async function initEditor(
   }
   slugInput.addEventListener('input', () => {
     state.slug = slugInput.value.trim();
+    // 实时模式校验：非空且不符时标红并提示（空值沿用回退，发布时统一校验）
+    const invalid = state.slug !== '' && !SLUG_PATTERN.test(state.slug);
+    slugInput.classList.toggle('border-rose-500', invalid);
+    slugHint.classList.toggle('hidden', !invalid);
   });
   slugBox.appendChild(slugInput);
+  const slugHint = el('p', 'hidden text-xs text-rose-600', labels.errSlugPattern);
+  slugHint.dataset.role = 'slug-hint';
+  slugBox.appendChild(slugHint);
   if (!isEdit) slugInput.placeholder = slugFallback();
   form.appendChild(row1);
 

@@ -257,6 +257,7 @@ const zhHant: Record<MessageKey, string> = {
   'editor.gotoSubmission': '檢視稿件',
   'editor.errTitle': '標題必填',
   'editor.errSlug': 'slug 不能為空',
+  'editor.errSlugPattern': 'slug 只能包含字母、數字、底線、連字符、假名、漢字與諺文',
   'editor.errRepo': '請選擇投稿倉庫',
   'editor.errPassword': '加密檔案需要密碼',
   'editor.errCoverType': '封面必須是圖片',

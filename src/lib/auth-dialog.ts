@@ -194,7 +194,10 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
   card.appendChild(panel);
   const renderPanel = (): void => {
     panel.textContent = '';
-    const session = loadSessionBy(platform);
+    // 渲染期捕获平台：异步配置回调与点击处理都固定本批次平台，
+    // 避免切页签后 stale 回调读到可变 platform 操作错误按钮
+    const current = platform;
+    const session = loadSessionBy(current);
     if (session) {
       const row = el('div', 'flex flex-wrap items-center gap-3');
       const name = el('span', 'font-medium', session.name ?? session.login);
@@ -205,7 +208,7 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
       logoutBtn.type = 'button';
       logoutBtn.dataset.action = 'logout-platform';
       logoutBtn.addEventListener('click', () => {
-        logoutPlatform(platform);
+        logoutPlatform(current);
         refreshTabs();
         renderPanel();
       });
@@ -222,7 +225,7 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
       oauthBtn.setAttribute('disabled', '');
       void (async () => {
         try {
-          const cfg = await getOAuthConfig(platform);
+          const cfg = await getOAuthConfig(current);
           if (!cfg?.authorizeUrl) {
             error.textContent = labels.oauthUnavailable;
             error.classList.remove('hidden');
@@ -234,7 +237,7 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
           } catch {
             /* 存储不可用时跳过 state 校验 */
           }
-          const redirectUri = `${window.location.origin}/login/${platform}`;
+          const redirectUri = `${window.location.origin}/login/${current}`;
           const params = new URLSearchParams({
             client_id: cfg.clientId,
             redirect_uri: redirectUri,
@@ -276,10 +279,11 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
     // GitHub：App 设备授权（appClientId）与 OAuth 网页流（clientId）凭据独立，可同时显示；
     // 仅配置旧变量 OAUTH_GITHUB_CLIENT_ID 时回退供设备流使用。其余平台只显示 OAuth 跳转。
     void (async () => {
-      const cfg = await getOAuthConfig(platform).catch(() => null);
-      const useDevice = platform === 'github' && !!(cfg?.appClientId ?? cfg?.clientId);
+      const cfg = await getOAuthConfig(current).catch(() => null);
+      // 渲染批次已被替换（切过页签）时丢弃结果
+      if (!buttons.isConnected) return;
+      const useDevice = current === 'github' && !!(cfg?.appClientId ?? cfg?.clientId);
       const useWeb = !!cfg?.clientId && !!cfg?.authorizeUrl;
-      if (!panel.isConnected) return;
       deviceBtn.classList.toggle('hidden', !useDevice);
       oauthBtn.classList.toggle('hidden', !useWeb);
     })();

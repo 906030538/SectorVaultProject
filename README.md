@@ -21,11 +21,17 @@
 │   ├── submission.schema.json  # 稿件索引条目结构
 │   └── user.schema.json        # 用户索引条目结构
 ├── scripts/
-│   └── rebuild.mjs         # 从归档重建 current.json（合并去重、仓库存活检查、重算元数据）
+│   ├── rebuild.mjs             # 从归档重建 current.json（合并去重、仓库存活检查、重算元数据）
+│   ├── check-submitted-at.mjs  # 投稿日期不可变校验（PR 门禁与镜像门禁共用）
+│   ├── check-pr-scope.mjs      # PR 范围检查（多投稿/删文件转人工审核）
+│   ├── mirror-gate.sh          # 镜像门禁入口：校验归档后调用同步
+│   └── sync-to-github.mjs      # 用 GitHub token 将镜像改动以 PR 提交到主索引仓
 ├── config.json             # 索引仓配置：currentLimit（current.json 稿件数上限，默认 1024）
-└── .github/workflows/
-    ├── validate.yml        # PR 格式校验门禁 + 自动合入
-    └── rebuild.yml         # 合入后重建 current.json；每月定时做仓库存活清理
+├── .github/workflows/
+│   ├── validate.yml        # PR 格式校验门禁 + 自动合入
+│   └── rebuild.yml         # 合入后重建 current.json；每月定时做仓库存活清理
+├── .workflow/mirror-gate.yml           # Gitee 镜像仓门禁（Gitee Go 流水线）
+├── .gitcode/workflows/mirror-gate.yml  # Atomgit 镜像仓门禁
 ├── LICENSE                 # CC BY 4.0
 ```
 
@@ -102,6 +108,21 @@
 | 枚举与格式     | `platform`、`type`、`paramState` 枚举值，`submittedAt`/`publishedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
 
 校验通过且 PR 只涉及单个投稿（无文件删除、新增/改动稿件 ≤ 1 条）时，由 `gh pr merge --auto --squash` 自动合入，无需人工审核；其余情况（删除文件或同时修改多个投稿）转为人工流程：PR 会被评论标注原因并请求管理员审核。校验失败则 PR 被阻塞，需修改后重新推送。
+
+## 镜像仓库门禁（Gitee / Atomgit）
+
+本仓库在 Gitee 和 Atomgit 上部署为镜像仓，镜像的 `index` 分支同样接收投稿提交。收到推送后由各自的流水线执行同一套门禁（`scripts/mirror-gate.sh`）：
+
+1. **Schema 校验**：全部 `index/archive/*.json` 按 `schema/` 校验；
+2. **投稿日期不可变**：与上一次提交对比，已有稿件的 `submittedAt` 被改动即失败；
+3. **同步**：校验通过后 `scripts/sync-to-github.mjs` 用 GitHub token（PAT，需 `contents:write` + `pulls:write` 权限）通过 GitHub API 在主索引仓创建 `mirror/<platform>/<短SHA>` 分支、写入本次改动的归档文件，并向 `index` 分支提交 PR。同名 PR 已存在时直接跳过（幂等）。
+
+镜像同步来的 PR 仍会经过主索引仓的 `validate.yml` 门禁，规则与直接 PR 完全一致。
+
+| 平台    | 流水线配置                          | 密钥配置                                                  |
+| ------- | ----------------------------------- | --------------------------------------------------------- |
+| Gitee   | `.workflow/mirror-gate.yml`（Go）   | 流水线参数中配置密钥 `SVP_GITHUB_TOKEN`                   |
+| Atomgit | `.gitcode/workflows/mirror-gate.yml`| 仓库密钥 `SVP_GITHUB_TOKEN`                               |
 
 ## 配置
 

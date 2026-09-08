@@ -1,0 +1,32 @@
+name: mirror-gate
+
+# Atomgit 镜像仓门禁：index 分支收到推送后校验归档索引，
+# 通过后用 GitHub token 向主索引仓（GitHub）提交 PR。
+# 需要在仓库密钥中配置 SVP_GITHUB_TOKEN（GitHub PAT，contents:write + pulls:write）。
+on:
+  push:
+    branches: [index]
+
+env:
+  GITHUB_REPO: 906030538/SectorVaultProject
+  GITHUB_BASE: index
+  MIRROR_PLATFORM: atomgit
+
+jobs:
+  gate:
+    name: 校验并同步主索引仓
+    runs-on: [ubuntu-latest, x64, small]
+    steps:
+      - name: Checkout
+        uses: checkout
+      - name: Ensure Node 20
+        run: |
+          if command -v node >/dev/null && node -v | grep -q '^v20'; then
+            exit 0
+          fi
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null
+          apt-get install -y nodejs >/dev/null
+      - name: Validate and sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.SVP_GITHUB_TOKEN }}
+        run: sh scripts/mirror-gate.sh

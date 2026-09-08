@@ -12,6 +12,7 @@ import {
   type ProjectFile,
 } from '@/lib/content';
 import { findEntry, forgetSubmissionFromCache } from '@/lib/index/loader';
+import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { getToken, loadSessionBy } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
@@ -807,7 +808,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
 
   const platform: Platform = entry.platform;
 
-  // 投稿用户本人（同平台登录）：标题行显示编辑入口
+  // 投稿用户本人（同平台登录）：标题行显示编辑与删除入口
   if (loadSessionBy(platform)?.login === user) {
     const edit = document.createElement('a');
     edit.href = withBase(`/edit/${user}/${repo}/${slug}`);
@@ -815,6 +816,21 @@ export async function initDetail(init: DetailInit): Promise<void> {
     edit.dataset.action = 'edit-submission';
     edit.textContent = labels.edit;
     els.actions.appendChild(edit);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'btn text-rose-600';
+    del.dataset.action = 'delete-submission';
+    del.textContent = labels.delete;
+    del.addEventListener('click', () => {
+      // 删除成功后跳转集合页（本页内容已不存在）
+      void openDeleteSubmissionDialog(entry, locale, {
+        onDone: () => {
+          window.location.href = withBase(`/view/${user}/${repo}`);
+        },
+      });
+    });
+    els.actions.appendChild(del);
   }
   // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
   const loaded = await Promise.all([

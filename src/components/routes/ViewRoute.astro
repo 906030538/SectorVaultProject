@@ -14,51 +14,56 @@ const locale = DEFAULT_LOCALE;
   {
     /* 集合详情或稿件详情：客户端按段数区分（2 段 = 集合，3 段起 = 稿件） */
   }
-  <article class="mx-auto hidden max-w-3xl" data-view-skeleton="detail">
-    <header>
-      <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-3xl font-bold" data-role="title"></h1>
-        <span class="ml-auto flex gap-2" data-role="detail-actions"></span>
-      </div>
-      <p class="mt-2 text-sm text-slate-500 dark:text-slate-400" data-role="date">–</p>
-      <div class="mt-4" data-role="meta"></div>
-    </header>
+  <article class="mx-auto hidden w-full max-w-3xl lg:max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8" data-view-skeleton="detail">
+    <div class="min-w-0">
+      <header>
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-3xl font-bold" data-role="title"></h1>
+          <span class="ml-auto flex gap-2" data-role="detail-actions"></span>
+        </div>
+        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400" data-role="date">–</p>
+        <div class="mt-4" data-role="meta"></div>
+      </header>
 
-    <section class="prose-svp mt-8" data-role="body"></section>
+      <section class="prose-svp mt-8" data-role="body"></section>
 
-    <div class="mt-6 flex flex-wrap gap-2" data-role="tags"></div>
+      <div class="mt-6 flex flex-wrap gap-2" data-role="tags"></div>
 
-    <section class="mt-8">
-      <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.media">
-        {t(locale, 'detail.media')}
-      </h2>
-      <div data-role="media"></div>
-    </section>
+      <section class="mt-8">
+        <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.media">
+          {t(locale, 'detail.media')}
+        </h2>
+        <div data-role="media"></div>
+      </section>
 
-    <section class="card mt-8 flex items-center gap-3 p-4" data-role="author">
-      <span class="text-sm text-slate-400" data-role="author-path"></span>
-    </section>
+      <section class="mt-8">
+        <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.comments">
+          {t(locale, 'detail.comments')}
+        </h2>
+        <div data-role="issues"></div>
+      </section>
+    </div>
 
-    <section class="mt-8">
-      <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.files">
-        {t(locale, 'detail.files')}
-      </h2>
-      <div data-role="files"></div>
-    </section>
+    <!-- 右侧栏（宽屏）：作者 / 工程文件 / 关联 release；窄屏时依次排在主列之后 -->
+    <aside class="flex flex-col gap-6 lg:sticky lg:top-20">
+      <section class="card flex items-center gap-3 p-4" data-role="author">
+        <span class="text-sm text-slate-400" data-role="author-path"></span>
+      </section>
 
-    <section class="mt-8">
-      <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.release">
-        {t(locale, 'detail.release')}
-      </h2>
-      <div data-role="release"></div>
-    </section>
+      <section class="mt-8 lg:mt-0">
+        <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.files">
+          {t(locale, 'detail.files')}
+        </h2>
+        <div data-role="files"></div>
+      </section>
 
-    <section class="mt-8">
-      <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.comments">
-        {t(locale, 'detail.comments')}
-      </h2>
-      <div data-role="issues"></div>
-    </section>
+      <section class="mt-8 lg:mt-0">
+        <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.release">
+          {t(locale, 'detail.release')}
+        </h2>
+        <div data-role="release"></div>
+      </section>
+    </aside>
   </article>
 
   <div class="hidden" data-view-skeleton="collection">

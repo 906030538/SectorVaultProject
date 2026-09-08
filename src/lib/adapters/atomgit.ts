@@ -256,12 +256,13 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       body?: string;
       created_at?: string;
       html_url?: string;
-      user?: { login?: string; html_url?: string } | null;
+      user?: { login?: string; html_url?: string; avatar_url?: string } | null;
     }>>(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`);
     return (comments ?? []).map((c) => ({
       id: c.id ?? 0,
       author: c.user?.login,
       authorUrl: c.user?.html_url,
+      avatarUrl: c.user?.avatar_url ?? undefined,
       body: c.body ?? '',
       createdAt: c.created_at ?? '',
       htmlUrl: c.html_url,
@@ -274,12 +275,40 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     repo: string,
     issueNumber: number,
     body: string,
-  ): Promise<void> {
-    await this.request(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`, {
+  ): Promise<IssueCommentInfo | null> {
+    const created = await this.request<{
+      id?: number;
+      body?: string;
+      created_at?: string;
+      html_url?: string;
+      user?: { login?: string; html_url?: string; avatar_url?: string } | null;
+    }>(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`, {
       method: 'POST',
       token,
       body: { body },
     });
+    if (!created?.id) return null;
+    return {
+      id: created.id,
+      author: created.user?.login,
+      authorUrl: created.user?.html_url,
+      avatarUrl: created.user?.avatar_url ?? undefined,
+      body: created.body ?? body,
+      createdAt: created.created_at ?? new Date().toISOString(),
+      htmlUrl: created.html_url,
+    };
+  }
+
+  async deleteIssueComment(
+    token: string,
+    user: string,
+    repo: string,
+    commentId: number,
+  ): Promise<void> {
+    await this.request(
+      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues/comments/${commentId}`,
+      { method: 'DELETE', token },
+    );
   }
 
   // ---- 写操作（v5 语义；需真实令牌联调验证） ----
@@ -359,7 +388,12 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     return [];
   }
 
-  async createReleaseReaction(): Promise<void> {
+  async createReleaseReaction(): Promise<number | null> {
+    throw new Error('AtomGit/GitCode do not support release reactions yet');
+  }
+
+  async deleteReleaseReaction(): Promise<void> {
+    // v5 系暂无 release 表情互动 API，点赞/取消均不支持
     throw new Error('AtomGit/GitCode do not support release reactions yet');
   }
 

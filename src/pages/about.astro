@@ -66,6 +66,7 @@ const locale = DEFAULT_LOCALE;
     import { loadLineIndexMerged } from '@/lib/index/loader';
     import { getIndexSources } from '@/lib/index/sources';
     import { loadRepoInfo } from '@/lib/content';
+    import { badgeSvg } from '@/lib/ui';
     import type { Platform } from '@/types';
 
     try {
@@ -92,22 +93,6 @@ const locale = DEFAULT_LOCALE;
       atomgit: 'https://atomgit.com',
       gitcode: 'https://gitcode.com',
     };
-
-    function escXml(text: string): string {
-      return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;');
-    }
-
-    function badgeSvg(label: string, value: string, labelBg: string): string {
-      // 11px Verdana 的近似字宽估算（与 shields flat 风格一致）
-      const labelW = Math.round(label.length * 6.3 + 14);
-      const valueW = Math.round(value.length * 6.6 + 16);
-      const total = labelW + valueW;
-      return `<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="20" role="img" aria-label="${escXml(label)}: ${escXml(value)}"><title>${escXml(label)} ${escXml(value)}</title><rect width="${labelW}" height="20" rx="3" fill="${labelBg}"/><rect x="${labelW}" width="${valueW}" height="20" rx="3" fill="#059669"/><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11"><text x="${labelW / 2}" y="14">${escXml(label)}</text><text x="${labelW + valueW / 2}" y="14">${escXml(value)}</text></g></svg>`;
-    }
 
     void (async () => {
       const host = document.querySelector('[data-component="index-badges"]');

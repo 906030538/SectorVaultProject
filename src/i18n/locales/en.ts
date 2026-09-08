@@ -102,6 +102,8 @@ const en: Record<MessageKey, string> = {
   'detail.commentsDisabled': 'Comments are disabled',
   'detail.noComments': 'No replies yet',
   'detail.viewIssue': 'View original issue',
+  'detail.gotoRelease': 'View release',
+  'detail.delete': 'Delete',
   'detail.commentPh': 'Write a reply… (Markdown)',
   'detail.commentSubmit': 'Post reply',
   'detail.commentFailed': 'Failed to reply, please check your sign-in status',

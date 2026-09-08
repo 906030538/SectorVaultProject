@@ -19,6 +19,26 @@ export function setAvatar(img: HTMLImageElement, url: string): void {
   img.src = url;
 }
 
+/** XML 转义（内联 SVG badge 文本用） */
+export function escXml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+/**
+ * shields 风格两段式内联 SVG badge（11px Verdana 近似字宽估算）。
+ * 站内介绍页索引仓 badges 与详情页作者卡共用。
+ */
+export function badgeSvg(label: string, value: string, labelBg = '#334155', valueBg = '#059669'): string {
+  const labelW = Math.round(label.length * 6.3 + 14);
+  const valueW = Math.round(value.length * 6.6 + 16);
+  const total = labelW + valueW;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="20" role="img" aria-label="${escXml(label)}: ${escXml(value)}"><title>${escXml(label)} ${escXml(value)}</title><rect width="${labelW}" height="20" rx="3" fill="${labelBg}"/><rect x="${labelW}" width="${valueW}" height="20" rx="3" fill="${valueBg}"/><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11"><text x="${labelW / 2}" y="14">${escXml(label)}</text><text x="${labelW + valueW / 2}" y="14">${escXml(value)}</text></g></svg>`;
+}
+
 /** 无封面/加载失败时的默认占位：logo-small.svg */
 export function coverPlaceholder(): HTMLDivElement {
   const div = document.createElement('div');

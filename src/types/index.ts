@@ -156,6 +156,7 @@ export interface IssueCommentInfo {
   id: number;
   author?: string;
   authorUrl?: string;
+  avatarUrl?: string;
   body: string;
   createdAt: string;
   htmlUrl?: string;

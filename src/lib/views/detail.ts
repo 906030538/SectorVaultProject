@@ -17,7 +17,7 @@ import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
 import { normalizeLocale, type Locale } from '@/i18n';
 import type { ReleaseReactionInfo } from '@/types';
-import { applyCover, isRateLimitError, showApiLimitNotice } from '@/lib/ui';
+import { applyCover, badgeSvg, isRateLimitError, setAvatar, showApiLimitNotice } from '@/lib/ui';
 import { withBase } from '@/lib/base';
 import type { IssueCommentInfo, IssueInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
 
@@ -113,6 +113,8 @@ export interface DetailLabels {
   commentsDisabled: string;
   noComments: string;
   viewIssue: string;
+  gotoRelease: string;
+  delete: string;
   commentPh: string;
   commentSubmit: string;
   commentFailed: string;
@@ -367,20 +369,10 @@ function renderRelease(
   const { user, repo, locale } = init;
   const box = document.createElement('div');
   box.className = 'card p-4';
-  const h = document.createElement('h3');
-  h.className = 'font-semibold';
-  const link = document.createElement('a');
-  link.href = release.htmlUrl;
-  link.target = '_blank';
-  link.rel = 'noopener';
-  link.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
-  link.textContent = release.name || release.tag;
-  h.appendChild(link);
-  box.appendChild(h);
 
-  // 互动记录：emoji 计数 + 点赞按钮（在关联 release 上添加 👍）
+  // 互动记录：emoji 计数 + 点赞按钮（在关联 release 上添加 👍，再点取消）+ 前往 release
   const interactions = document.createElement('div');
-  interactions.className = 'mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400';
+  interactions.className = 'flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400';
   interactions.dataset.role = 'interactions';
   interactions.appendChild(document.createTextNode(`${labels.interactions}:`));
   const chips = document.createElement('span');
@@ -395,21 +387,19 @@ function renderRelease(
   const likeStatus = document.createElement('span');
   likeStatus.className = 'text-xs text-slate-400';
   likeStatus.dataset.role = 'like-status';
-  interactions.append(likeBtn, likeStatus);
+  const goto = el('a', 'btn ml-auto px-2.5 py-1 text-xs', `${labels.gotoRelease} ↗`);
+  goto.href = release.htmlUrl;
+  goto.target = '_blank';
+  goto.rel = 'noopener';
+  goto.dataset.action = 'goto-release';
+  interactions.append(likeBtn, likeStatus, goto);
   box.appendChild(interactions);
 
-  const refresh = async (): Promise<void> => {
-    let reactions: ReleaseReactionInfo[] = [];
-    try {
-      const adapter = await getAdapterAsync(platform);
-      reactions = await adapter.listReleaseReactions(user, repo, release.id);
-    } catch {
-      /* 平台不支持或读取失败时回退 release 汇总计数 */
-    }
-    const groups = new Map<string, number>();
-    for (const reaction of reactions) {
-      groups.set(reaction.content, (groups.get(reaction.content) ?? 0) + 1);
-    }
+  // 当前用户已点过赞的 reaction id（取消点赞用）
+  let myReactionId: number | null = null;
+  /** 本地维护的计数（CDN 缓存导致变更后立即重列可能读到旧值，乐观增减） */
+  const groups = new Map<string, number>();
+  const renderChips = (): void => {
     chips.textContent = '';
     if (groups.size > 0) {
       for (const [content, count] of groups) {
@@ -427,12 +417,30 @@ function renderRelease(
     } else {
       chips.appendChild(document.createTextNode('–'));
     }
-    // 当前用户已点赞时置为已赞状态
+  };
+  const adjustReaction = (content: string, delta: number): void => {
+    const next = (groups.get(content) ?? 0) + delta;
+    if (next > 0) groups.set(content, next);
+    else groups.delete(content);
+    renderChips();
+  };
+  const refresh = async (): Promise<void> => {
+    let reactions: ReleaseReactionInfo[] = [];
+    try {
+      const adapter = await getAdapterAsync(platform);
+      reactions = await adapter.listReleaseReactions(user, repo, release.id);
+    } catch {
+      /* 平台不支持或读取失败时回退 release 汇总计数 */
+    }
+    groups.clear();
+    for (const reaction of reactions) {
+      groups.set(reaction.content, (groups.get(reaction.content) ?? 0) + 1);
+    }
+    renderChips();
     const viewer = loadSessionBy(platform)?.login;
-    const liked =
-      viewer !== undefined && reactions.some((r) => r.user === viewer && r.content === '+1');
-    likeBtn.disabled = liked;
-    likeBtn.textContent = `👍 ${liked ? labels.liked : labels.like}`;
+    const mine = reactions.find((r) => r.user === viewer && r.content === '+1');
+    myReactionId = mine?.id ?? null;
+    likeBtn.textContent = `👍 ${mine ? labels.liked : labels.like}`;
   };
   void refresh();
 
@@ -447,12 +455,22 @@ function renderRelease(
       likeStatus.textContent = '…';
       try {
         const adapter = await getAdapterAsync(platform);
-        await adapter.createReleaseReaction(token, user, repo, release.id);
+        // 已点赞则取消，否则点赞；变更后乐观更新（平台 CDN 有读缓存，立即重列可能读到旧值）
+        if (myReactionId !== null) {
+          await adapter.deleteReleaseReaction(token, user, repo, release.id, myReactionId);
+          myReactionId = null;
+          adjustReaction('+1', -1);
+          likeBtn.textContent = `👍 ${labels.like}`;
+        } else {
+          myReactionId = await adapter.createReleaseReaction(token, user, repo, release.id);
+          adjustReaction('+1', 1);
+          likeBtn.textContent = `👍 ${labels.liked}`;
+        }
         likeStatus.textContent = '';
-        await refresh();
       } catch (error) {
-        likeBtn.disabled = false;
         likeStatus.textContent = error instanceof Error ? error.message.slice(0, 60) : labels.loadError;
+      } finally {
+        likeBtn.disabled = false;
       }
     })();
   });
@@ -483,11 +501,77 @@ function renderRelease(
   els.release.appendChild(box);
 }
 
-/** 渲染单条 issue 评论（Markdown 安全渲染） */
-function renderIssueComment(comment: IssueCommentInfo, locale: string): HTMLElement {
+/** 评论作者头像缓存（平台:用户名 → 头像 URL；null = 无头像） */
+const COMMENT_AVATARS = new Map<string, string | null>();
+
+/** 解析评论作者头像：适配器 getUser 拉取，失败（或无头像）缓存 null */
+function resolveCommentAvatar(platform: Platform, author: string): Promise<string | null> {
+  const key = `${platform}:${author}`;
+  const cached = COMMENT_AVATARS.get(key);
+  if (cached !== undefined) return Promise.resolve(cached);
+  return getAdapterAsync(platform)
+    .then((adapter) => adapter.getUser(author))
+    .then((profile) => {
+      const url = profile.avatarUrl ?? null;
+      COMMENT_AVATARS.set(key, url);
+      return url;
+    })
+    .catch(() => {
+      COMMENT_AVATARS.set(key, null);
+      return null;
+    });
+}
+
+export interface IssueCommentActions {
+  /** 评论所属仓库（删除接口定位用） */
+  user: string;
+  repo: string;
+  deleteLabel: string;
+  /** 当前用户为本评论作者且已登录时显示删除按钮 */
+  deletable: boolean;
+  onDeleted?: (comment: IssueCommentInfo) => void;
+}
+
+/** 渲染单条 issue 评论：头像（失败回退首字母）+ 作者 + 正文；本人评论带删除 */
+function renderIssueComment(
+  comment: IssueCommentInfo,
+  locale: string,
+  platform: Platform,
+  actions?: IssueCommentActions,
+): HTMLElement {
   const item = document.createElement('article');
-  item.className = 'card p-3';
+  item.className = 'card flex gap-3 p-3';
   item.dataset.role = 'issue-comment';
+  item.dataset.commentId = String(comment.id);
+
+  const avatar = el(
+    'div',
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-500 dark:bg-slate-700 dark:text-slate-300',
+    (comment.author ?? '?').slice(0, 1).toUpperCase(),
+  );
+  avatar.dataset.role = 'comment-avatar';
+  const avatarUrl = comment.avatarUrl;
+  if (avatarUrl) {
+    const img = document.createElement('img');
+    img.className = 'h-full w-full rounded-full object-cover';
+    img.alt = comment.author ?? '';
+    setAvatar(img, avatarUrl);
+    avatar.textContent = '';
+    avatar.appendChild(img);
+  } else if (comment.author) {
+    // 评论数据未带头像时按作者名异步补齐，失败保留首字母
+    void resolveCommentAvatar(platform, comment.author).then((url) => {
+      if (!url || !item.isConnected) return;
+      const lazy = document.createElement('img');
+      lazy.className = 'h-full w-full rounded-full object-cover';
+      lazy.alt = comment.author ?? '';
+      setAvatar(lazy, url);
+      avatar.textContent = '';
+      avatar.appendChild(lazy);
+    });
+  }
+
+  const main = el('div', 'min-w-0 flex-1');
   const head = document.createElement('p');
   head.className = 'flex flex-wrap items-center gap-2 text-sm';
   const author = comment.author
@@ -516,6 +600,31 @@ function renderIssueComment(comment: IssueCommentInfo, locale: string): HTMLElem
       }),
     ),
   );
+  if (actions?.deletable && comment.id > 0) {
+    const del = el('button', 'btn px-2 py-0.5 text-xs text-rose-600', actions.deleteLabel);
+    del.type = 'button';
+    del.dataset.action = 'delete-comment';
+    del.addEventListener('click', () => {
+      void (async () => {
+        del.disabled = true;
+        try {
+          const token = getToken(platform);
+          if (!token) return;
+          await (await getAdapterAsync(platform)).deleteIssueComment(
+            token,
+            actions.user,
+            actions.repo,
+            comment.id,
+          );
+          item.remove();
+          actions.onDeleted?.(comment);
+        } catch {
+          del.disabled = false;
+        }
+      })();
+    });
+    head.appendChild(del);
+  }
   if (comment.htmlUrl) {
     const link = el('a', 'ml-auto text-xs text-emerald-600 hover:underline dark:text-emerald-400', '↗');
     link.href = comment.htmlUrl;
@@ -523,10 +632,11 @@ function renderIssueComment(comment: IssueCommentInfo, locale: string): HTMLElem
     link.rel = 'noopener';
     head.appendChild(link);
   }
-  item.appendChild(head);
+  main.appendChild(head);
   const body = el('div', 'prose-svp mt-2 text-sm');
   body.innerHTML = DOMPurify.sanitize(marked.parse(comment.body, { async: false })) as string;
-  item.appendChild(body);
+  main.appendChild(body);
+  item.append(avatar, main);
   return item;
 }
 
@@ -544,23 +654,22 @@ async function renderIssueSection(
   const { user, repo, locale } = init;
   const box = document.createElement('div');
   box.className = 'card p-4';
-  const h = document.createElement('h3');
-  h.className = 'font-semibold';
-  h.textContent = labels.comments;
-  box.appendChild(h);
 
   if (!issue) {
     // 未创建关联 issue（发布时未勾选评论区）
-    const p = el('p', 'mt-2 text-sm text-slate-400', labels.commentsDisabled);
+    const p = el('p', 'text-sm text-slate-400', labels.commentsDisabled);
     p.dataset.role = 'comments-disabled';
     box.appendChild(p);
     els.issues.appendChild(box);
     return;
   }
 
-  // 标题行：issue 链接 + 评论数 + 跳转原 issue 按钮
+  const viewer = loadSessionBy(platform)?.login;
+  const token = getToken(platform);
+
+  // 评论数 + 原 issue 链接（外层标题行，不再嵌套子标题）
   const head = document.createElement('p');
-  head.className = 'mt-2 flex flex-wrap items-center gap-2 text-sm';
+  head.className = 'flex flex-wrap items-center gap-2 text-sm';
   const link = document.createElement('a');
   link.href = issue.htmlUrl;
   link.target = '_blank';
@@ -586,6 +695,25 @@ async function renderIssueSection(
   box.appendChild(loading);
 
   const adapter = await getAdapterAsync(platform);
+  /** 界面内当前展示的评论数（本地增删同步） */
+  let shown = 0;
+  const syncCount = (): void => {
+    count.textContent = `💬 ${shown}`;
+  };
+  const emptyHint = (): void => {
+    if (shown === 0) list.appendChild(el('p', 'text-sm text-slate-400', labels.noComments));
+  };
+  const commentActions = (mine: boolean): IssueCommentActions => ({
+    user,
+    repo,
+    deleteLabel: labels.delete,
+    deletable: !!token && mine,
+    onDeleted: () => {
+      shown = Math.max(0, shown - 1);
+      syncCount();
+      emptyHint();
+    },
+  });
   const loadComments = async (): Promise<IssueCommentInfo[]> => {
     let comments: IssueCommentInfo[] = [];
     try {
@@ -595,27 +723,31 @@ async function renderIssueSection(
     }
     loading.remove();
     list.textContent = '';
-    count.textContent = `💬 ${comments.length}`;
+    shown = comments.length;
+    syncCount();
     if (comments.length === 0) {
       list.appendChild(el('p', 'text-sm text-slate-400', labels.noComments));
     } else {
-      for (const comment of comments) list.appendChild(renderIssueComment(comment, locale));
+      for (const comment of comments) {
+        list.appendChild(
+          renderIssueComment(comment, locale, platform, commentActions(comment.author === viewer)),
+        );
+      }
     }
     return comments;
   };
   void loadComments();
 
   // 评论输入：有该平台登录态时显示输入框 + 评论按钮；否则提示登录当前平台
-  const footer = el('div', 'mt-3');
+  const footer = el('div', 'mt-3 flex flex-col items-start gap-2');
   footer.dataset.role = 'issue-comment-form';
-  const token = getToken(platform);
   if (token) {
-    const textarea = el('textarea', 'input min-h-20');
+    const textarea = el('textarea', 'input min-h-20 w-full');
     textarea.placeholder = labels.commentPh;
     textarea.dataset.field = 'issue-comment';
     const status = el('p', 'hidden text-xs');
     status.dataset.role = 'comment-status';
-    const submit = el('button', 'btn btn-primary self-start', labels.commentSubmit);
+    const submit = el('button', 'btn btn-primary', labels.commentSubmit);
     submit.type = 'button';
     submit.dataset.action = 'submit-comment';
     submit.addEventListener('click', () => {
@@ -625,9 +757,21 @@ async function renderIssueSection(
         submit.disabled = true;
         status.classList.add('hidden');
         try {
-          await adapter.createIssueComment(token, user, repo, issue.number, body);
+          const created = await adapter.createIssueComment(token, user, repo, issue.number, body);
           textarea.value = '';
-          await loadComments();
+          // 本地追加新评论（优先用接口返回的评论数据，含真实 id 与链接），无需整列刷新
+          const placeholder = list.querySelector('p');
+          if (shown === 0) placeholder?.remove();
+          const mine: IssueCommentInfo =
+            created ?? {
+              id: -1,
+              author: viewer,
+              body,
+              createdAt: new Date().toISOString(),
+            };
+          list.appendChild(renderIssueComment(mine, locale, platform, commentActions(true)));
+          shown += 1;
+          syncCount();
         } catch (error) {
           status.className = 'text-xs text-rose-600';
           status.textContent = error instanceof Error ? error.message.slice(0, 80) : labels.commentFailed;
@@ -734,7 +878,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   renderMedia(content.media, els);
 
   // 作者卡 + 许可证（稿件级优先，缺省仓库级）
-  renderAuthor(entry, repoInfo, content, labels, els);
+  renderAuthor(entry, repoInfo, content, labels, els, platform);
 
   renderFiles(init, platform, content.baseDir, content.parsed.files, els);
 
@@ -840,12 +984,28 @@ function renderVideoLink(url: string): HTMLAnchorElement {
   return link;
 }
 
+/** 作者卡/介绍页共用的平台配色（badge 右段） */
+const PLATFORM_BADGE_BG: Record<Platform, string> = {
+  github: '#24292f',
+  gitee: '#c71d23',
+  atomgit: '#2b6fe0',
+  gitcode: '#fe7300',
+};
+
+const PLATFORM_NAMES: Record<Platform, string> = {
+  github: 'GitHub',
+  gitee: 'Gitee',
+  atomgit: 'AtomGit',
+  gitcode: 'GitCode',
+};
+
 function renderAuthor(
   entry: SubmissionEntry,
   repoInfo: { stars: number; license?: string; htmlUrl?: string } | null,
   content: { parsed: { attrs: Record<string, string> } },
   labels: DetailLabels,
   els: DetailElements,
+  platform: Platform,
 ): void {
   els.author.textContent = '';
 
@@ -853,6 +1013,20 @@ function renderAuthor(
   avatar.className =
     'flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-600 dark:bg-emerald-900 dark:text-emerald-300';
   avatar.textContent = entry.owner.slice(0, 1).toUpperCase();
+  // 尝试平台头像，失败保留首字母
+  void getAdapterAsync(platform)
+    .then((adapter) => adapter.getUser(entry.owner))
+    .then((profile) => {
+      if (!profile.avatarUrl) return;
+      avatar.textContent = '';
+      const img = document.createElement('img');
+      img.className = 'h-full w-full rounded-full object-cover';
+      setAvatar(img, profile.avatarUrl);
+      avatar.appendChild(img);
+    })
+    .catch(() => {
+      /* 保留首字母图标 */
+    });
 
   const info = document.createElement('div');
   info.className = 'flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-sm';
@@ -863,22 +1037,22 @@ function renderAuthor(
   userLink.textContent = entry.owner;
   info.appendChild(userLink);
 
+  // 仓库 badge（owner/repo | 平台）+ 收藏 badge（★ | 数量）
   if (repoInfo?.htmlUrl) {
-    const repoLink = document.createElement('a');
-    repoLink.href = repoInfo.htmlUrl;
-    repoLink.target = '_blank';
-    repoLink.rel = 'noopener';
-    repoLink.className = 'text-slate-500 hover:text-emerald-600 dark:text-slate-400';
-    repoLink.textContent = `${entry.owner}/${entry.repo}`;
-    info.appendChild(repoLink);
+    const repoBadge = document.createElement('a');
+    repoBadge.href = repoInfo.htmlUrl;
+    repoBadge.target = '_blank';
+    repoBadge.rel = 'noopener';
+    repoBadge.dataset.role = 'repo-badge';
+    repoBadge.innerHTML = badgeSvg(`${entry.owner}/${entry.repo}`, PLATFORM_NAMES[platform], '#334155', PLATFORM_BADGE_BG[platform]);
+    info.appendChild(repoBadge);
   }
-
   if (repoInfo) {
-    const stars = document.createElement('span');
-    stars.className = 'text-slate-400';
-    stars.dataset.role = 'repo-stars';
-    stars.textContent = `★ ${repoInfo.stars} ${labels.stars}`;
-    info.appendChild(stars);
+    const starBadge = document.createElement('span');
+    starBadge.dataset.role = 'repo-stars';
+    starBadge.title = labels.stars;
+    starBadge.innerHTML = badgeSvg('★', String(repoInfo.stars), '#059669');
+    info.appendChild(starBadge);
   }
 
   const license = content.parsed.attrs.license || repoInfo?.license;

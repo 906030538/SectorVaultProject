@@ -100,6 +100,8 @@ const zhHans = {
   'detail.commentsDisabled': '评论区已禁用',
   'detail.noComments': '暂无回复',
   'detail.viewIssue': '前往原 issue',
+  'detail.gotoRelease': '前往 release',
+  'detail.delete': '删除',
   'detail.commentPh': '写下回复…（Markdown）',
   'detail.commentSubmit': '发表回复',
   'detail.commentFailed': '回复失败，请检查登录状态',

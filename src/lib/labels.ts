@@ -70,6 +70,8 @@ export function buildDetailLabels(locale: Locale): DetailLabels {
     commentsDisabled: t(locale, 'detail.commentsDisabled'),
     noComments: t(locale, 'detail.noComments'),
     viewIssue: t(locale, 'detail.viewIssue'),
+    gotoRelease: t(locale, 'detail.gotoRelease'),
+    delete: t(locale, 'detail.delete'),
     commentPh: t(locale, 'detail.commentPh'),
     commentSubmit: t(locale, 'detail.commentSubmit'),
     commentFailed: t(locale, 'detail.commentFailed'),

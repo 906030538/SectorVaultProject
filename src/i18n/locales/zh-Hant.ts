@@ -102,6 +102,8 @@ const zhHant: Record<MessageKey, string> = {
   'detail.commentsDisabled': '評論區已停用',
   'detail.noComments': '暫無回覆',
   'detail.viewIssue': '前往原 issue',
+  'detail.gotoRelease': '前往 release',
+  'detail.delete': '刪除',
   'detail.commentPh': '寫下回覆…（Markdown）',
   'detail.commentSubmit': '發表回覆',
   'detail.commentFailed': '回覆失敗，請檢查登入狀態',

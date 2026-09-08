@@ -196,6 +196,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
       id: c.id,
       author: c.user?.login,
       authorUrl: c.user?.html_url,
+      avatarUrl: c.user?.avatar_url ?? undefined,
       body: c.body ?? '',
       createdAt: c.created_at,
       htmlUrl: c.html_url,
@@ -208,13 +209,31 @@ export class GitHubAdapter implements GitPlatformAdapter {
     repo: string,
     issueNumber: number,
     body: string,
-  ): Promise<void> {
-    await client(token).rest.issues.createComment({
+  ): Promise<IssueCommentInfo | null> {
+    const { data } = await client(token).rest.issues.createComment({
       owner: user,
       repo,
       issue_number: issueNumber,
       body,
     });
+    return {
+      id: data.id,
+      author: data.user?.login,
+      authorUrl: data.user?.html_url,
+      avatarUrl: data.user?.avatar_url ?? undefined,
+      body: data.body ?? body,
+      createdAt: data.created_at,
+      htmlUrl: data.html_url,
+    };
+  }
+
+  async deleteIssueComment(
+    token: string,
+    user: string,
+    repo: string,
+    commentId: number,
+  ): Promise<void> {
+    await client(token).rest.issues.deleteComment({ owner: user, repo, comment_id: commentId });
   }
 
   discussionsUrl(owner: string, repo: string): string {
@@ -437,14 +456,27 @@ export class GitHubAdapter implements GitPlatformAdapter {
     user: string,
     repo: string,
     releaseId: number,
-  ): Promise<void> {
+  ): Promise<number | null> {
     // 已点过赞时平台返回 200（幂等）
-    await client(token).request('POST /repos/{owner}/{repo}/releases/{release_id}/reactions', {
-      owner: user,
-      repo,
-      release_id: releaseId,
-      content: '+1',
-    });
+    const { data } = (await client(token).request(
+      'POST /repos/{owner}/{repo}/releases/{release_id}/reactions',
+      { owner: user, repo, release_id: releaseId, content: '+1' },
+    )) as { data: { id: number } };
+    return data?.id ?? null;
+  }
+
+  async deleteReleaseReaction(
+    token: string,
+    user: string,
+    repo: string,
+    releaseId: number,
+    reactionId: number,
+  ): Promise<void> {
+    // release 表情的删除端点嵌套在 release 下（非旧版 /reactions/{id}）
+    await client(token).request(
+      'DELETE /repos/{owner}/{repo}/releases/{release_id}/reactions/{reaction_id}',
+      { owner: user, repo, release_id: releaseId, reaction_id: reactionId },
+    );
   }
 
   async uploadReleaseAsset(

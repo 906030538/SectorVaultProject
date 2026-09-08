@@ -86,14 +86,17 @@ export interface GitPlatformAdapter {
   /** issue 评论列表 */
   listIssueComments(user: string, repo: string, issueNumber: number): Promise<IssueCommentInfo[]>;
 
-  /** 向 issue 添加评论（需登录且与稿件同平台） */
+  /** 向 issue 添加评论（需登录且与稿件同平台）；返回创建的评论（本地追加显示用） */
   createIssueComment(
     token: string,
     user: string,
     repo: string,
     issueNumber: number,
     body: string,
-  ): Promise<void>;
+  ): Promise<IssueCommentInfo | null>;
+
+  /** 删除 issue 评论（一般仅本人评论；平台不支持时抛错） */
+  deleteIssueComment(token: string, user: string, repo: string, commentId: number): Promise<void>;
 
   /** Discussions 页面地址 */
   discussionsUrl(owner: string, repo: string): string;
@@ -152,8 +155,17 @@ export interface GitPlatformAdapter {
   /** release 表情互动列表（平台不支持时返回空数组） */
   listReleaseReactions(user: string, repo: string, releaseId: number): Promise<ReleaseReactionInfo[]>;
 
-  /** 在 release 上添加 👍 互动（需登录且与稿件同平台） */
-  createReleaseReaction(token: string, user: string, repo: string, releaseId: number): Promise<void>;
+  /** 在 release 上添加 👍 互动（需登录且与稿件同平台）；返回 reaction id（取消用，不可得时 null） */
+  createReleaseReaction(token: string, user: string, repo: string, releaseId: number): Promise<number | null>;
+
+  /** 删除 release 表情互动（取消点赞；平台不支持时抛错） */
+  deleteReleaseReaction(
+    token: string,
+    user: string,
+    repo: string,
+    releaseId: number,
+    reactionId: number,
+  ): Promise<void>;
 
   /** 上传 release 附件 */
   uploadReleaseAsset(

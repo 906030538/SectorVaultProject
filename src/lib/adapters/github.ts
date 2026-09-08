@@ -1,6 +1,7 @@
 import { Octokit } from 'octokit';
 import type {
   AuthInfo,
+  DiscussionCategoryInfo,
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
@@ -265,6 +266,51 @@ export class GitHubAdapter implements GitPlatformAdapter {
       per_page: 50,
     });
     return (Array.isArray(data) ? (data as GithubDiscussion[]) : []).map((d) => this.mapDiscussion(d));
+  }
+
+  async listDiscussionCategories(user: string, repo: string): Promise<DiscussionCategoryInfo[]> {
+    // REST 无公开的分类列表端点（/discussions/categories 404），
+    // 从讨论列表的 category 字段去重推导（覆盖使用中的分类）
+    const { data } = await autoClient().request('GET /repos/{owner}/{repo}/discussions', {
+      owner: user,
+      repo,
+      per_page: 100,
+    });
+    const items = Array.isArray(data)
+      ? (data as Array<{ category?: { id: number; name: string; emoji?: string; description?: string } }>)
+      : [];
+    const seen = new Set<number>();
+    const categories: DiscussionCategoryInfo[] = [];
+    for (const item of items) {
+      const category = item.category;
+      if (!category || seen.has(category.id)) continue;
+      seen.add(category.id);
+      categories.push({
+        id: category.id,
+        name: category.name,
+        emoji: category.emoji,
+        description: category.description,
+      });
+    }
+    return categories;
+  }
+
+  async createDiscussion(
+    token: string,
+    user: string,
+    repo: string,
+    title: string,
+    body: string,
+    categoryId: number | string,
+  ): Promise<string | null> {
+    const { data } = await client(token).request('POST /repos/{owner}/{repo}/discussions', {
+      owner: user,
+      repo,
+      title,
+      body,
+      category_id: Number(categoryId),
+    });
+    return (data as { html_url?: string }).html_url ?? null;
   }
 
   async getDiscussion(user: string, repo: string, number: number): Promise<DiscussionInfo> {

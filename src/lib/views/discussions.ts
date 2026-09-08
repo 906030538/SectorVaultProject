@@ -3,16 +3,31 @@ import { marked } from 'marked';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getIndexSources } from '@/lib/index/sources';
 import { getToken, loadSession } from '@/lib/auth';
+import { openAuthDialog } from '@/lib/auth-dialog';
+import { buildAuthLabels } from '@/lib/labels';
 import type { IndexSource } from '@/config';
 import type { Platform } from '@/types';
-import type { DiscussionComment, DiscussionInfo } from '@/types';
+import type { DiscussionCategoryInfo, DiscussionComment, DiscussionInfo } from '@/types';
 import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
 import { withBase } from '@/lib/base';
+import type { Locale } from '@/i18n';
 
 export interface DiscussionsLabels {
   title: string;
   description: string;
   open: string;
+  newDiscussion: string;
+  newDiscussionTitle: string;
+  newDiscussionTarget: string;
+  fieldTitle: string;
+  fieldCategory: string;
+  fieldBody: string;
+  newDiscussionSubmit: string;
+  cancel: string;
+  errDiscussionTitle: string;
+  errDiscussionBody: string;
+  createDiscussionFailed: string;
+  loginFirst: string;
   none: string;
   loadError: string;
   comments: string;
@@ -61,6 +76,151 @@ export interface DiscussionListElements {
   empty: HTMLElement;
   error: HTMLElement;
   loading: HTMLElement;
+}
+
+/**
+ * 「新建讨论」按钮：讨论区为 GitHub 专属，目标取第一个 github 源；
+ * 无该平台登录信息时先弹登录框（预选该平台），已登录直接打开新建弹窗。
+ */
+export function wireNewDiscussionButton(
+  locale: string,
+  labels: DiscussionsLabels,
+  button: HTMLButtonElement,
+): void {
+  button.addEventListener('click', () => {
+    void (async () => {
+      const sources = await getIndexSources();
+      // 讨论仅 GitHub 支持（v5 系返回空/抛错），目标取首个 github 源，无则回退主源
+      const target = sources.find((s) => s.platform === 'github') ?? sources[0]!;
+      if (!getToken(target.platform)) {
+        void openAuthDialog(buildAuthLabels(locale as Locale), target.platform);
+        return;
+      }
+      await openNewDiscussionDialog(locale, labels, target);
+    })();
+  });
+}
+
+function dialogShell(title: string): { overlay: HTMLElement; body: HTMLElement } {
+  const overlay = el('div', 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4');
+  const box = el('div', 'card w-full max-w-lg p-6 dark:bg-slate-900');
+  box.appendChild(el('h2', 'mb-4 text-lg font-semibold', title));
+  const body = el('div', 'flex flex-col gap-4');
+  box.appendChild(body);
+  overlay.appendChild(box);
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) overlay.remove();
+  });
+  return { overlay, body };
+}
+
+/** 新建讨论弹窗：标题 + 分类选择按钮 + 内容；成功后刷新页面 */
+async function openNewDiscussionDialog(
+  locale: string,
+  labels: DiscussionsLabels,
+  target: IndexSource,
+): Promise<void> {
+  const { platform, owner, repo } = target;
+  const { overlay, body } = dialogShell(labels.newDiscussionTitle);
+  const targetHint = el(
+    'p',
+    'text-xs text-slate-400',
+    `${labels.newDiscussionTarget}: ${platform}:${owner}/${repo}`,
+  );
+
+  // 标题
+  const titleBox = el('div', 'flex flex-col gap-1');
+  titleBox.appendChild(el('label', 'text-xs text-slate-500', labels.fieldTitle));
+  const titleInput = el('input', 'input w-full');
+  titleInput.setAttribute('data-field', 'discussion-title');
+  titleBox.appendChild(titleInput);
+
+  // 分类选择按钮（异步加载，默认选中第一项）
+  const categoryBox = el('div', 'flex flex-col gap-1');
+  categoryBox.appendChild(el('label', 'text-xs text-slate-500', labels.fieldCategory));
+  const categoryRow = el('div', 'flex flex-wrap gap-1.5');
+  categoryBox.appendChild(categoryRow);
+  let selectedCategory: DiscussionCategoryInfo | null = null;
+  void (async () => {
+    try {
+      const adapter = await getAdapterAsync(platform);
+      const categories = await adapter.listDiscussionCategories(owner, repo);
+      if (!categoryRow.isConnected) return;
+      for (const category of categories) {
+        const chip = el('button', 'btn px-3 py-1 text-xs');
+        chip.type = 'button';
+        // REST 返回的 emoji 为 :slug: 形态时只显示名称
+        const emoji = category.emoji && !/^:[\w+-]+:$/.test(category.emoji) ? category.emoji : '';
+        chip.textContent = emoji ? `${emoji} ${category.name}` : category.name;
+        chip.title = category.description ?? '';
+        chip.dataset.categoryId = String(category.id);
+        chip.addEventListener('click', () => {
+          selectedCategory = category;
+          for (const node of Array.from(categoryRow.querySelectorAll('button'))) {
+            node.classList.toggle('btn-primary', node === chip);
+          }
+        });
+        categoryRow.appendChild(chip);
+      }
+      // 默认选中第一项
+      categoryRow.querySelector('button')?.classList.add('btn-primary');
+      selectedCategory = categories[0] ?? null;
+    } catch {
+      /* 分类加载失败时留给提交阶段报错 */
+    }
+  })();
+
+  // 内容
+  const bodyBox = el('div', 'flex flex-col gap-1');
+  bodyBox.appendChild(el('label', 'text-xs text-slate-500', labels.fieldBody));
+  const bodyArea = el('textarea', 'input min-h-32 w-full');
+  bodyArea.placeholder = 'Markdown';
+  bodyArea.setAttribute('data-field', 'discussion-body');
+  bodyBox.appendChild(bodyArea);
+
+  const error = el('p', 'hidden text-sm text-rose-600');
+  const actions = el('div', 'flex justify-end gap-2');
+  const cancel = el('button', 'btn', labels.cancel);
+  cancel.type = 'button';
+  cancel.addEventListener('click', () => overlay.remove());
+  const submit = el('button', 'btn btn-primary', labels.newDiscussionSubmit);
+  submit.type = 'button';
+  submit.dataset.action = 'create-discussion';
+  submit.addEventListener('click', () => {
+    void (async () => {
+      const title = titleInput.value.trim();
+      const content = bodyArea.value.trim();
+      error.classList.add('hidden');
+      if (!title) {
+        error.textContent = labels.errDiscussionTitle;
+        error.classList.remove('hidden');
+        return;
+      }
+      if (!content) {
+        error.textContent = labels.errDiscussionBody;
+        error.classList.remove('hidden');
+        return;
+      }
+      submit.setAttribute('disabled', '');
+      try {
+        const token = getToken(platform);
+        if (!token) throw new Error('missing token');
+        const adapter = await getAdapterAsync(platform);
+        await adapter.createDiscussion(token, owner, repo, title, content, selectedCategory?.id ?? '');
+        window.location.reload();
+      } catch (err) {
+        error.textContent = `${labels.createDiscussionFailed}${
+          err instanceof Error && err.message ? `：${err.message.slice(0, 120)}` : ''
+        }`;
+        error.classList.remove('hidden');
+        submit.removeAttribute('disabled');
+      }
+    })();
+  });
+  actions.append(cancel, submit);
+
+  body.append(targetHint, titleBox, categoryBox, bodyBox, error, actions);
+  document.body.appendChild(overlay);
 }
 
 /** 讨论列表：遍历全部索引源，聚合各仓库的讨论（按更新时间倒序） */

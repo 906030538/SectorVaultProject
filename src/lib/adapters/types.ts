@@ -1,5 +1,6 @@
 import type {
   AuthInfo,
+  DiscussionCategoryInfo,
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
@@ -103,6 +104,19 @@ export interface GitPlatformAdapter {
 
   /** 仓库讨论列表（平台不支持时返回空数组） */
   listDiscussions(user: string, repo: string): Promise<DiscussionInfo[]>;
+
+  /** 讨论分类列表（新建讨论用；平台不支持时返回空数组） */
+  listDiscussionCategories(user: string, repo: string): Promise<DiscussionCategoryInfo[]>;
+
+  /** 创建讨论（需登录且与讨论同平台）；返回讨论页地址，平台不支持时抛错 */
+  createDiscussion(
+    token: string,
+    user: string,
+    repo: string,
+    title: string,
+    body: string,
+    categoryId: number | string,
+  ): Promise<string | null>;
 
   /** 讨论详情 */
   getDiscussion(user: string, repo: string, number: number): Promise<DiscussionInfo>;

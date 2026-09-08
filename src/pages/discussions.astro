@@ -12,9 +12,14 @@ const discussionsUrl = `https://github.com/${primary.owner}/${primary.repo}/disc
 <BaseLayout titleKey="discussions.title">
   <div class="mb-6 flex flex-wrap items-center gap-3">
     <h1 class="text-2xl font-bold" data-i18n="discussions.title">{t(locale, 'discussions.title')}</h1>
-    <a href={discussionsUrl} target="_blank" rel="noopener noreferrer" class="btn ml-auto">
-      <span data-i18n="discussions.open">{t(locale, 'discussions.open')}</span> →
-    </a>
+    <div class="ml-auto flex gap-2">
+      <button type="button" class="btn btn-primary" data-role="new-discussion" data-i18n="discussions.newDiscussion">
+        {t(locale, 'discussions.newDiscussion')}
+      </button>
+      <a href={discussionsUrl} target="_blank" rel="noopener noreferrer" class="btn">
+        <span data-i18n="discussions.open">{t(locale, 'discussions.open')}</span> →
+      </a>
+    </div>
   </div>
   <p class="mb-6 text-sm text-slate-500 dark:text-slate-400" data-i18n="discussions.description">
     {t(locale, 'discussions.description')}
@@ -30,13 +35,16 @@ const discussionsUrl = `https://github.com/${primary.owner}/${primary.repo}/disc
   <LoadingBlock locale={locale} />
 
   <script>
-    import { initDiscussionList } from '@/lib/views/discussions';
+    import { initDiscussionList, wireNewDiscussionButton } from '@/lib/views/discussions';
     import { buildDiscussionsLabels } from '@/lib/labels';
     import { getClientLocale } from '@/lib/i18n-client';
 
     const locale = getClientLocale();
+    const labels = buildDiscussionsLabels(locale);
+    const newButton = document.querySelector<HTMLButtonElement>('[data-role="new-discussion"]');
+    if (newButton) wireNewDiscussionButton(locale, labels, newButton);
     try {
-      await initDiscussionList(locale, buildDiscussionsLabels(locale), {
+      await initDiscussionList(locale, labels, {
         list: document.querySelector('[data-component="discussion-list"]')!,
         empty: document.querySelector<HTMLElement>('[data-role="empty"]')!,
         error: document.querySelector<HTMLElement>('[data-role="error"]')!,

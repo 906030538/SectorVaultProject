@@ -1,5 +1,6 @@
 import type {
   AuthInfo,
+  DiscussionCategoryInfo,
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
@@ -226,6 +227,15 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   // AtomGit 仓库级 Discussions API 形态未定，暂不支持
   async listDiscussions(): Promise<DiscussionInfo[]> {
     return [];
+  }
+
+  async listDiscussionCategories(): Promise<DiscussionCategoryInfo[]> {
+    // v5 系平台无讨论区
+    return [];
+  }
+
+  async createDiscussion(): Promise<string | null> {
+    throw new Error('AtomGit/GitCode do not support discussions yet');
   }
 
   async getDiscussion(): Promise<DiscussionInfo> {

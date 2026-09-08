@@ -167,6 +167,14 @@ export interface IssueCommentInfo {
 }
 
 /** 平台讨论（Discussion）条目 */
+/** 讨论分类（GitHub Discussions categories） */
+export interface DiscussionCategoryInfo {
+  id: number | string;
+  name: string;
+  emoji?: string;
+  description?: string;
+}
+
 export interface DiscussionInfo {
   number: number;
   title: string;

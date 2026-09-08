@@ -75,6 +75,18 @@ export function logout(): void {
   }
 }
 
+/** 退出指定平台登录（保留其他平台）；最近登录会话属于该平台时一并清除 */
+export function logoutPlatform(platform: Platform): void {
+  const last = loadSession();
+  clearToken(platform);
+  localStorage.removeItem(`svp-session-${platform}`);
+  deleteCookie(`svp-session-${platform}`);
+  if (last?.platform === platform) {
+    localStorage.removeItem('svp-session');
+    deleteCookie('svp-session');
+  }
+}
+
 /**
  * 已有登录态迁移：localStorage 存在而 cookie 缺失时补写镜像。
  * 页面加载时调用，让既有用户在兄弟子域（cf.svp.lyoko.cn 等）直接可用。

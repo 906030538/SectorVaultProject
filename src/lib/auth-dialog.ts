@@ -1,19 +1,23 @@
-import { saveSession, setToken } from '@/lib/auth';
+import { loadSessionBy, logoutPlatform, saveSession, setToken } from '@/lib/auth';
 import { isMockAvailable } from '@/lib/content';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getOAuthConfig } from '@/lib/index/sources';
 import { pollDeviceToken, requestDeviceCode } from '@/lib/auth';
+import { withBase } from '@/lib/base';
 import type { Platform } from '@/types';
 
 export interface AuthLabels {
   title: string;
   intro: string;
+  /** 平台页签组无障碍标签 */
   platform: string;
-  stepRegister: string;
-  stepToken: string;
-  stepVerify: string;
-  register: string;
-  tokenPage: string;
+  /** 页签上"（已登陆）"标记 */
+  loggedIn: string;
+  logout: string;
+  /** 令牌登录提示 */
+  tokenHint: string;
+  /** 常见问题链接文本 */
+  faqLink: string;
   tokenPh: string;
   oauthLogin: string;
   oauthUnavailable: string;
@@ -24,11 +28,13 @@ export interface AuthLabels {
   cancel: string;
 }
 
-const PLATFORM_LINKS: Record<Platform, { signup: string; tokens: string }> = {
-  github: { signup: 'https://github.com/signup', tokens: 'https://github.com/settings/tokens' },
-  gitee: { signup: 'https://gitee.com/signup', tokens: 'https://gitee.com/personal_access_tokens' },
-  atomgit: { signup: 'https://atomgit.com/login', tokens: 'https://atomgit.com/-/settings/tokens' },
-  gitcode: { signup: 'https://gitcode.com/login', tokens: 'https://gitcode.com/-/settings/tokens' },
+/** 弹窗内展示的平台页签 */
+const DIALOG_PLATFORMS = ['github', 'gitee', 'atomgit'] as const;
+
+const PLATFORM_NAMES: Record<string, string> = {
+  github: 'GitHub',
+  gitee: 'Gitee',
+  atomgit: 'AtomGit',
 };
 
 const MOCK_AVATAR = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -123,7 +129,7 @@ function openDeviceDialog(
   })();
 }
 
-/** 打开登录对话框；preferred 为预选平台（如当前线路） */
+/** 打开登录对话框；preferred 为预选平台（如当前线路）。页签切换平台，按登录态显示账户信息或授权按钮 */
 export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): Promise<void> {
   const overlay = el('div', 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4');
   overlay.dataset.role = 'auth-dialog';
@@ -136,130 +142,163 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
   card.appendChild(el('h2', 'text-lg font-semibold', labels.title));
   card.appendChild(el('p', 'mt-1 text-sm text-slate-500 dark:text-slate-400', labels.intro));
 
-  card.appendChild(el('p', 'mt-4 text-xs font-medium text-slate-500', labels.platform));
-  const platformRow = el('div', 'mt-1 flex gap-2');
-  platformRow.dataset.role = 'auth-platforms';
+  // 平台页签：已有登录信息的平台追加（已登陆）
+  const tabBar = el(
+    'div',
+    'mt-4 flex gap-1 border-b border-slate-200 dark:border-slate-700',
+  );
+  tabBar.dataset.role = 'auth-platforms';
+  tabBar.setAttribute('role', 'tablist');
+  tabBar.setAttribute('aria-label', labels.platform);
   let platform: Platform = 'github';
-  const chips = new Map<Platform, HTMLElement>();
-  for (const p of ['github', 'gitee', 'atomgit'] as const) {
-    const chip = el('button', 'btn', p);
-    chip.type = 'button';
-    chip.dataset.platform = p;
-    chip.addEventListener('click', () => {
+  const tabs = new Map<Platform, HTMLButtonElement>();
+  for (const p of DIALOG_PLATFORMS) {
+    const tab = el('button');
+    tab.type = 'button';
+    tab.dataset.platform = p;
+    tab.setAttribute('role', 'tab');
+    tab.addEventListener('click', () => {
       platform = p;
-      for (const [key, node] of chips) {
-        node.classList.toggle('btn-primary', key === p);
-      }
-      registerLink.href = PLATFORM_LINKS[p].signup;
-      tokenLink.href = PLATFORM_LINKS[p].tokens;
-      void syncOauthButton();
+      refreshTabs();
+      renderPanel();
     });
-    chips.set(p, chip);
-    platformRow.appendChild(chip);
+    tabs.set(p, tab);
+    tabBar.appendChild(tab);
   }
   // 预选平台（当前线路无登录信息时从登录按钮进入，直接落在目标平台）
-  if (preferred && chips.has(preferred)) platform = preferred;
-  chips.get(platform)!.classList.add('btn-primary');
-  card.appendChild(platformRow);
+  if (preferred && tabs.has(preferred)) platform = preferred;
+  card.appendChild(tabBar);
 
-  const step = (index: number, text: string, extra?: HTMLElement) => {
-    const row = el('div', 'mt-3 flex items-start gap-2 text-sm');
-    row.appendChild(el('span', 'chip shrink-0', String(index)));
-    const body = el('div', 'flex flex-wrap items-center gap-2');
-    body.appendChild(el('span', undefined, text));
-    if (extra) body.appendChild(extra);
-    row.appendChild(body);
-    return row;
+  const refreshTabs = (): void => {
+    for (const [p, tab] of tabs) {
+      const session = loadSessionBy(p);
+      const name = PLATFORM_NAMES[p] ?? p;
+      tab.textContent = session ? `${name}（${labels.loggedIn}）` : name;
+      const active = p === platform;
+      tab.className = [
+        'rounded-t-lg border-b-2 px-3.5 py-2 text-sm transition-colors',
+        active
+          ? 'border-emerald-500 font-medium text-emerald-700 dark:border-emerald-400 dark:text-emerald-300'
+          : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
+      ].join(' ');
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    }
   };
+  refreshTabs();
 
-  const registerLink = el('a', 'btn', labels.register);
-  registerLink.href = PLATFORM_LINKS[platform].signup;
-  registerLink.target = '_blank';
-  registerLink.rel = 'noopener';
-  registerLink.dataset.action = 'goto-register';
-  const tokenLink = el('a', 'btn', labels.tokenPage);
-  tokenLink.href = PLATFORM_LINKS[platform].tokens;
-  tokenLink.target = '_blank';
-  tokenLink.rel = 'noopener';
-  tokenLink.dataset.action = 'goto-tokens';
+  const error = el('p', 'hidden text-sm text-rose-600');
 
-  // OAuth 授权按钮：已配置 OAuth 的平台可直接跳转授权（回调 /login/{platform}）
-  const oauthBtn = el('button', 'btn hidden', labels.oauthLogin);
-  oauthBtn.type = 'button';
-  oauthBtn.dataset.action = 'oauth-login';
-  oauthBtn.addEventListener('click', () => {
-    oauthBtn.setAttribute('disabled', '');
-    void (async () => {
-      try {
-      const cfg = await getOAuthConfig(platform);
-      if (!cfg?.authorizeUrl) {
-        error.textContent = labels.oauthUnavailable;
-        error.classList.remove('hidden');
-        return;
+  // 平台面板：已登陆显示用户名 + 登出；未登陆显示 OAuth / 设备授权按钮
+  const panel = el('div', 'mt-4 min-h-14');
+  panel.dataset.role = 'auth-panel';
+  card.appendChild(panel);
+  const renderPanel = (): void => {
+    panel.textContent = '';
+    const session = loadSessionBy(platform);
+    if (session) {
+      const row = el('div', 'flex flex-wrap items-center gap-3');
+      const name = el('span', 'font-medium', session.name ?? session.login);
+      if (session.name && session.name !== session.login) {
+        name.appendChild(document.createTextNode(`（${session.login}）`));
       }
-      const state = randomState();
-      try {
-        sessionStorage.setItem('svp-oauth-state', state);
-      } catch {
-        /* 存储不可用时跳过 state 校验 */
-      }
-      const redirectUri = `${window.location.origin}/login/${platform}`;
-      const params = new URLSearchParams({
-        client_id: cfg.clientId,
-        redirect_uri: redirectUri,
-        response_type: 'code',
-        state,
+      const logoutBtn = el('button', 'btn', labels.logout);
+      logoutBtn.type = 'button';
+      logoutBtn.dataset.action = 'logout-platform';
+      logoutBtn.addEventListener('click', () => {
+        logoutPlatform(platform);
+        refreshTabs();
+        renderPanel();
       });
-      if (cfg.scope) params.set('scope', cfg.scope);
-      window.location.href = `${cfg.authorizeUrl}?${params.toString()}`;
-      } catch (err) {
-        error.textContent = err instanceof Error ? err.message.slice(0, 80) : labels.tokenBad;
-        error.classList.remove('hidden');
-        oauthBtn.removeAttribute('disabled');
-      }
-    })();
-  });
-  // GitHub App 设备授权（无需回调地址与 client secret，适合零后端静态站）
-  const deviceBtn = el('button', 'btn hidden', labels.deviceLogin);
-  deviceBtn.type = 'button';
-  deviceBtn.dataset.action = 'device-login';
-  // GitHub：App 设备授权（appClientId）与 OAuth 网页流（clientId）凭据独立，可同时显示；
-  // 仅配置旧变量 OAUTH_GITHUB_CLIENT_ID 时回退供设备流使用。其余平台只显示 OAuth 跳转。
-  const syncOauthButton = async (): Promise<void> => {
-    const cfg = await getOAuthConfig(platform).catch(() => null);
-    const useDevice = platform === 'github' && !!(cfg?.appClientId ?? cfg?.clientId);
-    const useWeb = !!cfg?.clientId && !!cfg?.authorizeUrl;
-    deviceBtn.classList.toggle('hidden', !useDevice);
-    oauthBtn.classList.toggle('hidden', !useWeb);
-  };
-  deviceBtn.addEventListener('click', () => {
+      row.append(name, logoutBtn);
+      panel.appendChild(row);
+      return;
+    }
+    const buttons = el('div', 'flex flex-wrap gap-2');
+    // OAuth 授权按钮：已配置网页流凭据的平台可跳转授权（回调 /login/{platform}）
+    const oauthBtn = el('button', 'btn btn-primary hidden', labels.oauthLogin);
+    oauthBtn.type = 'button';
+    oauthBtn.dataset.action = 'oauth-login';
+    oauthBtn.addEventListener('click', () => {
+      oauthBtn.setAttribute('disabled', '');
+      void (async () => {
+        try {
+          const cfg = await getOAuthConfig(platform);
+          if (!cfg?.authorizeUrl) {
+            error.textContent = labels.oauthUnavailable;
+            error.classList.remove('hidden');
+            return;
+          }
+          const state = randomState();
+          try {
+            sessionStorage.setItem('svp-oauth-state', state);
+          } catch {
+            /* 存储不可用时跳过 state 校验 */
+          }
+          const redirectUri = `${window.location.origin}/login/${platform}`;
+          const params = new URLSearchParams({
+            client_id: cfg.clientId,
+            redirect_uri: redirectUri,
+            response_type: 'code',
+            state,
+          });
+          if (cfg.scope) params.set('scope', cfg.scope);
+          window.location.href = `${cfg.authorizeUrl}?${params.toString()}`;
+        } catch (err) {
+          error.textContent = err instanceof Error ? err.message.slice(0, 80) : labels.tokenBad;
+          error.classList.remove('hidden');
+          oauthBtn.removeAttribute('disabled');
+        }
+      })();
+    });
+    // GitHub App 设备授权（无需回调地址与 client secret，适合零后端静态站）
+    const deviceBtn = el('button', 'btn hidden', labels.deviceLogin);
+    deviceBtn.type = 'button';
+    deviceBtn.dataset.action = 'device-login';
+    deviceBtn.addEventListener('click', () => {
+      void (async () => {
+        deviceBtn.setAttribute('disabled', '');
+        try {
+          const cfg = await getOAuthConfig('github');
+          const appClientId = cfg?.appClientId ?? cfg?.clientId;
+          if (!cfg || !appClientId) return;
+          const device = await requestDeviceCode(appClientId, cfg.deviceCodeUrl);
+          openDeviceDialog(device, appClientId, cfg.deviceTokenUrl);
+        } catch (err) {
+          error.textContent = err instanceof Error ? err.message.slice(0, 80) : labels.tokenBad;
+          error.classList.remove('hidden');
+        } finally {
+          deviceBtn.removeAttribute('disabled');
+        }
+      })();
+    });
+    buttons.append(oauthBtn, deviceBtn);
+    panel.appendChild(buttons);
+    // GitHub：App 设备授权（appClientId）与 OAuth 网页流（clientId）凭据独立，可同时显示；
+    // 仅配置旧变量 OAUTH_GITHUB_CLIENT_ID 时回退供设备流使用。其余平台只显示 OAuth 跳转。
     void (async () => {
-      deviceBtn.setAttribute('disabled', '');
-      try {
-        const cfg = await getOAuthConfig('github');
-        const appClientId = cfg?.appClientId ?? cfg?.clientId;
-        if (!cfg || !appClientId) return;
-        const device = await requestDeviceCode(appClientId, cfg.deviceCodeUrl);
-        openDeviceDialog(
-          device,
-          appClientId,
-          cfg.deviceTokenUrl,
-        );
-      } catch (err) {
-        error.textContent = err instanceof Error ? err.message.slice(0, 80) : labels.tokenBad;
-        error.classList.remove('hidden');
-      } finally {
-        deviceBtn.removeAttribute('disabled');
-      }
+      const cfg = await getOAuthConfig(platform).catch(() => null);
+      const useDevice = platform === 'github' && !!(cfg?.appClientId ?? cfg?.clientId);
+      const useWeb = !!cfg?.clientId && !!cfg?.authorizeUrl;
+      if (!panel.isConnected) return;
+      deviceBtn.classList.toggle('hidden', !useDevice);
+      oauthBtn.classList.toggle('hidden', !useWeb);
     })();
-  });
-  void syncOauthButton();
+  };
+  renderPanel();
 
-  const tokenInput = el('input', 'input w-full');
+  // 令牌登录提示 + 常见问题链接（注册/令牌申请指引在 wiki 用户帐户-注册页）
+  const hint = el('p', 'mt-3 text-xs text-slate-500 dark:text-slate-400');
+  hint.appendChild(document.createTextNode(`${labels.tokenHint} `));
+  const faq = el('a', 'text-emerald-600 hover:underline dark:text-emerald-400', labels.faqLink);
+  faq.href = withBase('/faq?page=' + encodeURIComponent('用户帐户-注册'));
+  faq.dataset.action = 'goto-faq';
+  hint.appendChild(faq);
+  card.appendChild(hint);
+
+  const tokenInput = el('input', 'input mt-2 w-full');
   tokenInput.type = 'password';
   tokenInput.placeholder = labels.tokenPh;
   tokenInput.dataset.field = 'token';
-  const error = el('p', 'hidden text-sm text-rose-600', labels.tokenBad);
   const submit = el('button', 'btn btn-primary', labels.tokenSave);
   submit.type = 'button';
   submit.dataset.action = 'auth-submit';
@@ -286,15 +325,7 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
     }
   });
 
-  card.append(
-    step(1, labels.stepRegister, registerLink),
-    step(2, labels.stepToken, tokenLink),
-    step(3, labels.stepVerify),
-    oauthBtn,
-    deviceBtn,
-    tokenInput,
-    error,
-  );
+  card.append(tokenInput, error);
   if (await isMockAvailable()) {
     card.appendChild(el('p', 'mt-2 text-xs text-amber-600', labels.demoHint));
   }

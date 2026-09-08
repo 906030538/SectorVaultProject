@@ -22,6 +22,8 @@ const en: Record<MessageKey, string> = {
   'line.all': 'All platforms',
   'auth.title': 'Authorize & sign in',
   'auth.intro': 'Choose your data hosting platform, register an account and create a token so this site can access your content repositories.',
+  'auth.loggedIn': 'logged in',
+  'auth.tokenHint': 'If the OAuth proxy is unavailable, try logging in with a token:',
   'auth.stepRegister': 'Register a platform account',
   'auth.stepToken': 'Create a Personal Access Token (repo scope)',
   'auth.stepVerify': 'Paste the token below to verify',

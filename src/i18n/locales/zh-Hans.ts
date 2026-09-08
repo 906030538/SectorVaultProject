@@ -20,6 +20,8 @@ const zhHans = {
   'line.all': '全部平台',
   'auth.title': '授权登录',
   'auth.intro': '选择数据托管平台，注册账号并创建令牌，授权本站访问你的内容仓库。',
+  'auth.loggedIn': '已登陆',
+  'auth.tokenHint': '如果 OAuth 代理不可用，可以尝试使用令牌登录：',
   'auth.stepRegister': '注册平台账号',
   'auth.stepToken': '创建 Personal Access Token（需 repo 权限）',
   'auth.stepVerify': '在下方粘贴令牌完成验证',

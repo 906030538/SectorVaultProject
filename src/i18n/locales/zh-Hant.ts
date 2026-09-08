@@ -22,6 +22,8 @@ const zhHant: Record<MessageKey, string> = {
   'line.all': '全部平台',
   'auth.title': '授權登入',
   'auth.intro': '選擇資料託管平台，註冊帳號並創建權杖，授權本站存取你的內容倉庫。',
+  'auth.loggedIn': '已登入',
+  'auth.tokenHint': '如果 OAuth 代理不可用，可以嘗試使用令牌登入：',
   'auth.stepRegister': '註冊平台帳號',
   'auth.stepToken': '創建 Personal Access Token（需 repo 權限）',
   'auth.stepVerify': '在下方貼上權杖完成驗證',

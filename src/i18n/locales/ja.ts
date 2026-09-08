@@ -22,6 +22,8 @@ const ja: Record<MessageKey, string> = {
   'line.all': 'すべてのプラットフォーム',
   'auth.title': '認証してログイン',
   'auth.intro': 'データホスティングプラットフォームを選択し、アカウントを登録してトークンを作成し、本サイトがコンテンツリポジトリにアクセスすることを許可してください。',
+  'auth.loggedIn': 'ログイン済み',
+  'auth.tokenHint': 'OAuth プロキシが利用できない場合はトークンでのログインを試してください：',
   'auth.stepRegister': 'プラットフォームのアカウントを登録',
   'auth.stepToken': 'Personal Access Token を作成（repo 権限が必要）',
   'auth.stepVerify': '下にトークンを貼り付けて検証',

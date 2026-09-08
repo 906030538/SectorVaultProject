@@ -54,7 +54,9 @@
       "type": "project",              // project | article
       "paramState": "with-param",     // with-param | tuned | no-param
       "songs": [], "engines": [], "voicebanks": [], "languages": [],
-      "tags": ["合成器", "原创"]        // 标签，最多 10 个且不重复，正文后以按钮展示
+      "tags": ["合成器", "原创"],      // 标签，最多 10 个且不重复，正文后以按钮展示
+      "author": "Someone",                  // 作者署名（可与托管平台用户名不同）
+      "email": "someone@example.com"        // 作者邮箱（选填）
     }
   ],
   "users": [

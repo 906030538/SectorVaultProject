@@ -111,6 +111,14 @@
         "type": "string",
         "minLength": 1
       }
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1
+    },
+    "email": {
+      "type": "string",
+      "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
     }
   },
   "additionalProperties": false

@@ -242,6 +242,9 @@ export function buildIndexEntry(
   if (ids?.issue) base.issue = ids.issue;
   // 索引与本地归档中 release id 一律字符串（部分平台 id 超出 JS 安全整数）
   if (ids?.release) base.release = String(ids.release);
+  // 标签与稿件类型无关，均随索引提交
+  const tags = draft.tags.filter(Boolean);
+  if (tags.length) base.tags = tags;
   if (draft.type === 'project') {
     base.paramState = draft.params;
     base.songs = draft.tracks.filter(Boolean);

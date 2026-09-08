@@ -59,6 +59,8 @@ export interface SubmissionEntry {
   engines?: string[];
   /** 使用声库（多值） */
   voicebanks?: string[];
+  /** 标签（多值；正文头部 tags 同步） */
+  tags?: string[];
   /** 歌曲语言（多值） */
   languages?: string[];
 }

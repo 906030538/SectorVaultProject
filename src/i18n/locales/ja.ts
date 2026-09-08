@@ -202,6 +202,8 @@ const ja: Record<MessageKey, string> = {
   'editor.slug': 'slug（日付-タイトル）',
   'editor.typeLabel': '投稿タイプ',
   'editor.titleLabel': 'タイトル',
+  'editor.author': '作者（git コミット作者）',
+  'editor.email': 'メール（git コミット作者）',
   'editor.titlePh': '作品タイトルを入力',
   'editor.videos': '動画サイトリンク',
   'editor.add': '追加',

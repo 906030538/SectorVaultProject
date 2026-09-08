@@ -201,6 +201,8 @@ const zhHant: Record<MessageKey, string> = {
   'editor.slug': 'slug（日期-標題）',
   'editor.typeLabel': '投稿類型',
   'editor.titleLabel': '標題',
+  'editor.author': '作者（git 提交作者）',
+  'editor.email': '郵箱（git 提交作者郵箱）',
   'editor.titlePh': '輸入稿件標題',
   'editor.videos': '影片站連結',
   'editor.add': '新增',

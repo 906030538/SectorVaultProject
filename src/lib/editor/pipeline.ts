@@ -29,6 +29,10 @@ export interface SubmissionDraft {
   slug: string;
   type: SubmissionType;
   title: string;
+  /** git 提交作者名（缺省用令牌身份） */
+  author?: string;
+  /** git 提交作者邮箱 */
+  email?: string;
   params: ParamStatus;
   videos: string[];
   tracks: string[];
@@ -220,6 +224,12 @@ export async function licenseFileChange(
   return { path: `${POSTS_DIR}/${slug}/LICENSE`, content, encoding: 'utf-8' };
 }
 
+/** git 提交作者（草稿填写时）；未填写返回 undefined 用令牌身份 */
+function commitAuthor(draft: SubmissionDraft): { name: string; email?: string } | undefined {
+  if (!draft.author?.trim() && !draft.email?.trim()) return undefined;
+  return { name: draft.author?.trim() || draft.user, ...(draft.email?.trim() ? { email: draft.email.trim() } : {}) };
+}
+
 /** 由表单构造索引条目；编辑时 submittedAt/publishedAt 沿用原值 */
 export function buildIndexEntry(
   draft: SubmissionDraft,
@@ -242,6 +252,9 @@ export function buildIndexEntry(
   if (ids?.issue) base.issue = ids.issue;
   // 索引与本地归档中 release id 一律字符串（部分平台 id 超出 JS 安全整数）
   if (ids?.release) base.release = String(ids.release);
+  // 作者信息（git 提交作者；显示层缺省回退仓库用户）
+  if (draft.author?.trim()) base.author = draft.author.trim();
+  if (draft.email?.trim()) base.email = draft.email.trim();
   // 标签与稿件类型无关，均随索引提交
   const tags = draft.tags.filter(Boolean);
   if (tags.length) base.tags = tags;
@@ -693,7 +706,7 @@ export async function publishSubmission(
       if (licenseChange) changes.push(licenseChange);
       changes.push(await upsertRepoReadmeLink(await adapter(), user, repo, slug));
       changes.push(await upsertLocalArchive(await adapter(), user, repo, slug, entry));
-      await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes);
+      await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes, commitAuthor(draft));
     }
     progress.filesDone = true;
   });
@@ -725,7 +738,7 @@ export async function publishSubmission(
         ),
         encoding: 'utf-8',
       },
-    ]);
+    ], commitAuthor(draft));
     progress.releaseId = releaseId;
   });
 
@@ -794,7 +807,7 @@ export async function updateSubmission(
       changes.push(await fileChange(`${POSTS_DIR}/${slug}/${draft.cover.name}`, draft.cover, 'raw'));
     }
     if (changes.length && !mock) {
-      await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} cover`, changes);
+      await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} cover`, changes, commitAuthor(draft));
     }
   });
 
@@ -810,7 +823,7 @@ export async function updateSubmission(
     for (const f of newFiles) {
       changes.push(await fileChange(`${POSTS_DIR}/${slug}/${f.name}`, f.file!, f.scheme, f.password));
     }
-    if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} files`, changes);
+    if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} files`, changes, commitAuthor(draft));
   });
 
   // 发布时间编辑器可改（未改动时沿用原值）；投稿时间不变更
@@ -823,7 +836,7 @@ export async function updateSubmission(
     if (!mock) {
       await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} README`, [
         { path: `${POSTS_DIR}/${slug}/README.md`, content: readme, encoding: 'utf-8' },
-      ]);
+      ], commitAuthor(draft));
     }
   });
 
@@ -870,7 +883,7 @@ export async function updateSubmission(
     if (!mock) {
       try {
         const change = await upsertLocalArchive(await adapter(), user, repo, slug, updatedEntry);
-        await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} archive`, [change]);
+        await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} archive`, [change], commitAuthor(draft));
       } catch (error) {
         console.warn('[pipeline] 本地索引更新失败:', error);
       }

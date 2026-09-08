@@ -331,6 +331,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
     repo: string,
     message: string,
     changes: FileChange[],
+    author?: { name: string; email?: string },
   ): Promise<void> {
     const octokit = client(token);
     // refs API 在分支头被并发推进时报 "Update is not a fast forward"：
@@ -376,6 +377,10 @@ export class GitHubAdapter implements GitPlatformAdapter {
           message,
           tree: newTree.sha,
           parents: [baseCommit],
+          // git 提交作者（缺省用令牌身份）；接口要求 email，缺失时用平台 noreply 地址
+          ...(author?.name
+            ? { author: { name: author.name, email: author.email ?? `${author.name}@users.noreply.github.com` } }
+            : {}),
         });
         await octokit.rest.git.updateRef({
           owner: user,

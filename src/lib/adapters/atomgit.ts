@@ -319,7 +319,10 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     repo: string,
     message: string,
     changes: FileChange[],
+    author?: { name: string; email?: string },
   ): Promise<void> {
+    // v5 contents 接口不支持自定义提交作者，忽略 author 参数（以令牌身份提交）
+    void author;
     const base = `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/contents`;
     for (const change of changes) {
       const path = `${base}/${change.path}`;

@@ -39,6 +39,10 @@ export interface SubmissionEntry {
   repo: string;
   /** 稿件平台（继承自用户索引） */
   platform: Platform;
+  /** 稿件作者名（git 提交作者；缺省为仓库用户名） */
+  author?: string;
+  /** 稿件作者邮箱（git 提交作者邮箱） */
+  email?: string;
   type: SubmissionType;
   title: string;
   /** 封面链接（相对仓库路径或完整 URL） */

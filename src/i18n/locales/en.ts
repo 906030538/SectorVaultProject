@@ -202,6 +202,8 @@ const en: Record<MessageKey, string> = {
   'editor.slug': 'slug (date-title)',
   'editor.typeLabel': 'Submission type',
   'editor.titleLabel': 'Title',
+  'editor.author': 'Author (git commit author)',
+  'editor.email': 'Email (git commit author)',
   'editor.titlePh': 'Enter the submission title',
   'editor.videos': 'Video links',
   'editor.add': 'Add',

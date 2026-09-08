@@ -133,7 +133,7 @@ export interface DetailLabels {
 
 export interface DetailElements {
   title: HTMLElement;
-  /** 标题行操作位（投稿用户本人的编辑入口） */
+  /** 标题行操作位（投稿用户本人的编辑/删除入口） */
   actions: HTMLElement;
   date: HTMLElement;
   meta: HTMLElement;
@@ -143,7 +143,11 @@ export interface DetailElements {
   author: HTMLElement;
   files: HTMLElement;
   release: HTMLElement;
+  /** release 标题行的前往按钮 */
+  releaseGoto: HTMLAnchorElement;
   issues: HTMLElement;
+  /** 留言标题行的前往原 issue 按钮 */
+  issueGoto: HTMLAnchorElement;
 }
 
 export interface DetailInit {
@@ -368,10 +372,15 @@ function renderRelease(
 ): void {
   if (!release) return;
   const { user, repo, locale } = init;
+  // 前往 release 按钮挂到区块标题行右侧
+  els.releaseGoto.href = release.htmlUrl;
+  els.releaseGoto.textContent = `${labels.gotoRelease} ↗`;
+  els.releaseGoto.dataset.action = 'goto-release';
+  els.releaseGoto.classList.remove('hidden');
   const box = document.createElement('div');
   box.className = 'card p-4';
 
-  // 互动记录：emoji 计数 + 点赞按钮（在关联 release 上添加 👍，再点取消）+ 前往 release
+  // 互动记录：emoji 计数 + 点赞按钮（在关联 release 上添加 👍，再点取消）
   const interactions = document.createElement('div');
   interactions.className = 'flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400';
   interactions.dataset.role = 'interactions';
@@ -388,12 +397,7 @@ function renderRelease(
   const likeStatus = document.createElement('span');
   likeStatus.className = 'text-xs text-slate-400';
   likeStatus.dataset.role = 'like-status';
-  const goto = el('a', 'btn ml-auto px-2.5 py-1 text-xs', `${labels.gotoRelease} ↗`);
-  goto.href = release.htmlUrl;
-  goto.target = '_blank';
-  goto.rel = 'noopener';
-  goto.dataset.action = 'goto-release';
-  interactions.append(likeBtn, likeStatus, goto);
+  interactions.append(likeBtn, likeStatus);
   box.appendChild(interactions);
 
   // 当前用户已点过赞的 reaction id（取消点赞用）
@@ -602,7 +606,7 @@ function renderIssueComment(
     ),
   );
   if (actions?.deletable && comment.id > 0) {
-    const del = el('button', 'btn px-2 py-0.5 text-xs text-rose-600', actions.deleteLabel);
+    const del = el('button', 'btn ml-auto px-2 py-0.5 text-xs text-rose-600', actions.deleteLabel);
     del.type = 'button';
     del.dataset.action = 'delete-comment';
     del.addEventListener('click', () => {
@@ -636,6 +640,10 @@ function renderIssueComment(
   main.appendChild(head);
   const body = el('div', 'prose-svp mt-2 text-sm');
   body.innerHTML = DOMPurify.sanitize(marked.parse(comment.body, { async: false })) as string;
+  // 留言内容不保留跳转链接（保留其余排版）
+  for (const anchor of Array.from(body.querySelectorAll('a'))) {
+    anchor.replaceWith(document.createTextNode(anchor.textContent ?? ''));
+  }
   main.appendChild(body);
   item.append(avatar, main);
   return item;
@@ -668,7 +676,13 @@ async function renderIssueSection(
   const viewer = loadSessionBy(platform)?.login;
   const token = getToken(platform);
 
-  // 评论数 + 原 issue 链接（外层标题行，不再嵌套子标题）
+  // 前往原 issue 按钮挂到区块标题行右侧
+  els.issueGoto.href = issue.htmlUrl;
+  els.issueGoto.textContent = `${labels.viewIssue} ↗`;
+  els.issueGoto.dataset.action = 'goto-issue';
+  els.issueGoto.classList.remove('hidden');
+
+  // 评论数 + issue 链接（外层标题行，不再嵌套子标题）
   const head = document.createElement('p');
   head.className = 'flex flex-wrap items-center gap-2 text-sm';
   const link = document.createElement('a');
@@ -680,12 +694,6 @@ async function renderIssueSection(
   const count = el('span', 'text-xs text-slate-400');
   count.dataset.role = 'comment-count';
   head.append(link, count);
-  const original = el('a', 'btn ml-auto px-2.5 py-1 text-xs', `${labels.viewIssue} ↗`);
-  original.href = issue.htmlUrl;
-  original.target = '_blank';
-  original.rel = 'noopener';
-  original.dataset.action = 'goto-issue';
-  head.appendChild(original);
   box.appendChild(head);
 
   // 回复列表（API 加载）
@@ -1047,10 +1055,13 @@ function renderAuthor(
   const info = document.createElement('div');
   info.className = 'flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-sm';
 
+  // 展示名：索引记录的作者名，缺省回退仓库用户名
+  const displayName = entry.author?.trim() || entry.owner;
   const userLink = document.createElement('a');
   userLink.href = withBase(`/user/${entry.owner}`);
   userLink.className = 'font-medium hover:text-emerald-600 dark:hover:text-emerald-400';
-  userLink.textContent = entry.owner;
+  userLink.textContent = displayName;
+  if (displayName !== entry.owner) userLink.title = entry.owner;
   info.appendChild(userLink);
 
   // 仓库 badge（owner/repo | 平台）+ 收藏 badge（★ | 数量）

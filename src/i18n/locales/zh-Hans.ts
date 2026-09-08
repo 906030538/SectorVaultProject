@@ -199,6 +199,8 @@ const zhHans = {
   'editor.slug': 'slug（日期-标题）',
   'editor.typeLabel': '投稿类型',
   'editor.titleLabel': '标题',
+  'editor.author': '作者（git 提交作者）',
+  'editor.email': '邮箱（git 提交作者邮箱）',
   'editor.titlePh': '输入稿件标题',
   'editor.videos': '视频站链接',
   'editor.add': '添加',

@@ -128,13 +128,14 @@ export interface GitPlatformAdapter {
 
   // ---- 写操作（编辑器流程，需要登录态） ----
 
-  /** 批量提交文件到指定分支 */
+  /** 批量提交文件到指定分支；author 为 git 提交作者（缺省用令牌身份，部分平台忽略） */
   commitFiles(
     token: string,
     user: string,
     repo: string,
     message: string,
     changes: FileChange[],
+    author?: { name: string; email?: string },
   ): Promise<void>;
 
   /** 创建 issue，返回编号 */

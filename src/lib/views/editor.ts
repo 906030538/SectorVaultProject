@@ -3,7 +3,7 @@ import { marked } from 'marked';
 import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, SUPPORTED_PLATFORMS } from '@/config';
 import { withBase } from '@/lib/base';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
-import { getToken, loadSessionBy, saveSession, setToken } from '@/lib/auth';
+import { getToken, loadSession, loadSessionBy, saveSession, setToken } from '@/lib/auth';
 import { isMockAvailable, loadReleases, loadSubmissionContent, type ProjectFile } from '@/lib/content';
 import {
   defaultScheme,
@@ -32,6 +32,8 @@ export interface EditorLabels {
   slug: string;
   typeLabel: string;
   titleLabel: string;
+  author: string;
+  email: string;
   titlePh: string;
   videos: string;
   add: string;
@@ -125,6 +127,10 @@ interface EditorState {
   slug: string;
   type: SubmissionType;
   title: string;
+  /** git 提交作者名（默认登录用户） */
+  author: string;
+  /** git 提交作者邮箱 */
+  email: string;
   params: ParamStatus;
   lists: Record<ListKind, string[]>;
   body: string;
@@ -713,6 +719,8 @@ interface DraftSnapshot {
   slug: string;
   type: SubmissionType;
   title: string;
+  author: string;
+  email: string;
   params: ParamStatus;
   lists: Record<ListKind, string[]>;
   body: string;
@@ -736,6 +744,8 @@ function readDraft(): DraftSnapshot | null {
       slug: d.slug ?? '',
       type: d.type === 'article' ? 'article' : 'project',
       title: d.title ?? '',
+      author: d.author ?? '',
+      email: d.email ?? '',
       params: d.params ?? 'with-params',
       lists: {
         videos: d.lists?.videos ?? [],
@@ -838,6 +848,8 @@ function buildDraft(state: EditorState): SubmissionDraft {
     slug: state.slug,
     type: state.type,
     title: state.title,
+    author: state.author || undefined,
+    email: state.email || undefined,
     params: state.params,
     videos: state.lists.videos.filter(Boolean),
     tracks: state.lists.tracks.filter(Boolean),
@@ -901,6 +913,8 @@ export async function initEditor(
   const isEdit = config.mode === 'edit';
 
   // ---- 状态初始化 ----
+  // 作者默认登录用户（发布时作为 git 提交作者；可改）
+  const defaultAuthor = loadSession()?.name ?? loadSession()?.login ?? '';
   const state: EditorState = {
     user: config.user ?? '',
     repo: config.repo ?? '',
@@ -908,6 +922,8 @@ export async function initEditor(
     slug: config.slug ?? todaySlug(),
     type: 'project',
     title: '',
+    author: defaultAuthor,
+    email: '',
     params: 'with-params',
     lists: { videos: [], tracks: [], engines: [], voicebanks: [], songLanguages: [] },
     body: '',
@@ -1111,6 +1127,32 @@ export async function initEditor(
   titleBox.appendChild(titleInput);
   form.appendChild(titleBox);
 
+  // ---- 作者 / 邮箱（git 提交作者信息；作者默认登录用户） ----
+  const authorRow = el('div', 'flex flex-wrap gap-3');
+  const authorBox = el('div', 'flex min-w-40 flex-1 flex-col gap-1');
+  authorBox.appendChild(el('label', 'text-xs text-slate-500', labels.author));
+  const authorInput = el('input', 'input');
+  authorInput.value = state.author;
+  authorInput.placeholder = defaultAuthor;
+  authorInput.setAttribute('data-field', 'author');
+  authorInput.addEventListener('input', () => {
+    state.author = authorInput.value;
+  });
+  authorBox.appendChild(authorInput);
+  const emailBox = el('div', 'flex min-w-40 flex-1 flex-col gap-1');
+  emailBox.appendChild(el('label', 'text-xs text-slate-500', labels.email));
+  const emailInput = el('input', 'input');
+  emailInput.type = 'email';
+  emailInput.value = state.email;
+  emailInput.placeholder = 'name@example.com';
+  emailInput.setAttribute('data-field', 'email');
+  emailInput.addEventListener('input', () => {
+    state.email = emailInput.value;
+  });
+  emailBox.appendChild(emailInput);
+  authorRow.append(authorBox, emailBox);
+  form.appendChild(authorRow);
+
   // ---- 参数状态 + 发布时间（同一行；发布时间新建留空取发布点击时刻，编辑可修改） ----
   const paramsBox = el('div', 'flex flex-col gap-1');
   paramsBox.appendChild(el('label', 'text-xs text-slate-500', labels.params));
@@ -1261,6 +1303,15 @@ export async function initEditor(
     state.type = entry.type;
     state.title = entry.title;
     titleInput.value = entry.title;
+    // 作者信息回填（索引记录；缺省沿用登录用户默认值）
+    if (entry.author) {
+      state.author = entry.author;
+      authorInput.value = entry.author;
+    }
+    if (entry.email) {
+      state.email = entry.email;
+      emailInput.value = entry.email;
+    }
     state.params = entry.paramState ?? 'with-params';
     const radio = paramsRow.querySelector<HTMLInputElement>(`input[value="${state.params}"]`);
     if (radio) radio.checked = true;
@@ -1391,6 +1442,10 @@ export async function initEditor(
     if (!draft) return;
     titleInput.value = draft.title;
     slugInput.value = draft.slug;
+    authorInput.value = draft.author;
+    state.author = draft.author;
+    emailInput.value = draft.email;
+    state.email = draft.email;
     submittedAtInput.value = draft.submittedAt;
     publishedAtInput.value = draft.publishedAt;
     licenseSelect.value = draft.license;
@@ -1413,6 +1468,8 @@ export async function initEditor(
       slug: slugInput.value.trim(),
       type: state.type,
       title: state.title,
+      author: state.author,
+      email: state.email,
       params: state.params,
       lists: { ...state.lists },
       body: state.body,

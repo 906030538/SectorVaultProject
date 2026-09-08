@@ -15,7 +15,7 @@ const locale = DEFAULT_LOCALE;
     /* 集合详情或稿件详情：客户端按段数区分（2 段 = 集合，3 段起 = 稿件） */
   }
   <article class="mx-auto hidden w-full max-w-3xl lg:max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8" data-view-skeleton="detail">
-    <div class="min-w-0">
+    <div class="min-w-0 lg:row-start-1">
       <header>
         <div class="flex flex-wrap items-center gap-3">
           <h1 class="text-3xl font-bold" data-role="title"></h1>
@@ -35,17 +35,10 @@ const locale = DEFAULT_LOCALE;
         </h2>
         <div data-role="media"></div>
       </section>
-
-      <section class="mt-8">
-        <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.comments">
-          {t(locale, 'detail.comments')}
-        </h2>
-        <div data-role="issues"></div>
-      </section>
     </div>
 
     <!-- 右侧栏（宽屏）：作者 / 工程文件 / 关联 release；窄屏时依次排在主列之后 -->
-    <aside class="flex flex-col gap-6 lg:sticky lg:top-20">
+    <aside class="flex flex-col gap-6 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1">
       <section class="card flex items-center gap-3 p-4" data-role="author">
         <span class="text-sm text-slate-400" data-role="author-path"></span>
       </section>
@@ -58,12 +51,26 @@ const locale = DEFAULT_LOCALE;
       </section>
 
       <section class="mt-8 lg:mt-0">
-        <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.release">
-          {t(locale, 'detail.release')}
-        </h2>
+        <div class="mb-3 flex items-center gap-2">
+          <h2 class="text-lg font-semibold" data-i18n="detail.release">
+            {t(locale, 'detail.release')}
+          </h2>
+          <a class="btn ml-auto hidden px-2.5 py-1 text-xs" data-role="release-goto" target="_blank" rel="noopener"></a>
+        </div>
         <div data-role="release"></div>
       </section>
     </aside>
+
+    <!-- 留言区：宽屏回到左列（第二行），窄屏位于最底 -->
+    <section class="mt-8 lg:col-start-1 lg:row-start-2">
+      <div class="mb-3 flex items-center gap-2">
+        <h2 class="text-lg font-semibold" data-i18n="detail.comments">
+          {t(locale, 'detail.comments')}
+        </h2>
+        <a class="btn ml-auto hidden px-2.5 py-1 text-xs" data-role="issue-goto" target="_blank" rel="noopener"></a>
+      </div>
+      <div data-role="issues"></div>
+    </section>
   </article>
 
   <div class="hidden" data-view-skeleton="collection">
@@ -173,7 +180,9 @@ void (async () => {
             author: pick('author'),
             files: pick('files'),
             release: pick('release'),
+            releaseGoto: root.querySelector<HTMLAnchorElement>('[data-role="release-goto"]')!,
             issues: pick('issues'),
+            issueGoto: root.querySelector<HTMLAnchorElement>('[data-role="issue-goto"]')!,
           },
         });
       } else {

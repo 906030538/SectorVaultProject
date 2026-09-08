@@ -176,6 +176,8 @@ export function buildEditorLabels(locale: Locale): EditorLabels {
     slug: t(locale, 'editor.slug'),
     typeLabel: t(locale, 'editor.typeLabel'),
     titleLabel: t(locale, 'editor.titleLabel'),
+    author: t(locale, 'editor.author'),
+    email: t(locale, 'editor.email'),
     titlePh: t(locale, 'editor.titlePh'),
     videos: t(locale, 'editor.videos'),
     add: t(locale, 'editor.add'),

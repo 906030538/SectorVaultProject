@@ -53,7 +53,8 @@
       "release": "250831",                     // 关联 release 标签名（与 slug 同名），无则为 null
       "type": "project",              // project | article
       "paramState": "with-param",     // with-param | tuned | no-param
-      "songs": [], "engines": [], "voicebanks": [], "languages": []
+      "songs": [], "engines": [], "voicebanks": [], "languages": [],
+      "tags": ["合成器", "原创"]        // 标签，最多 10 个且不重复，正文后以按钮展示
     }
   ],
   "users": [

@@ -295,59 +295,76 @@ function renderFiles(
   ul.className = 'flex flex-col gap-2';
   for (const file of files) {
     const li = document.createElement('li');
-    // 长文件名（尤其加密文件带密码框）允许多行：名称不再截断，控件换行排布
+    // 行内布局：名称占满剩余宽度（超长自动换行），控件不挤占名称空间
     li.className = 'card flex flex-wrap items-center gap-x-3 gap-y-2 p-3';
 
-    const name = document.createElement('span');
-    name.className = 'min-w-0 flex-1 break-all font-mono text-sm';
-    name.textContent = file.name;
-    li.appendChild(name);
+    const status = document.createElement('span');
+    status.className = 'w-full text-xs text-slate-400';
+    status.dataset.role = 'file-status';
 
-    if (file.compressed) {
-      const badge = document.createElement('span');
-      badge.className = 'chip';
-      badge.textContent = labels.compressed;
-      li.appendChild(badge);
-    }
+    const startDownload = (btn: HTMLElement): void => {
+      btn.setAttribute('disabled', '');
+      status.textContent = '…';
+      const password = li.querySelector<HTMLInputElement>('[data-role="file-password"]')?.value;
+      void (async () => {
+        try {
+          await downloadProjectFile(init, platform, baseDir, file, password);
+          status.textContent = '✓';
+        } catch (error) {
+          status.textContent = error instanceof Error ? error.message : labels.loadError;
+        } finally {
+          btn.removeAttribute('disabled');
+        }
+      })();
+    };
+
     if (file.encrypted) {
+      // 加密文件：名称多行 + 密码框 + 解密按钮行内排布
+      const name = document.createElement('span');
+      name.className = 'min-w-0 flex-1 self-start break-all font-mono text-sm';
+      name.textContent = file.name;
+      li.appendChild(name);
+
       const badge = document.createElement('span');
       badge.className = 'chip text-rose-600 dark:text-rose-400';
       badge.textContent = labels.encrypted;
       li.appendChild(badge);
-    }
 
-    if (file.encrypted) {
       const input = document.createElement('input');
       input.type = 'password';
-      input.className = 'input w-32';
+      input.className = 'input w-28 shrink-0';
       input.placeholder = labels.password;
       input.dataset.role = 'file-password';
       li.appendChild(input);
-    }
 
-    const status = document.createElement('span');
-    status.className = 'text-xs text-slate-400';
-    status.dataset.role = 'file-status';
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn btn-primary';
-    btn.dataset.action = 'download-file';
-    btn.textContent = file.encrypted ? labels.decrypt : labels.download;
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      status.textContent = '…';
-      const password = li.querySelector<HTMLInputElement>('[data-role="file-password"]')?.value;
-      try {
-        await downloadProjectFile(init, platform, baseDir, file, password);
-        status.textContent = '✓';
-      } catch (error) {
-        status.textContent = error instanceof Error ? error.message : labels.loadError;
-      } finally {
-        btn.disabled = false;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-primary shrink-0';
+      btn.dataset.action = 'download-file';
+      btn.textContent = labels.decrypt;
+      btn.addEventListener('click', () => startDownload(btn));
+      li.appendChild(btn);
+    } else {
+      // 非加密文件：整个文件名框即下载按钮（无独立下载按钮）
+      const link = document.createElement('button');
+      link.type = 'button';
+      link.className =
+        'block min-w-0 flex-1 self-stretch break-all text-left font-mono text-sm hover:text-emerald-600 dark:hover:text-emerald-400';
+      link.dataset.action = 'download-file';
+      const nameRow = document.createElement('span');
+      nameRow.className = 'break-all';
+      nameRow.textContent = file.name;
+      link.appendChild(nameRow);
+      if (file.compressed) {
+        const badge = document.createElement('span');
+        badge.className = 'chip ml-2';
+        badge.textContent = labels.compressed;
+        link.appendChild(badge);
       }
-    });
-    li.append(btn, status);
+      link.addEventListener('click', () => startDownload(link));
+      li.appendChild(link);
+    }
+    li.appendChild(status);
     ul.appendChild(li);
   }
   els.files.appendChild(ul);

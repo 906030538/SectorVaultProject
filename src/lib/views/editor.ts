@@ -60,6 +60,7 @@ export interface EditorLabels {
   attachments: string;
   attachmentChoose: string;
   attachmentsGithubHint: string;
+  attachmentsGithubSummaryHint: string;
   summary: string;
   commentSection: string;
   submittedAt: string;
@@ -915,6 +916,9 @@ export async function initEditor(
   // ---- 状态初始化 ----
   // 作者默认登录用户（发布时作为 git 提交作者；可改）
   const defaultAuthor = loadSession()?.name ?? loadSession()?.login ?? '';
+  // 平台切换时需要同步的提示元素回调（发布简介后的 GitHub 附件指引等）
+  const summaryHintSyncs: Array<() => void> = [];
+
   const state: EditorState = {
     user: config.user ?? '',
     repo: config.repo ?? '',
@@ -1031,6 +1035,7 @@ export async function initEditor(
       config.user = match.user;
       config.repo = match.repo;
       syncAttachmentVisibility();
+      for (const sync of summaryHintSyncs) sync();
     }
   };
   repoSelect.addEventListener('change', applyRepoSelection);
@@ -1231,7 +1236,23 @@ export async function initEditor(
   form.appendChild(licenseBox);
 
   // 发布简介（仅新建：随 release 正文发布）
-  if (!isEdit) form.appendChild(renderSummaryControl(labels, state));
+  // 新建模式：GitHub 时在发布简介后追加附件上传指引
+  if (!isEdit) {
+    const summaryBox = renderSummaryControl(labels, state);
+    form.appendChild(summaryBox);
+    const summaryHint = el(
+      'p',
+      'hidden text-xs text-amber-600 dark:text-amber-400',
+      labels.attachmentsGithubSummaryHint,
+    );
+    summaryHint.dataset.role = 'attachments-summary-hint';
+    summaryBox.appendChild(summaryHint);
+    const syncSummaryHint = (): void => {
+      summaryHint.hidden = state.platform !== 'github';
+    };
+    summaryHintSyncs.push(syncSummaryHint);
+    syncSummaryHint();
+  }
 
   const { box: attachmentControl, refresh: refreshAttachments } = renderAttachmentControl(
     labels,
@@ -1239,7 +1260,8 @@ export async function initEditor(
     () => oldAssets,
   );
   form.appendChild(attachmentControl);
-  // GitHub 上传域不支持浏览器跨域：新建模式隐藏附件控件，以文本提示代替
+  // GitHub 上传域不支持浏览器跨域：隐藏附件上传控件，以文本提示代替
+  // （新建提示随发布简介，编辑提示在附件区）
   const attachmentHint = el(
     'p',
     'hidden rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950 dark:text-amber-300',
@@ -1248,7 +1270,7 @@ export async function initEditor(
   attachmentHint.dataset.role = 'attachments-hint';
   form.insertBefore(attachmentHint, attachmentControl);
   const syncAttachmentVisibility = (): void => {
-    const hide = !isEdit && state.platform === 'github';
+    const hide = state.platform === 'github';
     attachmentControl.hidden = hide;
     attachmentHint.hidden = !hide;
   };

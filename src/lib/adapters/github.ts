@@ -437,8 +437,9 @@ export class GitHubAdapter implements GitPlatformAdapter {
         return;
       } catch (error) {
         const text = error instanceof Error ? error.message : String(error);
-        if (attempt >= 2 || !/not a fast forward/i.test(text)) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+        // 分支头被并发推进时递增退避重试（0.8s/1.6s/2.4s/3.2s）
+        if (attempt >= 4 || !/not a fast forward/i.test(text)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
       }
     }
   }

@@ -361,8 +361,9 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
           break;
         } catch (error) {
           const message_ = error instanceof Error ? error.message : String(error);
-          if (attempt >= 2 || !/fast forward/i.test(message_)) throw error;
-          await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+          // 读后写延迟可达数秒：5 次递增退避（0.8s/1.6s/2.4s/3.2s/4s）
+          if (attempt >= 5 || !/fast forward/i.test(message_)) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
         }
       }
     }

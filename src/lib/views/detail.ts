@@ -12,6 +12,7 @@ import {
   type ProjectFile,
 } from '@/lib/content';
 import { findEntry, forgetSubmissionFromCache } from '@/lib/index/loader';
+import { storedProjectFileName } from '@/lib/editor/pipeline';
 import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { getToken, loadSessionBy } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
@@ -251,7 +252,8 @@ async function downloadProjectFile(
   if (mock) {
     bytes = mockFileBytes(file);
   } else {
-    const url = (await getAdapterAsync(platform)).rawUrl(user, repo, `${baseDir}/${file.name}`);
+    // 物理存储名：压缩/加密文件带 .zip 后缀（显示名保持原名）
+    const url = (await getAdapterAsync(platform)).rawUrl(user, repo, `${baseDir}/${storedProjectFileName(file)}`);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     bytes = new Uint8Array(await response.arrayBuffer());

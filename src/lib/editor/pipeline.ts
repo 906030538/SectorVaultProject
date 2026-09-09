@@ -86,6 +86,16 @@ async function runStep(
   onStep(id, 'done');
 }
 
+/** 工程文件的物理存储名：压缩/加密方案入库时附加 .zip 后缀，显示名保持原名 */
+export function storedProjectFileName(file: {
+  name: string;
+  compressed?: boolean;
+  encrypted?: boolean;
+}): string {
+  if (!(file.compressed || file.encrypted)) return file.name;
+  return file.name.endsWith('.zip') ? file.name : `${file.name}.zip`;
+}
+
 export function draftFilesToProjectFiles(files: EditorFile[]): ProjectFile[] {
   return files.map((f) => {
     if (f.existing) return { name: f.name, compressed: f.existing.compressed, encrypted: f.existing.encrypted };
@@ -689,7 +699,12 @@ export async function publishSubmission(
     }
     for (const f of draft.files) {
       if (!f.file) continue;
-      changes.push(await fileChange(`${POSTS_DIR}/${slug}/${f.name}`, f.file, f.scheme, f.password));
+      const stored = storedProjectFileName({
+        name: f.name,
+        compressed: f.scheme === 'zip',
+        encrypted: f.scheme === 'encrypt',
+      });
+      changes.push(await fileChange(`${POSTS_DIR}/${slug}/${stored}`, f.file, f.scheme, f.password));
     }
     changes.push({
       path: `${POSTS_DIR}/${slug}/README.md`,
@@ -815,13 +830,17 @@ export async function updateSubmission(
   const newFiles = draft.files.filter((f) => f.file !== null);
   await runStep('files', mock, onStep, async () => {
     if (!removedFiles.length && !newFiles.length) return;
+    // 删除按物理存储名（压缩/加密文件带 .zip 后缀）
     const changes: FileChange[] = removedFiles.map((of) => ({
-      path: `${POSTS_DIR}/${slug}/${of.name}`,
+      path: `${POSTS_DIR}/${slug}/${storedProjectFileName(of)}`,
       content: '',
       delete: true,
     }));
     for (const f of newFiles) {
-      changes.push(await fileChange(`${POSTS_DIR}/${slug}/${f.name}`, f.file!, f.scheme, f.password));
+      const stored = f.existing
+        ? storedProjectFileName({ name: f.name, compressed: f.existing.compressed, encrypted: f.existing.encrypted })
+        : storedProjectFileName({ name: f.name, compressed: f.scheme === 'zip', encrypted: f.scheme === 'encrypt' });
+      changes.push(await fileChange(`${POSTS_DIR}/${slug}/${stored}`, f.file!, f.scheme, f.password));
     }
     if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} files`, changes, commitAuthor(draft));
   });

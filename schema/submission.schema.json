@@ -50,8 +50,8 @@
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T[\\d:.]+(Z|[+-]\\d{2}:?\\d{2})$"
     },
     "issue": {
-      "type": "integer",
-      "minimum": 1
+      "type": "string",
+      "pattern": "^[0-9]+$"
     },
     "release": {
       "type": [

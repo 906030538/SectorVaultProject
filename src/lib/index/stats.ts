@@ -8,7 +8,7 @@ function key(entry: SubmissionEntry): string {
   return `${entry.platform}:${entry.owner}/${entry.repo}#${entry.slug}`;
 }
 
-/** 通过关联的 issue 与 release 统计评论数和点赞数 */
+/** 通过关联 issue 统计评论数和点赞数（点赞 = issue 👍 表情数量） */
 export async function fetchEngagement(
   adapter: GitPlatformAdapter,
   entry: SubmissionEntry,
@@ -16,17 +16,22 @@ export async function fetchEngagement(
   const cached = engagementCache.get(key(entry));
   if (cached) return cached;
 
-  const [issues, releases] = await Promise.all([
-    adapter.listIssues(entry.owner, entry.repo).catch(() => []),
-    adapter.listReleases(entry.owner, entry.repo).catch(() => []),
-  ]);
+  const issues = await adapter.listIssues(entry.owner, entry.repo).catch(() => []);
 
   // issue 标题使用 slug：按 slug 关联留言
   const issue = issues.find((i) => i.title === entry.slug);
-  const release = releases.find((r) => r.tag === entry.slug);
+  let reactions = 0;
+  if (issue) {
+    try {
+      const list = await adapter.listIssueReactions(entry.owner, entry.repo, issue.number);
+      reactions = list.filter((r) => r.content === '+1').length;
+    } catch {
+      /* 平台不支持 issue 表情时点赞数为 0 */
+    }
+  }
   const stats: EngagementStats = {
     comments: issue?.comments ?? 0,
-    reactions: release?.reactions ?? 0,
+    reactions,
   };
   engagementCache.set(key(entry), stats);
   return stats;

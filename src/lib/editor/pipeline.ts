@@ -246,7 +246,7 @@ export function buildIndexEntry(
   date: string,
   cover?: string,
   publishedAt?: string,
-  ids?: { issue?: number; release?: number },
+  ids?: { issue?: number | string; release?: number },
 ): SubmissionEntry {
   const base: SubmissionEntry = {
     slug: draft.slug,
@@ -259,7 +259,8 @@ export function buildIndexEntry(
     publishedAt: publishedAt ?? date,
   };
   if (cover) base.cover = cover;
-  if (ids?.issue) base.issue = ids.issue;
+  if (ids?.issue !== undefined && ids?.issue !== null && ids.issue !== '')
+    base.issue = String(ids.issue);
   // 索引与本地归档中 release id 一律字符串（部分平台 id 超出 JS 安全整数）
   if (ids?.release) base.release = String(ids.release);
   // 作者信息（git 提交作者；显示层缺省回退仓库用户）
@@ -518,7 +519,7 @@ export interface PublishProgress {
   user?: string;
   repo?: string;
   slug?: string;
-  issue?: number;
+  issue?: number | string;
   filesDone?: boolean;
   releaseId?: number;
   assetsDone?: boolean;
@@ -640,9 +641,9 @@ export async function publishSubmission(
   mock: boolean,
   onStep: OnStep,
   progress: PublishProgress = {},
-): Promise<{ issue: number; releaseId: number }> {
+): Promise<{ issue: number | string; releaseId: number }> {
   const { user, repo, slug } = draft;
-  let issue = progress.issue ?? 0;
+  let issue: number | string = progress.issue ?? 0;
   let releaseId = progress.releaseId ?? 0;
   // 投稿/发布时间缺省取发布点击时刻（投稿时间可由编辑器指定，决定归档月份与 slug 日期）
   const now = new Date().toISOString();
@@ -783,7 +784,7 @@ export async function publishSubmission(
     // 复用本地索引已写入的条目，保证重试时时间戳一致；ids 取当前进度补全
     const entryForIndex = {
       ...entry,
-      issue: progress.issue ?? undefined,
+      issue: progress.issue !== undefined ? String(progress.issue) : undefined,
       release: progress.releaseId !== undefined ? String(progress.releaseId) : undefined,
     };
     await tryIndexPr(token, mock, entryForIndex, onStep);
@@ -848,7 +849,7 @@ export async function updateSubmission(
     !sameList(draft.songLanguages, entry.languages);
   const updatedEntry = indexChanged
     ? buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt, {
-        issue: Number(ctx.issue) || undefined,
+        issue: ctx.issue || undefined,
         release: ctx.releaseId ?? undefined,
       })
     : null;

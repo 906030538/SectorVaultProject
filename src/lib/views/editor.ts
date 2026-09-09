@@ -1188,22 +1188,10 @@ export async function initEditor(
   });
   publishedAtBox.appendChild(publishedAtInput);
 
-  // 关联评论区：默认勾选；不勾选则发布时不创建 issue
-  const commentBox = el('div', 'flex flex-col gap-1');
-  commentBox.appendChild(el('label', 'text-xs text-slate-500', labels.commentSection));
-  const commentRow = el('label', 'mt-1 flex items-center gap-1.5 text-sm');
-  const commentCheck = el('input');
-  commentCheck.type = 'checkbox';
-  commentCheck.checked = state.createIssue;
-  commentCheck.setAttribute('data-field', 'comments');
-  commentCheck.addEventListener('change', () => {
-    state.createIssue = commentCheck.checked;
-  });
-  commentRow.appendChild(commentCheck);
-  commentBox.appendChild(commentRow);
+  // 发布总是创建关联 issue（评论区固定启用，不再提供开关）
 
   const metaRow = el('div', 'flex flex-wrap items-end gap-3');
-  metaRow.append(paramsBox, publishedAtBox, commentBox);
+  metaRow.append(paramsBox, publishedAtBox);
   form.appendChild(metaRow);
 
   // ---- 工程专属区块（article 时隐藏；paramsBox 已随 metaRow 挂载，仅参与隐藏切换） ----
@@ -1454,7 +1442,6 @@ export async function initEditor(
     const bodyArea = form.querySelector<HTMLTextAreaElement>('[data-field="body"]');
     if (bodyArea) bodyArea.value = draft.body;
     setType(draft.type);
-    commentCheck.checked = draft.createIssue;
     refreshTags();
     slugInput.placeholder = slugFallback();
     pendingRepoChoice = `${draft.user}/${draft.repo}`;

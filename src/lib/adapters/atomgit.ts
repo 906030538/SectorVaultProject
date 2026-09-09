@@ -5,6 +5,7 @@ import type {
   DiscussionInfo,
   FileInfo,
   IssueCommentInfo,
+  IssueReactionInfo,
   ReleaseReactionInfo,
   IssueInfo,
   Platform,
@@ -212,7 +213,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       query: { state: 'open' },
     });
     return (issues ?? []).map((i) => ({
-      number: Number(i.number),
+      number: typeof i.number === 'number' ? i.number : String(i.number),
       title: i.title,
       htmlUrl: i.html_url ?? `${this.webBase}/${user}/${repo}/issues/${i.number}`,
       comments: i.comments ?? 0,
@@ -259,7 +260,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   async listIssueComments(
     user: string,
     repo: string,
-    issueNumber: number,
+    issueNumber: number | string,
   ): Promise<IssueCommentInfo[]> {
     const comments = await this.request<Array<{
       id?: number;
@@ -283,7 +284,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     token: string,
     user: string,
     repo: string,
-    issueNumber: number,
+    issueNumber: number | string,
     body: string,
   ): Promise<IssueCommentInfo | null> {
     const created = await this.request<{
@@ -375,12 +376,13 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     repo: string,
     title: string,
     body: string,
-  ): Promise<number> {
+  ): Promise<number | string> {
     const data = await this.request<{ number: number | string }>(
       `/repos/${encodeURIComponent(user)}/issues`,
       { method: 'POST', token, body: { repo, title, body } },
     );
-    return Number(data.number);
+    // gitee 的 issue 标识为字母数字串（如 IKEK7U），保留字符串
+    return typeof data.number === 'number' ? data.number : String(data.number);
   }
 
   async createRelease(
@@ -400,6 +402,19 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   // v5 系平台暂无公开的 release 表情互动 API
   async listReleaseReactions(): Promise<ReleaseReactionInfo[]> {
     return [];
+  }
+
+  async listIssueReactions(): Promise<IssueReactionInfo[]> {
+    // gitee/atomgit 无 issue 表情 API（实测 /issues/{n}/reactions 404，issue 字段也无 emoji）
+    return [];
+  }
+
+  async createIssueReaction(): Promise<number | null> {
+    throw new Error('AtomGit/GitCode/Gitee do not support issue reactions yet');
+  }
+
+  async deleteIssueReaction(): Promise<void> {
+    throw new Error('AtomGit/GitCode/Gitee do not support issue reactions yet');
   }
 
   async createReleaseReaction(): Promise<number | null> {

@@ -53,8 +53,8 @@ export interface SubmissionEntry {
   publishedAt?: string;
   /** 有无参数 */
   paramState?: ParamStatus;
-  /** 关联评论区 issue 编号（未创建时缺省） */
-  issue?: number;
+  /** 关联评论区 issue 编号（字符串：gitee 标识为字母数字串；未创建时缺省） */
+  issue?: string;
   /** 关联 release id（字符串存储：gitee 等平台 id 超出 JS 安全整数范围；未创建时缺省） */
   release?: string;
   /** 关联曲目（多值） */
@@ -131,12 +131,16 @@ export interface ReleaseInfo {
 }
 
 /** Release 表情互动条目 */
-export interface ReleaseReactionInfo {
+/** 表情互动条目（issue / release 共用） */
+export interface ReactionInfo {
   id: number;
   /** 表情类型（+1 / -1 / laugh / confused / heart / hooray / rocket / eyes） */
   content: string;
   user?: string;
 }
+
+export type ReleaseReactionInfo = ReactionInfo;
+export type IssueReactionInfo = ReactionInfo;
 
 export interface ReleaseAsset {
   /** 平台侧附件 id；mock 数据可缺省 */
@@ -148,7 +152,8 @@ export interface ReleaseAsset {
 
 /** Issue 信息 */
 export interface IssueInfo {
-  number: number;
+  /** issue 编号（GitHub 数字；gitee/atomgit 可能为字母数字串） */
+  number: number | string;
   title: string;
   htmlUrl: string;
   comments: number;

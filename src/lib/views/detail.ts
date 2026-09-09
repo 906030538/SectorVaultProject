@@ -18,10 +18,9 @@ import { getToken, loadSessionBy } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
 import { normalizeLocale, type Locale } from '@/i18n';
-import type { ReleaseReactionInfo } from '@/types';
 import { applyCover, badgeSvg, isRateLimitError, setAvatar, showApiLimitNotice } from '@/lib/ui';
 import { withBase } from '@/lib/base';
-import type { IssueCommentInfo, IssueInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
+import type { IssueCommentInfo, IssueInfo, IssueReactionInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -373,7 +372,6 @@ function renderRelease(
   els: DetailElements,
 ): void {
   if (!release) return;
-  const { user, repo, locale } = init;
   // 前往 release 按钮挂到区块标题行右侧
   els.releaseGoto.href = release.htmlUrl;
   els.releaseGoto.textContent = `${labels.gotoRelease} ↗`;
@@ -382,109 +380,9 @@ function renderRelease(
   const box = document.createElement('div');
   box.className = 'card p-4';
 
-  // 互动记录：emoji 计数 + 点赞按钮（在关联 release 上添加 👍，再点取消）
-  const interactions = document.createElement('div');
-  interactions.className = 'flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400';
-  interactions.dataset.role = 'interactions';
-  interactions.appendChild(document.createTextNode(`${labels.interactions}:`));
-  const chips = document.createElement('span');
-  chips.className = 'flex flex-wrap items-center gap-1.5';
-  chips.dataset.role = 'reaction-chips';
-  interactions.appendChild(chips);
-  const likeBtn = document.createElement('button');
-  likeBtn.type = 'button';
-  likeBtn.className = 'btn px-2.5 py-1 text-xs';
-  likeBtn.dataset.action = 'like-release';
-  likeBtn.textContent = `👍 ${labels.like}`;
-  const likeStatus = document.createElement('span');
-  likeStatus.className = 'text-xs text-slate-400';
-  likeStatus.dataset.role = 'like-status';
-  interactions.append(likeBtn, likeStatus);
-  box.appendChild(interactions);
-
-  // 当前用户已点过赞的 reaction id（取消点赞用）
-  let myReactionId: number | null = null;
-  /** 本地维护的计数（CDN 缓存导致变更后立即重列可能读到旧值，乐观增减） */
-  const groups = new Map<string, number>();
-  const renderChips = (): void => {
-    chips.textContent = '';
-    if (groups.size > 0) {
-      for (const [content, count] of groups) {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.dataset.reaction = content;
-        chip.textContent = `${REACTION_EMOJI[content] ?? content} ${count}`;
-        chips.appendChild(chip);
-      }
-    } else if (release.reactions > 0) {
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.textContent = `👍 ${release.reactions}`;
-      chips.appendChild(chip);
-    } else {
-      chips.appendChild(document.createTextNode('–'));
-    }
-  };
-  const adjustReaction = (content: string, delta: number): void => {
-    const next = (groups.get(content) ?? 0) + delta;
-    if (next > 0) groups.set(content, next);
-    else groups.delete(content);
-    renderChips();
-  };
-  const refresh = async (): Promise<void> => {
-    let reactions: ReleaseReactionInfo[] = [];
-    try {
-      const adapter = await getAdapterAsync(platform);
-      reactions = await adapter.listReleaseReactions(user, repo, release.id);
-    } catch {
-      /* 平台不支持或读取失败时回退 release 汇总计数 */
-    }
-    groups.clear();
-    for (const reaction of reactions) {
-      groups.set(reaction.content, (groups.get(reaction.content) ?? 0) + 1);
-    }
-    renderChips();
-    const viewer = loadSessionBy(platform)?.login;
-    const mine = reactions.find((r) => r.user === viewer && r.content === '+1');
-    myReactionId = mine?.id ?? null;
-    likeBtn.textContent = `👍 ${mine ? labels.liked : labels.like}`;
-  };
-  void refresh();
-
-  likeBtn.addEventListener('click', () => {
-    void (async () => {
-      const token = getToken(platform);
-      if (!token) {
-        void openAuthDialog(buildAuthLabels(normalizeLocale(locale) as Locale));
-        return;
-      }
-      likeBtn.disabled = true;
-      likeStatus.textContent = '…';
-      try {
-        const adapter = await getAdapterAsync(platform);
-        // 已点赞则取消，否则点赞；变更后乐观更新（平台 CDN 有读缓存，立即重列可能读到旧值）
-        if (myReactionId !== null) {
-          await adapter.deleteReleaseReaction(token, user, repo, release.id, myReactionId);
-          myReactionId = null;
-          adjustReaction('+1', -1);
-          likeBtn.textContent = `👍 ${labels.like}`;
-        } else {
-          myReactionId = await adapter.createReleaseReaction(token, user, repo, release.id);
-          adjustReaction('+1', 1);
-          likeBtn.textContent = `👍 ${labels.liked}`;
-        }
-        likeStatus.textContent = '';
-      } catch (error) {
-        likeStatus.textContent = error instanceof Error ? error.message.slice(0, 60) : labels.loadError;
-      } finally {
-        likeBtn.disabled = false;
-      }
-    })();
-  });
-
   if (release.assets.length > 0) {
     const assetTitle = document.createElement('p');
-    assetTitle.className = 'mt-3 text-sm font-medium';
+    assetTitle.className = 'text-sm font-medium';
     assetTitle.textContent = labels.attachments;
     box.appendChild(assetTitle);
     const ul = document.createElement('ul');
@@ -684,7 +582,8 @@ async function renderIssueSection(
   els.issueGoto.dataset.action = 'goto-issue';
   els.issueGoto.classList.remove('hidden');
 
-  // 评论数 + issue 链接（外层标题行，不再嵌套子标题）
+  // 评论数 + issue 链接 + 点赞（外层标题行，不再嵌套子标题）
+  // 点赞 = 关联 issue 的 👍 表情（gitee/atomgit 无 release 交互，统一走 issue）
   const head = document.createElement('p');
   head.className = 'flex flex-wrap items-center gap-2 text-sm';
   const link = document.createElement('a');
@@ -695,8 +594,69 @@ async function renderIssueSection(
   link.textContent = `#${issue.number} ${issue.title}`;
   const count = el('span', 'text-xs text-slate-400');
   count.dataset.role = 'comment-count';
-  head.append(link, count);
+  const likeChip = el('span', 'chip');
+  likeChip.dataset.role = 'like-count';
+  likeChip.textContent = '👍 …';
+  const likeBtn = el('button', 'btn px-2.5 py-1 text-xs');
+  likeBtn.type = 'button';
+  likeBtn.dataset.action = 'like-issue';
+  likeBtn.textContent = `👍 ${labels.like}`;
+  const likeStatus = el('span', 'text-xs text-slate-400');
+  likeStatus.dataset.role = 'like-status';
+  head.append(link, count, likeChip, likeBtn, likeStatus);
   box.appendChild(head);
+
+  // 当前用户已点过赞的 reaction id（取消点赞用）
+  let myReactionId: number | null = null;
+  let likeCount = 0;
+  const renderLikeCount = (): void => {
+    likeChip.textContent = `👍 ${likeCount}`;
+  };
+  const refreshLikes = async (): Promise<void> => {
+    let reactions: IssueReactionInfo[] = [];
+    try {
+      reactions = await adapter.listIssueReactions(user, repo, issue.number);
+    } catch {
+      /* 平台不支持 issue 表情时保持 0 */
+    }
+    likeCount = reactions.filter((r) => r.content === '+1').length;
+    renderLikeCount();
+    const mine = reactions.find((r) => r.user === viewer && r.content === '+1');
+    myReactionId = mine?.id ?? null;
+    likeBtn.textContent = `👍 ${mine ? labels.liked : labels.like}`;
+  };
+  void refreshLikes();
+
+  likeBtn.addEventListener('click', () => {
+    void (async () => {
+      const token = getToken(platform);
+      if (!token) {
+        void openAuthDialog(buildAuthLabels(normalizeLocale(locale) as Locale));
+        return;
+      }
+      likeBtn.disabled = true;
+      likeStatus.textContent = '…';
+      try {
+        // 已点赞则取消，否则点赞；变更后乐观更新（平台 CDN 有读缓存，立即重列可能读到旧值）
+        if (myReactionId !== null) {
+          await adapter.deleteIssueReaction(token, user, repo, issue.number, myReactionId);
+          myReactionId = null;
+          likeCount = Math.max(0, likeCount - 1);
+          likeBtn.textContent = `👍 ${labels.like}`;
+        } else {
+          myReactionId = await adapter.createIssueReaction(token, user, repo, issue.number);
+          likeCount += 1;
+          likeBtn.textContent = `👍 ${labels.liked}`;
+        }
+        renderLikeCount();
+        likeStatus.textContent = '';
+      } catch (error) {
+        likeStatus.textContent = error instanceof Error ? error.message.slice(0, 60) : labels.loadError;
+      } finally {
+        likeBtn.disabled = false;
+      }
+    })();
+  });
 
   // 回复列表（API 加载）
   const list = el('div', 'mt-3 flex flex-col gap-2');

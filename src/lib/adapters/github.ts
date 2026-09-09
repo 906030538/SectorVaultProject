@@ -6,6 +6,7 @@ import type {
   DiscussionInfo,
   FileInfo,
   IssueCommentInfo,
+  IssueReactionInfo,
   ReleaseReactionInfo,
   IssueInfo,
   ReleaseInfo,
@@ -185,12 +186,12 @@ export class GitHubAdapter implements GitPlatformAdapter {
   async listIssueComments(
     user: string,
     repo: string,
-    issueNumber: number,
+    issueNumber: number | string,
   ): Promise<IssueCommentInfo[]> {
     const { data } = await autoClient().rest.issues.listComments({
       owner: user,
       repo,
-      issue_number: issueNumber,
+      issue_number: Number(issueNumber),
       per_page: 100,
     });
     return (Array.isArray(data) ? data : []).map((c) => ({
@@ -208,13 +209,13 @@ export class GitHubAdapter implements GitPlatformAdapter {
     token: string,
     user: string,
     repo: string,
-    issueNumber: number,
+    issueNumber: number | string,
     body: string,
   ): Promise<IssueCommentInfo | null> {
     const { data } = await client(token).rest.issues.createComment({
       owner: user,
       repo,
-      issue_number: issueNumber,
+      issue_number: Number(issueNumber),
       body,
     });
     return {
@@ -450,7 +451,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
     repo: string,
     title: string,
     body: string,
-  ): Promise<number> {
+  ): Promise<number | string> {
     const { data } = await client(token).rest.issues.create({
       owner: user,
       repo,
@@ -515,6 +516,49 @@ export class GitHubAdapter implements GitPlatformAdapter {
       { owner: user, repo, release_id: releaseId, content: '+1' },
     )) as { data: { id: number } };
     return data?.id ?? null;
+  }
+
+  async listIssueReactions(
+    user: string,
+    repo: string,
+    issueNumber: number | string,
+  ): Promise<IssueReactionInfo[]> {
+    const { data } = await autoClient().request(
+      'GET /repos/{owner}/{repo}/issues/{issue_number}/reactions',
+      { owner: user, repo, issue_number: Number(issueNumber), per_page: 100 },
+    );
+    const items = Array.isArray(data)
+      ? (data as Array<{ id: number; content: string; user?: { login: string } | null }>)
+      : [];
+    return items.map((r) => ({ id: r.id, content: r.content, user: r.user?.login }));
+  }
+
+  async createIssueReaction(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number | string,
+  ): Promise<number | null> {
+    // 已添加过时平台返回 200（幂等）
+    const { data } = (await client(token).request(
+      'POST /repos/{owner}/{repo}/issues/{issue_number}/reactions',
+      { owner: user, repo, issue_number: Number(issueNumber), content: '+1' },
+    )) as { data: { id: number } };
+    return data?.id ?? null;
+  }
+
+  async deleteIssueReaction(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number | string,
+    reactionId: number,
+  ): Promise<void> {
+    // issue 表情的删除端点嵌套在 issue 下（非 /issues/reactions/{id}）
+    await client(token).request(
+      'DELETE /repos/{owner}/{repo}/issues/{issue_number}/reactions/{reaction_id}',
+      { owner: user, repo, issue_number: Number(issueNumber), reaction_id: reactionId },
+    );
   }
 
   async deleteReleaseReaction(

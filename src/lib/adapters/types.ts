@@ -1,6 +1,7 @@
 import type {
   AuthInfo,
   DiscussionCategoryInfo,
+  IssueReactionInfo,
   DiscussionComment,
   DiscussionInfo,
   FileInfo,
@@ -85,14 +86,14 @@ export interface GitPlatformAdapter {
   listIssues(user: string, repo: string): Promise<IssueInfo[]>;
 
   /** issue 评论列表 */
-  listIssueComments(user: string, repo: string, issueNumber: number): Promise<IssueCommentInfo[]>;
+  listIssueComments(user: string, repo: string, issueNumber: number | string): Promise<IssueCommentInfo[]>;
 
   /** 向 issue 添加评论（需登录且与稿件同平台）；返回创建的评论（本地追加显示用） */
   createIssueComment(
     token: string,
     user: string,
     repo: string,
-    issueNumber: number,
+    issueNumber: number | string,
     body: string,
   ): Promise<IssueCommentInfo | null>;
 
@@ -152,8 +153,8 @@ export interface GitPlatformAdapter {
     author?: { name: string; email?: string },
   ): Promise<void>;
 
-  /** 创建 issue，返回编号 */
-  createIssue(token: string, user: string, repo: string, title: string, body: string): Promise<number>;
+  /** 创建 issue，返回编号（GitHub 数字；gitee 等为字母数字串） */
+  createIssue(token: string, user: string, repo: string, title: string, body: string): Promise<number | string>;
 
   /** 对最新提交创建 release，返回 release id */
   createRelease(
@@ -172,6 +173,21 @@ export interface GitPlatformAdapter {
 
   /** 在 release 上添加 👍 互动（需登录且与稿件同平台）；返回 reaction id（取消用，不可得时 null） */
   createReleaseReaction(token: string, user: string, repo: string, releaseId: number): Promise<number | null>;
+
+  /** issue 表情互动列表（点赞计数用；平台不支持时返回空数组） */
+  listIssueReactions(user: string, repo: string, issueNumber: number | string): Promise<IssueReactionInfo[]>;
+
+  /** 在 issue 上添加 👍 互动（需登录且与稿件同平台）；返回 reaction id（取消用，不可得时 null） */
+  createIssueReaction(token: string, user: string, repo: string, issueNumber: number | string): Promise<number | null>;
+
+  /** 删除 issue 表情互动（取消点赞） */
+  deleteIssueReaction(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number | string,
+    reactionId: number,
+  ): Promise<void>;
 
   /** 删除 release 表情互动（取消点赞；平台不支持时抛错） */
   deleteReleaseReaction(

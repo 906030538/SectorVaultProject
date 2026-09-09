@@ -88,7 +88,7 @@ const ja: Record<MessageKey, string> = {
 
   'detail.media': 'リポジトリメディア',
   'detail.files': 'プロジェクトファイル',
-  'detail.release': '関連 Release',
+  'detail.release': '添付ファイル',
   'detail.comments': 'コメント',
   'detail.download': 'ダウンロード',
   'detail.decrypt': '復号してダウンロード',

@@ -86,7 +86,7 @@ const zhHans = {
 
   'detail.media': '仓库媒体',
   'detail.files': '工程文件',
-  'detail.release': '关联 Release',
+  'detail.release': '附件',
   'detail.comments': '留言',
   'detail.download': '下载',
   'detail.decrypt': '解密下载',

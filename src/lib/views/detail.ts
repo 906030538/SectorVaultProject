@@ -295,10 +295,11 @@ function renderFiles(
   ul.className = 'flex flex-col gap-2';
   for (const file of files) {
     const li = document.createElement('li');
-    li.className = 'card flex flex-wrap items-center gap-3 p-3';
+    // 长文件名（尤其加密文件带密码框）允许多行：名称不再截断，控件换行排布
+    li.className = 'card flex flex-wrap items-center gap-x-3 gap-y-2 p-3';
 
     const name = document.createElement('span');
-    name.className = 'min-w-0 flex-1 truncate font-mono text-sm';
+    name.className = 'min-w-0 flex-1 break-all font-mono text-sm';
     name.textContent = file.name;
     li.appendChild(name);
 
@@ -372,6 +373,8 @@ function renderRelease(
   els: DetailElements,
 ): void {
   if (!release) return;
+  void init;
+  void platform;
   // 前往 release 按钮挂到区块标题行右侧
   els.releaseGoto.href = release.htmlUrl;
   els.releaseGoto.textContent = `${labels.gotoRelease} ↗`;
@@ -380,13 +383,24 @@ function renderRelease(
   const box = document.createElement('div');
   box.className = 'card p-4';
 
+  // release 正文（发布简介 + 链接，Markdown 安全渲染）
+  if (release.body.trim()) {
+    const body = document.createElement('div');
+    body.className = 'prose-svp text-sm';
+    body.dataset.role = 'release-body';
+    body.innerHTML = DOMPurify.sanitize(
+      marked.parse(release.body, { async: false }),
+    ) as string;
+    box.appendChild(body);
+  }
+
   if (release.assets.length > 0) {
-    const assetTitle = document.createElement('p');
-    assetTitle.className = 'text-sm font-medium';
-    assetTitle.textContent = labels.attachments;
-    box.appendChild(assetTitle);
+    if (release.body.trim()) {
+      box.appendChild(el('div', 'mt-3 border-t border-slate-100 dark:border-slate-800'));
+    }
     const ul = document.createElement('ul');
-    ul.className = 'mt-1 flex flex-col gap-1 text-sm';
+    ul.className = 'flex flex-col gap-1 text-sm';
+    if (release.body.trim()) ul.className = 'mt-3 flex flex-col gap-1 text-sm';
     for (const asset of release.assets) {
       const li = document.createElement('li');
       const a = document.createElement('a');

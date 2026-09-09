@@ -88,7 +88,7 @@ const en: Record<MessageKey, string> = {
 
   'detail.media': 'Repository media',
   'detail.files': 'Project files',
-  'detail.release': 'Linked release',
+  'detail.release': 'Attachments',
   'detail.comments': 'Comments',
   'detail.download': 'Download',
   'detail.decrypt': 'Decrypt & download',

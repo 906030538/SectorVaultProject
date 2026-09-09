@@ -88,7 +88,7 @@ const zhHant: Record<MessageKey, string> = {
 
   'detail.media': '倉庫媒體',
   'detail.files': '工程檔案',
-  'detail.release': '關聯 Release',
+  'detail.release': '附件',
   'detail.comments': '留言',
   'detail.download': '下載',
   'detail.decrypt': '解密下載',

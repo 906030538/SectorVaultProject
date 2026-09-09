@@ -826,12 +826,40 @@ export async function updateSubmission(
     }
   });
 
+  // 发布时间编辑器可改（未改动时沿用原值）；投稿时间不变更。
+  // README 与索引差异先行计算：文件、README 与本地归档合并为一个提交
+  const nextPublishedAt = draft.publishedAt ?? ctx.entry.publishedAt ?? ctx.entry.submittedAt;
+  const readme = buildReadmeText(draft, ctx.issue, currentCover, {
+    submittedAt: ctx.entry.submittedAt,
+    publishedAt: nextPublishedAt,
+  });
+  const entry = ctx.entry;
+  const publishedAtChanged =
+    draft.publishedAt !== undefined &&
+    new Date(draft.publishedAt).getTime() !== new Date(entry.publishedAt ?? entry.submittedAt).getTime();
+  const indexChanged =
+    draft.title !== entry.title ||
+    currentCover !== entry.cover ||
+    draft.params !== entry.paramState ||
+    publishedAtChanged ||
+    !sameList(draft.tracks, entry.songs) ||
+    !sameList(draft.engines, entry.engines) ||
+    !sameList(draft.voicebanks, entry.voicebanks) ||
+    !sameList(draft.songLanguages, entry.languages);
+  const updatedEntry = indexChanged
+    ? buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt, {
+        issue: Number(ctx.issue) || undefined,
+        release: ctx.releaseId ?? undefined,
+      })
+    : null;
+
   const removedFiles = ctx.oldFiles.filter((of) => !draft.files.some((f) => f.name === of.name));
   const newFiles = draft.files.filter((f) => f.file !== null);
   await runStep('files', mock, onStep, async () => {
-    if (!removedFiles.length && !newFiles.length) return;
-    // 删除按物理存储名（压缩/加密文件带 .zip 后缀）
+    // v5 系连续提交存在读后写延迟：文件与 README 拆分提交会使后者落进竞态窗口
+    // （Update is not a fast forward），合并为单提交；本地归档一并写入
     const changes: FileChange[] = removedFiles.map((of) => ({
+      // 删除按物理存储名（压缩/加密文件带 .zip 后缀）
       path: `${POSTS_DIR}/${slug}/${storedProjectFileName(of)}`,
       content: '',
       delete: true,
@@ -842,22 +870,22 @@ export async function updateSubmission(
         : storedProjectFileName({ name: f.name, compressed: f.scheme === 'zip', encrypted: f.scheme === 'encrypt' });
       changes.push(await fileChange(`${POSTS_DIR}/${slug}/${stored}`, f.file!, f.scheme, f.password));
     }
-    if (!mock) await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} files`, changes, commitAuthor(draft));
-  });
-
-  // 发布时间编辑器可改（未改动时沿用原值）；投稿时间不变更
-  const nextPublishedAt = draft.publishedAt ?? ctx.entry.publishedAt ?? ctx.entry.submittedAt;
-  const readme = buildReadmeText(draft, ctx.issue, currentCover, {
-    submittedAt: ctx.entry.submittedAt,
-    publishedAt: nextPublishedAt,
-  });
-  await runStep('readme', mock, onStep, async () => {
+    changes.push({ path: `${POSTS_DIR}/${slug}/README.md`, content: readme, encoding: 'utf-8' });
     if (!mock) {
-      await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} README`, [
-        { path: `${POSTS_DIR}/${slug}/README.md`, content: readme, encoding: 'utf-8' },
-      ], commitAuthor(draft));
+      if (updatedEntry) {
+        try {
+          const archiveChange = await upsertLocalArchive(await adapter(), user, repo, slug, updatedEntry);
+          changes.push(archiveChange);
+        } catch (error) {
+          // 本地索引读取失败不阻断主提交
+          console.warn('[pipeline] 本地索引更新失败:', error);
+        }
+      }
+      await (await adapter()).commitFiles(token!, user, repo, `Update ${slug}`, changes, commitAuthor(draft));
     }
   });
+  // README 已随文件同批提交
+  onStep('readme', 'done');
 
   const assetsTouched = draft.attachments.length > 0 || ctx.removedAssets.length > 0;
   if (assetsTouched && ctx.releaseId === null) {
@@ -879,34 +907,8 @@ export async function updateSubmission(
     });
   }
 
-  const entry = ctx.entry;
-  const publishedAtChanged =
-    draft.publishedAt !== undefined &&
-    new Date(draft.publishedAt).getTime() !== new Date(entry.publishedAt ?? entry.submittedAt).getTime();
-  const indexChanged =
-    draft.title !== entry.title ||
-    currentCover !== entry.cover ||
-    draft.params !== entry.paramState ||
-    publishedAtChanged ||
-    !sameList(draft.tracks, entry.songs) ||
-    !sameList(draft.engines, entry.engines) ||
-    !sameList(draft.voicebanks, entry.voicebanks) ||
-    !sameList(draft.songLanguages, entry.languages);
-
-  if (indexChanged) {
-    const updatedEntry = buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt, {
-      issue: Number(ctx.issue) || undefined,
-      release: ctx.releaseId ?? undefined,
-    });
-    // 投稿时间不变更；同步更新内容仓本地索引（失败不阻断索引 PR）
-    if (!mock) {
-      try {
-        const change = await upsertLocalArchive(await adapter(), user, repo, slug, updatedEntry);
-        await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} archive`, [change], commitAuthor(draft));
-      } catch (error) {
-        console.warn('[pipeline] 本地索引更新失败:', error);
-      }
-    }
+  // 本地归档已随文件同批提交；此处仅提交索引 PR
+  if (updatedEntry) {
     await tryIndexPr(token, mock, updatedEntry, onStep);
   } else {
     onStep('index', 'done');

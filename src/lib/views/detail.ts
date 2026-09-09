@@ -861,7 +861,19 @@ export async function initDetail(init: DetailInit): Promise<void> {
     .map((v) => v.trim())
     .filter(Boolean);
   renderTags(tags, els);
-  renderMedia(content.media, els);
+  // 媒体区只展示可显示/播放的媒体：排除封面（已在顶部展示）与工程文件（工程文件区展示）
+  const coverName = entry.cover && !/^https?:/.test(entry.cover) ? entry.cover : null;
+  const fileNames = new Set(content.parsed.files.map((f) => f.name));
+  const displayable = content.media.filter(
+    (item) =>
+      item.kind !== 'other' && item.name !== coverName && !fileNames.has(item.name),
+  );
+  if (displayable.length) {
+    renderMedia(displayable, els);
+  } else {
+    // 无可展示媒体时隐藏整个区块（含标题）
+    document.querySelector('[data-role="media-section"]')?.setAttribute('hidden', '');
+  }
 
   // 作者卡 + 许可证（稿件级优先，缺省仓库级）
   renderAuthor(entry, repoInfo, content, labels, els, platform);

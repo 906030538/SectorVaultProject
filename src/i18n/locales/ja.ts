@@ -94,6 +94,7 @@ const ja: Record<MessageKey, string> = {
   'detail.decrypt': '復号してダウンロード',
   'detail.password': 'パスワード',
   'detail.encrypted': '暗号化',
+  'detail.decrypted': '解読済み',
   'detail.compressed': '圧縮',
   'detail.attachments': '添付ファイル',
   'detail.interactions': 'リアクション',

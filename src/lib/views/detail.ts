@@ -106,6 +106,7 @@ export interface DetailLabels {
   decrypt: string;
   password: string;
   encrypted: string;
+  decrypted: string;
   compressed: string;
   attachments: string;
   interactions: string;
@@ -327,34 +328,9 @@ function renderFiles(
     icon.className = 'mt-0.5 h-4 w-4 shrink-0';
     icon.loading = 'lazy';
 
-    if (file.encrypted) {
-      // 加密文件：图标 + 名称多行 + 密码框 + 解密按钮行内排布
-      const name = document.createElement('span');
-      name.className = 'flex min-w-0 flex-1 self-start items-start gap-1.5 break-all font-mono text-sm';
-      name.append(icon, Object.assign(document.createElement('span'), { className: 'break-all', textContent: file.name }));
-      li.appendChild(name);
-
-      const badge = document.createElement('span');
-      badge.className = 'chip text-rose-600 dark:text-rose-400';
-      badge.textContent = labels.encrypted;
-      li.appendChild(badge);
-
-      const input = document.createElement('input');
-      input.type = 'password';
-      input.className = 'input w-28 shrink-0';
-      input.placeholder = labels.password;
-      input.dataset.role = 'file-password';
-      li.appendChild(input);
-
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-primary shrink-0 cursor-pointer';
-      btn.dataset.action = 'download-file';
-      btn.textContent = labels.decrypt;
-      btn.addEventListener('click', () => startDownload(btn));
-      li.appendChild(btn);
-    } else {
-      // 非加密文件：整个文件名框即下载按钮（无独立按钮），悬停手势 + 图标
+    // 已验证的加密文件按普通文件渲染（整框可点再次保存）
+    const renderPlainRow = (): void => {
+      li.textContent = '';
       const link = document.createElement('button');
       link.type = 'button';
       link.className =
@@ -365,16 +341,67 @@ function renderFiles(
       nameRow.className = 'break-all';
       nameRow.textContent = file.name;
       link.appendChild(nameRow);
-      if (file.compressed) {
-        const badge = document.createElement('span');
-        badge.className = 'chip ml-2';
-        badge.textContent = labels.compressed;
-        link.appendChild(badge);
-      }
+      link.appendChild(el('span', 'chip', labels.decrypted));
       link.addEventListener('click', () => startDownload(link));
       li.appendChild(link);
+      li.appendChild(status);
+    };
+
+    if (file.encrypted) {
+      // 加密文件：名称行与密码/解密行默认两行；容器级 sm: 才并排一行
+      const name = document.createElement('span');
+      name.className =
+        'flex min-w-0 flex-1 items-start gap-1.5 break-all font-mono text-sm sm:flex-none';
+      name.append(
+        icon,
+        Object.assign(document.createElement('span'), { className: 'break-all', textContent: file.name }),
+      );
+      li.appendChild(name);
+
+      const badge = document.createElement('span');
+      badge.className = 'chip hidden text-rose-600 dark:text-rose-400 sm:inline-flex';
+      badge.textContent = labels.encrypted;
+      li.appendChild(badge);
+
+      const controls = document.createElement('span');
+      controls.className = 'flex w-full items-center gap-2 sm:w-auto';
+      controls.dataset.role = 'file-controls';
+
+      const input = document.createElement('input');
+      input.type = 'password';
+      input.className = 'input w-28 shrink-0';
+      input.placeholder = labels.password;
+      input.dataset.role = 'file-password';
+      controls.appendChild(input);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-primary shrink-0 cursor-pointer';
+      btn.dataset.action = 'download-file';
+      btn.textContent = labels.decrypt;
+      controls.appendChild(btn);
+      li.appendChild(controls);
+
+      btn.addEventListener('click', () => {
+        btn.setAttribute('disabled', '');
+        status.textContent = '…';
+        const password = input.value;
+        void (async () => {
+          try {
+            await downloadProjectFile(init, platform, baseDir, file, password);
+            // 解密成功：切换为普通文件样式（隐藏输入与按钮，标签改已解密，整框可点再次保存）
+            status.textContent = '';
+            renderPlainRow();
+          } catch (error) {
+            status.textContent = error instanceof Error ? error.message : labels.loadError;
+            btn.removeAttribute('disabled');
+          }
+        })();
+      });
+    } else {
+      // 非加密文件：整个文件名框即下载按钮（无独立按钮），悬停手势 + 图标
+      renderPlainRow();
     }
-    li.appendChild(status);
     ul.appendChild(li);
   }
   els.files.appendChild(ul);

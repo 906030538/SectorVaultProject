@@ -92,6 +92,7 @@ const zhHans = {
   'detail.decrypt': '解密下载',
   'detail.password': '密码',
   'detail.encrypted': '加密',
+  'detail.decrypted': '已解密',
   'detail.compressed': '压缩',
   'detail.attachments': '附件',
   'detail.interactions': '互动记录',

@@ -94,6 +94,7 @@ const zhHant: Record<MessageKey, string> = {
   'detail.decrypt': '解密下載',
   'detail.password': '密碼',
   'detail.encrypted': '加密',
+  'detail.decrypted': '已解密',
   'detail.compressed': '壓縮',
   'detail.attachments': '附件',
   'detail.interactions': '互動記錄',

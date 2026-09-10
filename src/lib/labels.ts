@@ -62,6 +62,7 @@ export function buildDetailLabels(locale: Locale): DetailLabels {
     decrypt: t(locale, 'detail.decrypt'),
     password: t(locale, 'detail.password'),
     encrypted: t(locale, 'detail.encrypted'),
+    decrypted: t(locale, 'detail.decrypted'),
     compressed: t(locale, 'detail.compressed'),
     attachments: t(locale, 'detail.attachments'),
     interactions: t(locale, 'detail.interactions'),

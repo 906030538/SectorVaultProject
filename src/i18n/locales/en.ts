@@ -94,6 +94,7 @@ const en: Record<MessageKey, string> = {
   'detail.decrypt': 'Decrypt & download',
   'detail.password': 'Password',
   'detail.encrypted': 'Encrypted',
+  'detail.decrypted': 'Decrypted',
   'detail.compressed': 'Compressed',
   'detail.attachments': 'Attachments',
   'detail.interactions': 'Interactions',

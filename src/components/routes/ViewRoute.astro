@@ -21,7 +21,10 @@ const locale = DEFAULT_LOCALE;
           <h1 class="text-3xl font-bold" data-role="title"></h1>
           <span class="ml-auto flex gap-2" data-role="detail-actions"></span>
         </div>
-        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400" data-role="date">–</p>
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400" data-role="date-row">
+          <span data-role="date">–</span>
+          <span data-role="engagement"></span>
+        </div>
         <div class="mt-4" data-role="meta"></div>
       </header>
 
@@ -173,6 +176,7 @@ void (async () => {
             title: pick('title'),
             actions: pick('detail-actions'),
             date: pick('date'),
+            engagement: pick('engagement'),
             meta: pick('meta'),
             body: pick('body'),
             tags: pick('tags'),

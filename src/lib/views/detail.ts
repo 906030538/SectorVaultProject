@@ -137,6 +137,8 @@ export interface DetailElements {
   /** 标题行操作位（投稿用户本人的编辑/删除入口） */
   actions: HTMLElement;
   date: HTMLElement;
+  /** 标题下日期旁的互动区（回复数 / 点赞数 / 点赞按钮） */
+  engagement: HTMLElement;
   meta: HTMLElement;
   body: HTMLElement;
   tags: HTMLElement;
@@ -646,6 +648,7 @@ async function renderIssueSection(
 
   const viewer = loadSessionBy(platform)?.login;
   const token = getToken(platform);
+  const adapter = await getAdapterAsync(platform);
 
   // 前往原 issue 按钮挂到区块标题行右侧
   els.issueGoto.href = issue.htmlUrl;
@@ -653,16 +656,8 @@ async function renderIssueSection(
   els.issueGoto.dataset.action = 'goto-issue';
   els.issueGoto.classList.remove('hidden');
 
-  // 评论数 + issue 链接 + 点赞（外层标题行，不再嵌套子标题）
+  // 互动数据（回复数 / 点赞数 / 点赞按钮）挂在标题下日期旁
   // 点赞 = 关联 issue 的 👍 表情（gitee/atomgit 无 release 交互，统一走 issue）
-  const head = document.createElement('p');
-  head.className = 'flex flex-wrap items-center gap-2 text-sm';
-  const link = document.createElement('a');
-  link.href = issue.htmlUrl;
-  link.target = '_blank';
-  link.rel = 'noopener';
-  link.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
-  link.textContent = `#${issue.number} ${issue.title}`;
   const count = el('span', 'text-xs text-slate-400');
   count.dataset.role = 'comment-count';
   const likeChip = el('span', 'chip');
@@ -674,8 +669,7 @@ async function renderIssueSection(
   likeBtn.textContent = `👍 ${labels.like}`;
   const likeStatus = el('span', 'text-xs text-slate-400');
   likeStatus.dataset.role = 'like-status';
-  head.append(link, count, likeChip, likeBtn, likeStatus);
-  box.appendChild(head);
+  els.engagement.append(count, likeChip, likeBtn, likeStatus);
 
   // 当前用户已点过赞的 reaction id（取消点赞用）
   let myReactionId: number | null = null;
@@ -730,13 +724,12 @@ async function renderIssueSection(
   });
 
   // 回复列表（API 加载）
-  const list = el('div', 'mt-3 flex flex-col gap-2');
+  const list = el('div', 'flex flex-col gap-2');
   list.dataset.role = 'issue-comments';
-  const loading = el('p', 'mt-3 text-sm text-slate-400', '…');
+  const loading = el('p', 'text-sm text-slate-400', '…');
   box.appendChild(list);
   box.appendChild(loading);
 
-  const adapter = await getAdapterAsync(platform);
   /** 界面内当前展示的评论数（本地增删同步） */
   let shown = 0;
   const syncCount = (): void => {

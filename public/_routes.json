@@ -12,7 +12,8 @@
     "/discussions",
     "/discussions/*",
     "/gh-oauth/*",
-    "/oauth/*"
+    "/oauth/*",
+    "/api/*"
   ],
   "exclude": []
 }

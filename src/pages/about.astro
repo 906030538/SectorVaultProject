@@ -66,6 +66,7 @@ const locale = DEFAULT_LOCALE;
     import { loadLineIndexMerged } from '@/lib/index/loader';
     import { getIndexSources } from '@/lib/index/sources';
     import { loadRepoInfo } from '@/lib/content';
+    import { getOauthBase } from '@/lib/index/sources';
     import { badgeSvg } from '@/lib/ui';
     import type { Platform } from '@/types';
 
@@ -116,13 +117,37 @@ const locale = DEFAULT_LOCALE;
           const svg = link.querySelector('svg');
           if (svg) svg.outerHTML = badgeSvg(label, value, labelBg);
         };
-        // 星标数异步补全；仓库详情不可读（部分平台匿名受限/失败）时显示 –
+        // 星标数异步补全；仓库详情不可读时显示 –
+        // AtomGit/GitCode 的仓库详情端点不返回 CORS 头（浏览器跨域被阻断），
+        // 先直连 API，失败时经 oauthBase 代理读取（CF worker）
+        const fetchStarsViaProxy = async (): Promise<number | null> => {
+          const base = await getOauthBase();
+          if (!base) return null;
+          const url = `${WEB_BASE[source.platform]}/api/v5/repos/${source.owner}/${source.repo}`;
+          try {
+            const response = await fetch(`${base}/api/repo-info?url=${encodeURIComponent(url)}`);
+            if (!response.ok) return null;
+            const data = (await response.json()) as { stargazers_count?: number };
+            return data.stargazers_count ?? null;
+          } catch {
+            return null;
+          }
+        };
         void loadRepoInfo(source.platform, source.owner, source.repo)
-          .then((info) => {
+          .then(async (info) => {
             if (info?.htmlUrl) link.href = info.htmlUrl.replace(/\.git$/, '');
-            setBadge(`★ ${info ? info.stars : '–'}`);
+            if (info) {
+              setBadge(`★ ${info.stars}`);
+            } else {
+              // 直连失败（CORS/匿名受限）：经代理重试
+              const stars = await fetchStarsViaProxy();
+              setBadge(`★ ${stars !== null ? stars : '–'}`);
+            }
           })
-          .catch(() => setBadge('★ –'));
+          .catch(async () => {
+            const stars = await fetchStarsViaProxy();
+            setBadge(`★ ${stars !== null ? stars : '–'}`);
+          });
       }
     })();
   </script>

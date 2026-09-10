@@ -404,6 +404,20 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     return [];
   }
 
+  async updateReleaseBody(
+    token: string,
+    user: string,
+    repo: string,
+    releaseId: number | string,
+    body: string,
+  ): Promise<void> {
+    // v5 系 PATCH /releases/{id} 更新正文（gitee 支持；atomgit 未联调）
+    await this.request(
+      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases/${releaseId}`,
+      { method: 'PATCH', token, body: { body } },
+    );
+  }
+
   async listIssueReactions(): Promise<IssueReactionInfo[]> {
     // gitee/atomgit 无 issue 表情 API（实测 /issues/{n}/reactions 404，issue 字段也无 emoji）
     return [];

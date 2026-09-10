@@ -64,6 +64,8 @@ export interface EditContext {
   oldCover?: string;
   oldFiles: ProjectFile[];
   releaseId: number | null;
+  /** 关联 release 原正文中的发布简介（变更检测用） */
+  oldSummary?: string;
   /** 旧封面被移除或替换 */
   coverRemoved: boolean;
   /** 需要删除的旧附件 */
@@ -151,17 +153,18 @@ export function buildIssueBody(draft: SubmissionDraft): string {
   return lines.join('\n');
 }
 
-/** Release 正文：发布简介 + 主站详情链接 +（若部署了用户空间静态页）用户空间链接 */
+/** Release 正文：发布简介 + 原仓库 slug 目录链接 +（若部署了用户空间静态页）用户空间链接 */
 export function buildReleaseBody(
   user: string,
   repo: string,
   slug: string,
   site?: string,
   summary?: string,
+  webBase?: string,
 ): string {
-  const links = [
-    `${window.location.origin}/view/${user}/${repo}/${slug}`,
-  ];
+  // 链接指向原仓库 slug 目录（非本站点），读者在平台侧也能直达内容
+  const repoBase = webBase ?? 'https://github.com';
+  const links = [`${repoBase}/${user}/${repo}/tree/main/${POSTS_DIR}/${slug}`];
   if (site) {
     let base = site;
     while (base.endsWith('/')) base = base.slice(0, -1);
@@ -169,6 +172,20 @@ export function buildReleaseBody(
   }
   const note = summary?.trim();
   return note ? `${note}\n\n${links.join('\n')}` : links.join('\n');
+}
+
+/** 各平台仓库站点根地址 */
+function repoWebBase(platform: Platform): string {
+  switch (platform) {
+    case 'gitee':
+      return 'https://gitee.com';
+    case 'atomgit':
+      return 'https://atomgit.com';
+    case 'gitcode':
+      return 'https://gitcode.com';
+    default:
+      return 'https://github.com';
+  }
 }
 
 async function loadIndex(mock: boolean): Promise<IndexFile> {
@@ -739,7 +756,7 @@ export async function publishSubmission(
       user,
       repo,
       slug,
-      buildReleaseBody(user, repo, slug, site, draft.summary),
+      buildReleaseBody(user, repo, slug, site, draft.summary, repoWebBase(draft.platform)),
     );
     // 补写 README 头部的 release id（小提交，随 release 步一起重试）
     await (await adapter()).commitFiles(token!, user, repo, `Add ${slug} release`, [
@@ -887,6 +904,23 @@ export async function updateSubmission(
   });
   // README 已随文件同批提交
   onStep('readme', 'done');
+
+  // 发布简介有改动时同步更新关联 release 正文（失败不阻断整体流程）
+  const summaryChanged = (draft.summary ?? '').trim() !== (ctx.oldSummary ?? '').trim();
+  if (!mock && summaryChanged && ctx.releaseId !== null) {
+    try {
+      const site = await findUserSite(user, mock);
+      await (await adapter()).updateReleaseBody(
+        token!,
+        user,
+        repo,
+        ctx.releaseId,
+        buildReleaseBody(user, repo, slug, site, draft.summary, repoWebBase(draft.platform)),
+      );
+    } catch (error) {
+      console.warn('[pipeline] release 正文更新失败:', error);
+    }
+  }
 
   const assetsTouched = draft.attachments.length > 0 || ctx.removedAssets.length > 0;
   if (assetsTouched && ctx.releaseId === null) {

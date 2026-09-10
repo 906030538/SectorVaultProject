@@ -950,6 +950,7 @@ export async function initEditor(
 
   let oldFiles: ProjectFile[] = [];
   let oldAssets: ReleaseAsset[] = [];
+  let oldSummary = '';
   let issueAttr = '';
   let releaseId: number | null = null;
   let entryForCtx: SubmissionEntry | null = null;
@@ -1235,10 +1236,11 @@ export async function initEditor(
   licenseBox.appendChild(licenseSelect);
   form.appendChild(licenseBox);
 
-  // 发布简介（仅新建：随 release 正文发布）
-  // 新建模式：GitHub 时在发布简介后追加附件上传指引
+  // 发布简介（新建随 release 正文发布；编辑回填并同步更新关联 release）
+  // GitHub 时在发布简介后追加附件上传指引（仅新建）
+  let summaryBox: HTMLElement | null = null;
   if (!isEdit) {
-    const summaryBox = renderSummaryControl(labels, state);
+    summaryBox = renderSummaryControl(labels, state);
     form.appendChild(summaryBox);
     const summaryHint = el(
       'p',
@@ -1252,6 +1254,10 @@ export async function initEditor(
     };
     summaryHintSyncs.push(syncSummaryHint);
     syncSummaryHint();
+  } else {
+    // 编辑模式：同样显示发布简介（修改后同步更新关联 release 正文）
+    summaryBox = renderSummaryControl(labels, state);
+    form.appendChild(summaryBox);
   }
 
   const { box: attachmentControl, refresh: refreshAttachments } = renderAttachmentControl(
@@ -1395,6 +1401,24 @@ export async function initEditor(
       const release = releases.find((r) => r.tag === config.slug) ?? null;
       releaseId = release?.id ?? null;
       oldAssets = release?.assets ?? [];
+      // 从 release 正文中提取发布简介（链接行之前的内容）回填编辑框
+      if (release?.body) {
+        const bodyLines = release.body.split('\n');
+        const summaryLines: string[] = [];
+        for (const line of bodyLines) {
+          if (/^https?:\/\//.test(line.trim())) break;
+          summaryLines.push(line);
+        }
+        // 去掉末尾空行
+        while (summaryLines.length && !summaryLines[summaryLines.length - 1].trim()) summaryLines.pop();
+        oldSummary = summaryLines.join('\n');
+        state.summary = oldSummary;
+        const summaryInput = form.querySelector<HTMLTextAreaElement>('[data-field="summary"]');
+        if (summaryInput) {
+          summaryInput.value = oldSummary;
+          summaryInput.dispatchEvent(new Event('input'));
+        }
+      }
       refreshAttachments();
     } catch {
       /* release 缺失时附件区仅显示新增 */
@@ -1615,6 +1639,7 @@ export async function initEditor(
           oldCover: oldCoverAttr,
           oldFiles,
           releaseId,
+          oldSummary,
           coverRemoved: state.coverRemoved,
           removedAssets: state.removedAssets,
         };

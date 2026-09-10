@@ -18,7 +18,7 @@ import { getToken, loadSessionBy } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
 import { normalizeLocale, type Locale } from '@/i18n';
-import { applyCover, badgeSvg, isRateLimitError, setAvatar, showApiLimitNotice } from '@/lib/ui';
+import { applyCover, badgeSvg, fileIconUrl, isRateLimitError, setAvatar, showApiLimitNotice } from '@/lib/ui';
 import { withBase } from '@/lib/base';
 import type { IssueCommentInfo, IssueInfo, IssueReactionInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
 
@@ -318,11 +318,20 @@ function renderFiles(
       })();
     };
 
+    // 扩展名图标（public/icons 按扩展名自动识别）
+    const icon = document.createElement('img');
+    icon.src = fileIconUrl(file.name);
+    icon.alt = '';
+    icon.width = 16;
+    icon.height = 16;
+    icon.className = 'mt-0.5 h-4 w-4 shrink-0';
+    icon.loading = 'lazy';
+
     if (file.encrypted) {
-      // 加密文件：名称多行 + 密码框 + 解密按钮行内排布
+      // 加密文件：图标 + 名称多行 + 密码框 + 解密按钮行内排布
       const name = document.createElement('span');
-      name.className = 'min-w-0 flex-1 self-start break-all font-mono text-sm';
-      name.textContent = file.name;
+      name.className = 'flex min-w-0 flex-1 self-start items-start gap-1.5 break-all font-mono text-sm';
+      name.append(icon, Object.assign(document.createElement('span'), { className: 'break-all', textContent: file.name }));
       li.appendChild(name);
 
       const badge = document.createElement('span');
@@ -339,18 +348,19 @@ function renderFiles(
 
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'btn btn-primary shrink-0';
+      btn.className = 'btn btn-primary shrink-0 cursor-pointer';
       btn.dataset.action = 'download-file';
       btn.textContent = labels.decrypt;
       btn.addEventListener('click', () => startDownload(btn));
       li.appendChild(btn);
     } else {
-      // 非加密文件：整个文件名框即下载按钮（无独立下载按钮）
+      // 非加密文件：整个文件名框即下载按钮（无独立按钮），悬停手势 + 图标
       const link = document.createElement('button');
       link.type = 'button';
       link.className =
-        'block min-w-0 flex-1 self-stretch break-all text-left font-mono text-sm hover:text-emerald-600 dark:hover:text-emerald-400';
+        'flex min-w-0 flex-1 cursor-pointer self-stretch items-start gap-1.5 break-all text-left font-mono text-sm hover:text-emerald-600 dark:hover:text-emerald-400';
       link.dataset.action = 'download-file';
+      link.appendChild(icon);
       const nameRow = document.createElement('span');
       nameRow.className = 'break-all';
       nameRow.textContent = file.name;

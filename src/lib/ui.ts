@@ -29,6 +29,29 @@ export function escXml(text: string): string {
 }
 
 /**
+ * 文件扩展名 → /icons/[ext].svg 静态图标。
+ * 图标目录自动识别：存在对应扩展名的 SVG 即用，缺省回退通用文件图标。
+ */
+const KNOWN_FILE_ICONS = new Set<string>(
+  [
+    'ccs', 'svp', 'vsqx', 'vsq', 'vpr', 'ust', 'ustx', 'dv', 'ccst', 'tssln', 'dvtb', 'ppsf', 'ppdb',
+    'sf2', 'midi', 'mid', 'smf',
+    'wav', 'mp3', 'flac', 'ogg', 'm4a', 'aiff',
+    'musicxml', 'mxl', 'mscz',
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp',
+    'mp4', 'mov', 'webm', 'avi', 'mkv',
+    'zip', '7z', 'rar', 'tar', 'gz',
+    'txt', 'md', 'pdf', 'json', 'xml',
+  ].map((e) => `${e}.svg`),
+);
+
+/** 文件图标地址：按扩展名匹配 public/icons；未知类型用通用图标 */
+export function fileIconUrl(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  return withBase(`/icons/${KNOWN_FILE_ICONS.has(`${ext}.svg`) ? ext : 'file'}.svg`);
+}
+
+/**
  * shields 风格两段式内联 SVG badge（11px Verdana 近似字宽估算）。
  * 站内介绍页索引仓 badges 与详情页作者卡共用。
  */

@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, SUPPORTED_PLATFORMS } from '@/config';
+import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, SUPPORTED_PLATFORMS, POSTS_DIR
+  } from '@/config';
 import { withBase } from '@/lib/base';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSession, loadSessionBy, saveSession, setToken } from '@/lib/auth';
@@ -67,6 +68,8 @@ export interface EditorLabels {
   publishedAt: string;
   existing: string;
   license: string;
+  licenseCustom: string;
+  licenseCustomPh: string;
   authRequired: string;
   platform: string;
   tokenPh: string;
@@ -137,6 +140,7 @@ interface EditorState {
   body: string;
   tags: string[];
   license: string;
+  licenseText: string;
   summary: string;
   createIssue: boolean;
   submittedAt: string;
@@ -727,6 +731,7 @@ interface DraftSnapshot {
   body: string;
   tags: string[];
   license: string;
+  licenseText: string;
   summary: string;
   createIssue: boolean;
   submittedAt: string;
@@ -758,6 +763,7 @@ function readDraft(): DraftSnapshot | null {
       body: d.body ?? '',
       tags: d.tags ?? [],
       license: d.license ?? '',
+      licenseText: d.licenseText ?? '',
       summary: d.summary ?? '',
       createIssue: d.createIssue !== false,
       submittedAt: d.submittedAt ?? '',
@@ -859,7 +865,8 @@ function buildDraft(state: EditorState): SubmissionDraft {
     songLanguages: state.lists.songLanguages.filter(Boolean),
     body: state.body,
     tags: state.tags,
-    license: state.license,
+    license: state.license === 'custom' ? '' : state.license,
+    licenseText: state.license === 'custom' ? state.licenseText || undefined : undefined,
     summary: state.summary,
     createIssue: state.createIssue,
     submittedAt: inputValueToIso(state.submittedAt),
@@ -933,6 +940,7 @@ export async function initEditor(
     body: '',
     tags: [],
     license: '',
+    licenseText: '',
     summary: '',
     createIssue: true,
     submittedAt: '',
@@ -1226,15 +1234,33 @@ export async function initEditor(
   const licenseSelect = el('select', 'input w-72');
   licenseSelect.setAttribute('data-field', 'license');
   for (const option of config.licenseOptions) {
+    if (!option.value) continue;
     const node = el('option', undefined, option.label);
     node.value = option.value;
     licenseSelect.appendChild(node);
   }
+  // 自定义许可证选项
+  const customOption = el('option', undefined, labels.licenseCustom);
+  customOption.value = 'custom';
+  licenseSelect.appendChild(customOption);
+  const licenseTextarea = el('textarea', 'input mt-2 min-h-28 w-full font-mono text-xs');
+  licenseTextarea.placeholder = labels.licenseCustomPh;
+  licenseTextarea.setAttribute('data-field', 'license-text');
+  licenseTextarea.addEventListener('input', () => {
+    state.licenseText = licenseTextarea.value;
+  });
+  const syncLicenseTextarea = (): void => {
+    const isCustom = licenseSelect.value === 'custom';
+    licenseTextarea.classList.toggle('hidden', !isCustom);
+  };
   licenseSelect.addEventListener('change', () => {
     state.license = licenseSelect.value;
+    if (licenseSelect.value !== 'custom') state.licenseText = '';
+    syncLicenseTextarea();
   });
-  licenseBox.appendChild(licenseSelect);
+  licenseBox.append(licenseSelect, licenseTextarea);
   form.appendChild(licenseBox);
+  syncLicenseTextarea();
 
   // 发布简介（新建随 release 正文发布；编辑回填并同步更新关联 release）
   // GitHub 时在发布简介后追加附件上传指引（仅新建）
@@ -1346,7 +1372,25 @@ export async function initEditor(
       const content = await loadSubmissionContent(entry.platform, config.user!, config.repo!, config.slug!);
       state.body = content.parsed.body;
       state.license = content.parsed.attrs.license ?? '';
-      licenseSelect.value = state.license;
+      // README 不再记录 license；回填从 slug 目录 LICENSE 文件内容推断
+      try {
+        const licenseRaw = await (await getAdapterAsync(entry.platform)).readFile(
+          config.user!, config.repo!, `${POSTS_DIR}/${config.slug}/LICENSE`,
+        );
+        if (licenseRaw) state.licenseText = licenseRaw;
+      } catch {
+        /* LICENSE 文件缺失时无自定义文本 */
+      }
+      // SPDX 匹配则选对应项，否则视为自定义
+      const spdxMatch = config.licenseOptions.find((o) => o.value === state.license);
+      if (!spdxMatch && state.license) {
+        licenseSelect.value = 'custom';
+        state.license = 'custom';
+        if (state.licenseText) licenseTextarea.value = state.licenseText;
+      } else {
+        licenseSelect.value = state.license;
+      }
+      syncLicenseTextarea();
       issueAttr = content.parsed.attrs.issue ?? '';
       state.coverName = content.parsed.attrs.cover ?? '';
       oldCoverAttr = content.parsed.attrs.cover || undefined;
@@ -1508,6 +1552,7 @@ export async function initEditor(
       body: state.body,
       tags: [...state.tags],
       license: state.license,
+      licenseText: state.licenseText,
       summary: state.summary,
       createIssue: state.createIssue,
       submittedAt: state.submittedAt,

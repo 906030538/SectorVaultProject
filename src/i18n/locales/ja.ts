@@ -209,6 +209,8 @@ const ja: Record<MessageKey, string> = {
   'edit.title': '作品を編集',
 
   'editor.licenseRepoDefault': 'リポジトリのライセンスに従う（既定）',
+  'editor.licenseCustom': 'カスタム',
+  'editor.licenseCustomPh': 'カスタムライセンス全文を入力',
   'editor.demoBanner': 'デモモード：公開フローはローカルシミュレーションで、実際のリポジトリには書き込みません',
   'editor.repo': '投稿リポジトリ',
   'editor.slug': 'slug（日付-タイトル）',

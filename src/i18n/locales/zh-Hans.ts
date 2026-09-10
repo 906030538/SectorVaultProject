@@ -206,6 +206,8 @@ const zhHans = {
   'edit.title': '编辑稿件',
 
   'editor.licenseRepoDefault': '与仓库许可相同（默认）',
+  'editor.licenseCustom': '自定义',
+  'editor.licenseCustomPh': '输入自定义许可证全文',
   'editor.demoBanner': '演示模式：发布流程为本地模拟，不会写入真实仓库',
   'editor.repo': '投稿仓库',
   'editor.slug': 'slug（日期-标题）',

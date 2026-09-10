@@ -42,6 +42,8 @@ export interface SubmissionDraft {
   body: string;
   tags: string[];
   license: string;
+  /** 自定义许可证全文（选择"自定义"时填写） */
+  licenseText?: string;
   /** 发布简介：新建时写入 release 正文 */
   summary: string;
   /** 是否创建关联评论区 issue（标题为 slug，正文为稿件参数） */
@@ -229,8 +231,8 @@ export async function buildIndexChange(entry: SubmissionEntry, mock: boolean): P
 }
 
 /**
- * 许可证文件：稿件许可证与内容仓不同时，向 slug 目录写入 LICENSE
- * （正文优先取 SPDX 许可证全文，取不到时回退为 SPDX 标识声明）。
+ * 许可证文件：选择了许可证即向 slug 目录写入 LICENSE（不比较仓库许可证）。
+ * SPDX 标识取全文（取不到回退声明）；自定义全文直接写入。
  */
 export async function licenseFileChange(
   adapter: GitPlatformAdapter,
@@ -238,16 +240,14 @@ export async function licenseFileChange(
   repo: string,
   slug: string,
   license: string | undefined,
+  licenseText?: string,
 ): Promise<FileChange | null> {
-  if (!license) return null;
-  let repoLicense: string | undefined;
-  try {
-    repoLicense = (await adapter.getRepo(user, repo)).license;
-  } catch {
-    repoLicense = undefined; // 仓库信息不可用时按不同处理
-  }
-  if (repoLicense && repoLicense === license) return null;
-  const content = await spdxLicenseText(license);
+  void adapter;
+  void user;
+  void repo;
+  if (!license && !licenseText?.trim()) return null;
+  // 自定义全文优先；否则按 SPDX 标识取全文
+  const content = licenseText?.trim() || (await spdxLicenseText(license ?? ''));
   return { path: `${POSTS_DIR}/${slug}/LICENSE`, content, encoding: 'utf-8' };
 }
 
@@ -735,7 +735,7 @@ export async function publishSubmission(
     });
     if (!mock) {
       // 许可证与内容仓不同时，向 slug 目录写入 LICENSE 文件
-      const licenseChange = await licenseFileChange(await adapter(), user, repo, slug, draft.license);
+      const licenseChange = await licenseFileChange(await adapter(), user, repo, slug, draft.license, draft.licenseText);
       if (licenseChange) changes.push(licenseChange);
       changes.push(await upsertRepoReadmeLink(await adapter(), user, repo, slug));
       changes.push(await upsertLocalArchive(await adapter(), user, repo, slug, entry));

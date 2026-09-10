@@ -209,6 +209,8 @@ const en: Record<MessageKey, string> = {
   'edit.title': 'Edit submission',
 
   'editor.licenseRepoDefault': 'Same as repository license (default)',
+  'editor.licenseCustom': 'Custom',
+  'editor.licenseCustomPh': 'Enter custom license text',
   'editor.demoBanner': 'Demo mode: the publish flow is simulated locally; nothing is written to real repositories',
   'editor.repo': 'Content repository',
   'editor.slug': 'slug (date-title)',

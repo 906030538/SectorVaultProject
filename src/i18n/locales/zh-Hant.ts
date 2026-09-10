@@ -208,6 +208,8 @@ const zhHant: Record<MessageKey, string> = {
   'edit.title': '編輯稿件',
 
   'editor.licenseRepoDefault': '與倉庫授權相同（預設）',
+  'editor.licenseCustom': '自訂',
+  'editor.licenseCustomPh': '輸入自訂許可證全文',
   'editor.demoBanner': '演示模式：發布流程為本地模擬，不會寫入真實倉庫',
   'editor.repo': '投稿倉庫',
   'editor.slug': 'slug（日期-標題）',

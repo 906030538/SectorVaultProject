@@ -157,7 +157,6 @@ export function generateReadme(input: ReadmeInput): string {
   if (input.submittedAt) header.push(`submittedAt: ${input.submittedAt}`);
   if (input.publishedAt) header.push(`publishedAt: ${input.publishedAt}`);
   if (input.cover) header.push(`cover: ${input.cover}`);
-  if (input.license) header.push(`license: ${input.license}`);
   if (input.songs?.length) header.push(`songs: ${input.songs.join(', ')}`);
   if (input.engines?.length) header.push(`engines: ${input.engines.join(', ')}`);
   if (input.voicebanks?.length) header.push(`voicebanks: ${input.voicebanks.join(', ')}`);

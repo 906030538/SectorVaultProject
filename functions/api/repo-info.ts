@@ -15,6 +15,7 @@ const ALLOWED_HOSTS = new Set([
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, OPTIONS',
+  'access-control-allow-headers': 'authorization, content-type',
 };
 
 export const onRequestOptions: PagesFunction = async () =>
@@ -44,9 +45,11 @@ export const onRequestGet: PagesFunction = async (context) => {
       headers: { 'content-type': 'application/json', ...CORS },
     });
   }
-  const upstream = await fetch(parsed.toString(), {
-    headers: { accept: 'application/json' },
-  });
+  // 前端可传 token 查询参数（部分平台仓库详情要求认证）
+  const token = url.searchParams.get('token');
+  const headers: Record<string, string> = { accept: 'application/json' };
+  if (token) headers.authorization = `Bearer ${token}`;
+  const upstream = await fetch(parsed.toString(), { headers });
   const body = await upstream.text();
   return new Response(body, {
     status: upstream.status,

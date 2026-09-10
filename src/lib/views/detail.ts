@@ -303,14 +303,15 @@ function renderFiles(
     status.className = 'w-full text-xs text-slate-400';
     status.dataset.role = 'file-status';
 
-    const startDownload = (btn: HTMLElement): void => {
+    // 加密文件解密成功后记住密码，再次点击直接复用
+    let verifiedPassword: string | undefined;
+    const startDownload = (btn: HTMLElement, password?: string): void => {
       btn.setAttribute('disabled', '');
       status.textContent = '…';
-      const password = li.querySelector<HTMLInputElement>('[data-role="file-password"]')?.value;
       void (async () => {
         try {
           await downloadProjectFile(init, platform, baseDir, file, password);
-          status.textContent = '✓';
+          status.textContent = '';
         } catch (error) {
           status.textContent = error instanceof Error ? error.message : labels.loadError;
         } finally {
@@ -328,8 +329,8 @@ function renderFiles(
     icon.className = 'mt-0.5 h-4 w-4 shrink-0';
     icon.loading = 'lazy';
 
-    // 已验证的加密文件按普通文件渲染（整框可点再次保存）
-    const renderPlainRow = (): void => {
+    // 整框可点的普通文件行；showDecrypted 时附加「已解密」标签（仅加密文件解密后）
+    const renderPlainRow = (showDecrypted: boolean): void => {
       li.textContent = '';
       const link = document.createElement('button');
       link.type = 'button';
@@ -341,8 +342,9 @@ function renderFiles(
       nameRow.className = 'break-all';
       nameRow.textContent = file.name;
       link.appendChild(nameRow);
-      link.appendChild(el('span', 'chip', labels.decrypted));
-      link.addEventListener('click', () => startDownload(link));
+      if (showDecrypted) link.appendChild(el('span', 'chip', labels.decrypted));
+      // 已验证的加密文件复用记住的密码，普通文件密码留空
+      link.addEventListener('click', () => startDownload(link, verifiedPassword));
       li.appendChild(link);
       li.appendChild(status);
     };
@@ -389,9 +391,10 @@ function renderFiles(
         void (async () => {
           try {
             await downloadProjectFile(init, platform, baseDir, file, password);
-            // 解密成功：切换为普通文件样式（隐藏输入与按钮，标签改已解密，整框可点再次保存）
+            // 解密成功：记住密码并切换为普通文件样式（整框可点再次保存）
+            verifiedPassword = password;
             status.textContent = '';
-            renderPlainRow();
+            renderPlainRow(true);
           } catch (error) {
             status.textContent = error instanceof Error ? error.message : labels.loadError;
             btn.removeAttribute('disabled');
@@ -399,8 +402,8 @@ function renderFiles(
         })();
       });
     } else {
-      // 非加密文件：整个文件名框即下载按钮（无独立按钮），悬停手势 + 图标
-      renderPlainRow();
+      // 非加密文件：整个文件名框即下载按钮（无独立按钮、无标签）
+      renderPlainRow(false);
     }
     ul.appendChild(li);
   }

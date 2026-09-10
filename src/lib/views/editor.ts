@@ -68,6 +68,7 @@ export interface EditorLabels {
   publishedAt: string;
   existing: string;
   license: string;
+  licenseNone: string;
   licenseCustom: string;
   licenseCustomPh: string;
   authRequired: string;
@@ -1233,6 +1234,10 @@ export async function initEditor(
   licenseBox.appendChild(el('label', 'text-xs text-slate-500', labels.license));
   const licenseSelect = el('select', 'input w-72');
   licenseSelect.setAttribute('data-field', 'license');
+  // 留空选项（不写入 LICENSE 文件）
+  const noneOption = el('option', undefined, labels.licenseNone);
+  noneOption.value = '';
+  licenseSelect.appendChild(noneOption);
   for (const option of config.licenseOptions) {
     if (!option.value) continue;
     const node = el('option', undefined, option.label);

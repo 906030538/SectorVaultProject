@@ -224,6 +224,7 @@ export function buildEditorLabels(locale: Locale): EditorLabels {
     attachmentsGithubSummaryHint: t(locale, 'editor.attachmentsGithubSummaryHint'),
     existing: t(locale, 'editor.existing'),
     license: t(locale, 'label.license'),
+    licenseNone: t(locale, 'editor.licenseNone'),
     licenseCustom: t(locale, 'editor.licenseCustom'),
     licenseCustomPh: t(locale, 'editor.licenseCustomPh'),
     authRequired: t(locale, 'editor.authRequired'),

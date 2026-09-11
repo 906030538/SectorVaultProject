@@ -536,8 +536,8 @@ export async function upsertRepoReadmeLink(
   try {
     readme = await adapter.readFile(user, repo, 'README.md');
   } catch (error) {
-    // 仅"文件不存在"时新建基础结构；限流/网络等错误抛出重试，避免覆盖
-    if (!isMissingFileError(error)) throw error;
+    // 仅"文件不存在/空仓库"时新建基础结构；限流/网络等错误抛出重试，避免覆盖
+    if (!isMissingFileError(error) && !isRepoEmptyError(error)) throw error;
   }
   const href = `(${POSTS_DIR}/${slug}/)`;
   if (!readme.includes(href)) {
@@ -557,13 +557,13 @@ export async function upsertLocalArchive(
   slug: string,
   entry: SubmissionEntry,
 ): Promise<FileChange> {
-  // 找不到现有索引（404）或内容损坏时创建新索引；限流/网络错误抛出重试，避免覆盖已有索引
+  // 找不到现有索引（404/空仓库）或内容损坏时创建新索引；限流/网络错误抛出重试，避免覆盖已有索引
   let archive: LocalArchive = { submissions: [] };
   let raw: string | null = null;
   try {
     raw = await adapter.readFile(user, repo, 'svp-archive.json');
   } catch (error) {
-    if (!isMissingFileError(error)) throw error;
+    if (!isMissingFileError(error) && !isRepoEmptyError(error)) throw error;
   }
   if (raw !== null) {
     try {
@@ -583,29 +583,41 @@ export async function upsertLocalArchive(
   };
 }
 
-/** 确保内容仓库可写入：空仓库先初始化基础结构（README + 本地索引） */
+/**
+ * 确保内容仓库可写入：空仓库以给定的初始文件（根 README / 本地索引的最终内容）
+ * 建仓；未给定时写入基础结构。返回是否执行了初始化（调用方据此跳过重复写入）。
+ */
 async function ensureRepoInitialized(
   token: string | null,
   user: string,
   repo: string,
   adapter: () => Promise<GitPlatformAdapter>,
-): Promise<void> {
+  initial?: FileChange[],
+): Promise<boolean> {
   try {
     await (await adapter()).listDir(user, repo);
+    return false;
   } catch (error) {
     if (!isRepoEmptyError(error)) throw error;
-    await (await adapter()).commitFiles(token!, user, repo, 'Initialize Sector Vault Project repository', [
-      {
-        path: 'README.md',
-        content: baseRepoReadme(repo),
-        encoding: 'utf-8',
-      },
-      {
-        path: 'svp-archive.json',
-        content: emptyLocalArchive(),
-        encoding: 'utf-8',
-      },
-    ]);
+    await (await adapter()).commitFiles(
+      token!,
+      user,
+      repo,
+      'Initialize Sector Vault Project repository',
+      initial ?? [
+        {
+          path: 'README.md',
+          content: baseRepoReadme(repo),
+          encoding: 'utf-8',
+        },
+        {
+          path: 'svp-archive.json',
+          content: emptyLocalArchive(),
+          encoding: 'utf-8',
+        },
+      ],
+    );
+    return true;
   }
 }
 
@@ -661,8 +673,22 @@ export async function publishSubmission(
   const entry = progress.entry ?? buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now);
   progress.entry = entry;
 
+  // 发布先于文件创建：README 一次写入即可携带 release id，
+  // 避免 files→release 两步连续提交同一文件（v5 读后写竞态触发 not a fast forward）
+  await resumeStep('release', progress.releaseId !== undefined, async () => {
+    const site = await findUserSite(user);
+    // createRelease 按 tag 幂等（已存在则复用），重试不会重复建 release
+    releaseId = await (await adapter()).createRelease(
+      token!,
+      user,
+      repo,
+      slug,
+      buildReleaseBody(user, repo, slug, site, draft.summary, repoWebBase(draft.platform)),
+    );
+    progress.releaseId = releaseId;
+  });
+
   await resumeStep('files', progress.filesDone === true, async () => {
-    await ensureRepoInitialized(token, user, repo, adapter);
     // 内联媒体（封面 + 工程文件）、README 与本地索引（目录链接 + svp-archive.json）合并为一个提交
     const changes: FileChange[] = [];
     if (draft.cover) {
@@ -679,47 +705,27 @@ export async function publishSubmission(
     }
     changes.push({
       path: `${POSTS_DIR}/${slug}/README.md`,
-      // release 尚未创建，头部 release 属性在 release 步补写
-      content: buildReadmeText(draft, issue, draft.cover?.name, {
-        submittedAt: entry.submittedAt,
-        publishedAt: entry.publishedAt,
-      }),
+      // release 已先行创建：头部直接携带 release id，不再二次补写提交
+      content: buildReadmeText(
+        draft,
+        issue,
+        draft.cover?.name,
+        { submittedAt: entry.submittedAt, publishedAt: entry.publishedAt },
+        releaseId || undefined,
+      ),
       encoding: 'utf-8',
     });
     // 许可证与内容仓不同时，向 slug 目录写入 LICENSE 文件
     const licenseChange = await licenseFileChange(await adapter(), user, repo, slug, draft.license, draft.licenseText);
     if (licenseChange) changes.push(licenseChange);
-    changes.push(await upsertRepoReadmeLink(await adapter(), user, repo, slug));
-    changes.push(await upsertLocalArchive(await adapter(), user, repo, slug, entry));
+    // 根 README（slug 链接）与本地索引（投稿条目）：空仓库时直接以最终内容初始化建仓，
+    // 非空仓库则并入主提交——两种情况都不产生对同一文件的连续双写
+    const readmeChange = await upsertRepoReadmeLink(await adapter(), user, repo, slug);
+    const archiveChange = await upsertLocalArchive(await adapter(), user, repo, slug, entry);
+    const initialized = await ensureRepoInitialized(token, user, repo, adapter, [readmeChange, archiveChange]);
+    if (!initialized) changes.push(readmeChange, archiveChange);
     await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes, commitAuthor(draft));
     progress.filesDone = true;
-  });
-
-  await resumeStep('release', progress.releaseId !== undefined, async () => {
-    const site = await findUserSite(user);
-    // createRelease 按 tag 幂等（已存在则复用），重试不会重复建 release
-    releaseId = await (await adapter()).createRelease(
-      token!,
-      user,
-      repo,
-      slug,
-      buildReleaseBody(user, repo, slug, site, draft.summary, repoWebBase(draft.platform)),
-    );
-    // 补写 README 头部的 release id（小提交，随 release 步一起重试）
-    await (await adapter()).commitFiles(token!, user, repo, `Add ${slug} release`, [
-      {
-        path: `${POSTS_DIR}/${slug}/README.md`,
-        content: buildReadmeText(
-          draft,
-          issue,
-          draft.cover?.name,
-          { submittedAt: entry.submittedAt, publishedAt: entry.publishedAt },
-          releaseId || undefined,
-        ),
-        encoding: 'utf-8',
-      },
-    ], commitAuthor(draft));
-    progress.releaseId = releaseId;
   });
 
   if (isSkipped('assets')) {

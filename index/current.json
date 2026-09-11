@@ -74,6 +74,38 @@
     },
     {
       "slug": "230725-梅菲斯特",
+      "owner": "y2361547758",
+      "repo": "svp-default",
+      "platform": "github",
+      "type": "project",
+      "title": "梅菲斯特",
+      "submittedAt": "2023-07-25T04:10:00.000Z",
+      "publishedAt": "2026-09-11T23:33:14.662Z",
+      "cover": "ksm单齿轮眼.png",
+      "tags": [
+        "夢ノ結唱",
+        "女王蜂",
+        "【我推的孩子】"
+      ],
+      "paramState": "tuned",
+      "songs": [
+        "メフィスト"
+      ],
+      "engines": [
+        "CeVIO AI"
+      ],
+      "voicebanks": [
+        "POPY",
+        "ROSE"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "issue": "7",
+      "release": "387388390"
+    },
+    {
+      "slug": "230725-梅菲斯特",
       "owner": "906030538",
       "repo": "svp-default",
       "platform": "github",
@@ -203,7 +235,7 @@
     {
       "file": "2023-07.json",
       "byType": {
-        "project": 1,
+        "project": 2,
         "article": 0
       }
     },

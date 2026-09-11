@@ -158,6 +158,8 @@ export interface IssueInfo {
   htmlUrl: string;
   comments: number;
   createdAt: string;
+  /** 开闭状态：closed 时留言区不加载回复，仅显示已关闭提示 */
+  state: 'open' | 'closed';
 }
 
 /** Issue 评论 */

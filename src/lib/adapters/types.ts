@@ -100,6 +100,16 @@ export interface GitPlatformAdapter {
   /** 删除 issue 评论（一般仅本人评论；平台不支持时抛错） */
   deleteIssueComment(token: string, user: string, repo: string, commentId: number): Promise<void>;
 
+  /** 开启/关闭 issue（留言区开关；gitee 需额外传 title） */
+  updateIssueState(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number | string,
+    state: 'open' | 'closed',
+    title?: string,
+  ): Promise<void>;
+
   /** Discussions 页面地址 */
   discussionsUrl(owner: string, repo: string): string;
 

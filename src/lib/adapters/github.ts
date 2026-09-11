@@ -13,11 +13,14 @@ import type {
   RepoInfo,
 } from '@/types';
 import type { CreateRepoOptions, FileChange, GitPlatformAdapter, PlatformUserProfile, RepoOwnerChoice } from './types';
-import { baseRepoReadme, decodeBase64Utf8, emptyLocalArchive, spdxLicenseText } from '@/lib/utils';
+import { baseRepoReadme, decodeBase64Utf8, emptyLocalArchive, fetchGetTimeout, spdxLicenseText } from '@/lib/utils';
 import { getToken } from '@/lib/auth';
 
 function client(token?: string): Octokit {
-  return token ? new Octokit({ auth: token }) : new Octokit();
+  // 读请求带超时（被墙域名的挂起连接 20s 后中止），写操作透传原生 fetch；
+  // 关闭自动重试：超时场景下重试会把等待放大到 4×20s
+  const request = { fetch: fetchGetTimeout, retries: 0 };
+  return token ? new Octokit({ auth: token, request }) : new Octokit({ request });
 }
 
 /**
@@ -170,7 +173,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
       owner: user,
       repo,
       per_page: 100,
-      state: 'open',
+      state: 'all',
     });
     return data
       .filter((i) => !i.pull_request)
@@ -180,7 +183,23 @@ export class GitHubAdapter implements GitPlatformAdapter {
         htmlUrl: i.html_url,
         comments: i.comments,
         createdAt: i.created_at,
+        state: i.state === 'closed' ? ('closed' as const) : ('open' as const),
       }));
+  }
+
+  async updateIssueState(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number | string,
+    state: 'open' | 'closed',
+  ): Promise<void> {
+    await client(token).rest.issues.update({
+      owner: user,
+      repo,
+      issue_number: Number(issueNumber),
+      state,
+    });
   }
 
   async listIssueComments(

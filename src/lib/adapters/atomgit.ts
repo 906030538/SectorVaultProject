@@ -13,7 +13,7 @@ import type {
   RepoInfo,
 } from '@/types';
 import { getToken } from '@/lib/auth';
-import { baseRepoReadme, decodeBase64Utf8, emptyLocalArchive, spdxLicenseText } from '@/lib/utils';
+import { baseRepoReadme, decodeBase64Utf8, emptyLocalArchive, fetchGetTimeout, spdxLicenseText } from '@/lib/utils';
 import type { CreateRepoOptions, FileChange, GitPlatformAdapter, PlatformUserProfile, RepoOwnerChoice } from './types';
 
 /**
@@ -98,7 +98,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     for (const [key, value] of Object.entries(options.query ?? {})) {
       url.searchParams.set(key, value);
     }
-    const response = await fetch(url, {
+    const response = await fetchGetTimeout(url, {
       method: options.method ?? 'GET',
       headers: {
         ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -203,22 +203,53 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   }
 
   async listIssues(user: string, repo: string): Promise<IssueInfo[]> {
-    const issues = await this.request<Array<{
+    type V5Issue = {
       number: number | string;
       title: string;
       html_url?: string;
+      state?: string;
       comments?: number;
       created_at?: string;
-    }>>(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues`, {
-      query: { state: 'open' },
-    });
+    };
+    const path = `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues`;
+    // 全量（含已关闭）列表：留言区需识别关闭态；平台不认 state=all 时退回仅开启
+    let issues: V5Issue[] | null = null;
+    try {
+      issues = await this.request<V5Issue[]>(path, { query: { state: 'all' } });
+    } catch {
+      issues = await this.request<V5Issue[]>(path, { query: { state: 'open' } });
+    }
     return (issues ?? []).map((i) => ({
       number: typeof i.number === 'number' ? i.number : String(i.number),
       title: i.title,
       htmlUrl: i.html_url ?? `${this.webBase}/${user}/${repo}/issues/${i.number}`,
       comments: i.comments ?? 0,
       createdAt: i.created_at ?? '',
+      state: i.state === 'closed' ? ('closed' as const) : ('open' as const),
     }));
+  }
+
+  async updateIssueState(
+    token: string,
+    user: string,
+    repo: string,
+    issueNumber: number | string,
+    state: 'open' | 'closed',
+    title?: string,
+  ): Promise<void> {
+    if (this.platform === 'gitee') {
+      // gitee 的 issue 归用户域：路径不带 repo，repo/title 需放 body
+      await this.request(`/repos/${encodeURIComponent(user)}/issues/${issueNumber}`, {
+        method: 'PATCH',
+        token,
+        body: { repo, title: title ?? '', state },
+      });
+      return;
+    }
+    await this.request(
+      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/issues/${issueNumber}`,
+      { method: 'PATCH', token, body: { state } },
+    );
   }
 
   discussionsUrl(owner: string, repo: string): string {

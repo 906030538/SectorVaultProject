@@ -105,8 +105,11 @@ export interface DetailLabels {
   like: string;
   liked: string;
   commentsDisabled: string;
+  commentsClosed: string;
   noComments: string;
   viewIssue: string;
+  issueReopen: string;
+  issueClose: string;
   gotoRelease: string;
   delete: string;
   commentPh: string;
@@ -616,6 +619,8 @@ function renderIssueComment(
 
 /**
  * 评论区：issue 存在时 API 加载回复列表 + 同平台登录显示评论框；
+ * issue 已关闭时不加载回复，仅显示「已关闭评论区」提示；
+ * 仓库属主（同平台登录）可在留言标题右侧开启/关闭 issue；
  * issue 不存在显示"评论区已禁用"；无该平台登录态提示登录当前平台。
  */
 async function renderIssueSection(
@@ -641,12 +646,44 @@ async function renderIssueSection(
   const viewer = loadSessionBy(platform)?.login;
   const token = getToken(platform);
   const adapter = await getAdapterAsync(platform);
+  let issueState: 'open' | 'closed' = issue.state === 'closed' ? 'closed' : 'open';
 
   // 前往原 issue 按钮挂到区块标题行右侧
   els.issueGoto.href = issue.htmlUrl;
   els.issueGoto.textContent = `${labels.viewIssue} ↗`;
   els.issueGoto.dataset.action = 'goto-issue';
   els.issueGoto.classList.remove('hidden');
+
+  // 留言标题右侧：仓库属主（同平台登录）显示 开启/关闭 开关
+  const toggle = el('button', 'btn px-2.5 py-1 text-xs');
+  toggle.type = 'button';
+  toggle.dataset.action = 'toggle-issue-state';
+  const syncToggle = (): void => {
+    toggle.textContent = issueState === 'closed' ? labels.issueReopen : labels.issueClose;
+  };
+  const headerRow = els.issueGoto.parentElement;
+  if (viewer === user && token && headerRow) {
+    headerRow.insertBefore(toggle, els.issueGoto);
+    syncToggle();
+    toggle.addEventListener('click', () => {
+      void (async () => {
+        toggle.disabled = true;
+        const next: 'open' | 'closed' = issueState === 'closed' ? 'open' : 'closed';
+        try {
+          await adapter.updateIssueState(token, user, repo, issue.number, next, issue.title);
+          issueState = next;
+          syncToggle();
+          renderCommentsArea();
+        } catch (error) {
+          // 失败时按钮短暂显示原因后复原
+          toggle.textContent = error instanceof Error ? error.message.slice(0, 40) : labels.loadError;
+          window.setTimeout(syncToggle, 2000);
+        } finally {
+          toggle.disabled = false;
+        }
+      })();
+    });
+  }
 
   // 互动数据（回复数 / 点赞数 / 点赞按钮）挂在标题下日期旁
   // 点赞 = 关联 issue 的 👍 表情（gitee/atomgit 无 release 交互，统一走 issue）
@@ -715,105 +752,121 @@ async function renderIssueSection(
     })();
   });
 
-  // 回复列表（API 加载）
-  const list = el('div', 'flex flex-col gap-2');
-  list.dataset.role = 'issue-comments';
-  const loading = el('p', 'text-sm text-slate-400', '…');
-  box.appendChild(list);
-  box.appendChild(loading);
-
-  /** 界面内当前展示的评论数（本地增删同步） */
-  let shown = 0;
-  const syncCount = (): void => {
-    count.textContent = `💬 ${shown}`;
-  };
-  const emptyHint = (): void => {
-    if (shown === 0) list.appendChild(el('p', 'text-sm text-slate-400', labels.noComments));
-  };
-  const commentActions = (mine: boolean): IssueCommentActions => ({
-    user,
-    repo,
-    deleteLabel: labels.delete,
-    deletable: !!token && mine,
-    onDeleted: () => {
-      shown = Math.max(0, shown - 1);
-      syncCount();
-      emptyHint();
-    },
-  });
-  const loadComments = async (): Promise<IssueCommentInfo[]> => {
-    let comments: IssueCommentInfo[] = [];
-    try {
-      comments = await adapter.listIssueComments(user, repo, issue.number);
-    } catch {
-      /* 评论加载失败时保留空列表 */
+  // 留言主体：closed 时不加载回复、仅显示提示；open 时加载回复列表与评论框
+  const renderCommentsArea = (): void => {
+    els.issues.textContent = '';
+    const box = el('div', 'card p-4');
+    if (issueState === 'closed') {
+      // 回复数用 issue 记录值（回复列表不加载）
+      count.textContent = `💬 ${issue.comments}`;
+      const p = el('p', 'text-sm text-slate-400', labels.commentsClosed);
+      p.dataset.role = 'comments-closed';
+      box.appendChild(p);
+      els.issues.appendChild(box);
+      return;
     }
-    loading.remove();
-    list.textContent = '';
-    shown = comments.length;
-    syncCount();
-    if (comments.length === 0) {
-      list.appendChild(el('p', 'text-sm text-slate-400', labels.noComments));
-    } else {
-      for (const comment of comments) {
-        list.appendChild(
-          renderIssueComment(comment, locale, platform, commentActions(comment.author === viewer)),
-        );
-      }
-    }
-    return comments;
-  };
-  void loadComments();
 
-  // 评论输入：有该平台登录态时显示输入框 + 评论按钮；否则提示登录当前平台
-  const footer = el('div', 'mt-3 flex flex-col items-start gap-2');
-  footer.dataset.role = 'issue-comment-form';
-  if (token) {
-    const textarea = el('textarea', 'input min-h-20 w-full');
-    textarea.placeholder = labels.commentPh;
-    textarea.dataset.field = 'issue-comment';
-    const status = el('p', 'hidden text-xs');
-    status.dataset.role = 'comment-status';
-    const submit = el('button', 'btn btn-primary', labels.commentSubmit);
-    submit.type = 'button';
-    submit.dataset.action = 'submit-comment';
-    submit.addEventListener('click', () => {
-      void (async () => {
-        const body = textarea.value.trim();
-        if (!body) return;
-        submit.disabled = true;
-        status.classList.add('hidden');
-        try {
-          const created = await adapter.createIssueComment(token, user, repo, issue.number, body);
-          textarea.value = '';
-          // 本地追加新评论（优先用接口返回的评论数据，含真实 id 与链接），无需整列刷新
-          const placeholder = list.querySelector('p');
-          if (shown === 0) placeholder?.remove();
-          const mine: IssueCommentInfo =
-            created ?? {
-              id: -1,
-              author: viewer,
-              body,
-              createdAt: new Date().toISOString(),
-            };
-          list.appendChild(renderIssueComment(mine, locale, platform, commentActions(true)));
-          shown += 1;
-          syncCount();
-        } catch (error) {
-          status.className = 'text-xs text-rose-600';
-          status.textContent = error instanceof Error ? error.message.slice(0, 80) : labels.commentFailed;
-          status.classList.remove('hidden');
-        } finally {
-          submit.disabled = false;
-        }
-      })();
+    // 回复列表（API 加载）
+    const list = el('div', 'flex flex-col gap-2');
+    list.dataset.role = 'issue-comments';
+    const loading = el('p', 'text-sm text-slate-400', '…');
+    box.appendChild(list);
+    box.appendChild(loading);
+
+    /** 界面内当前展示的评论数（本地增删同步） */
+    let shown = 0;
+    const syncCount = (): void => {
+      count.textContent = `💬 ${shown}`;
+    };
+    const emptyHint = (): void => {
+      if (shown === 0) list.appendChild(el('p', 'text-sm text-slate-400', labels.noComments));
+    };
+    const commentActions = (mine: boolean): IssueCommentActions => ({
+      user,
+      repo,
+      deleteLabel: labels.delete,
+      deletable: !!token && mine,
+      onDeleted: () => {
+        shown = Math.max(0, shown - 1);
+        syncCount();
+        emptyHint();
+      },
     });
-    footer.append(textarea, status, submit);
-  } else {
-    footer.appendChild(el('p', 'text-sm text-slate-400', labels.loginToComment));
-  }
-  box.appendChild(footer);
-  els.issues.appendChild(box);
+    const loadComments = async (): Promise<IssueCommentInfo[]> => {
+      let comments: IssueCommentInfo[] = [];
+      try {
+        comments = await adapter.listIssueComments(user, repo, issue.number);
+      } catch {
+        /* 评论加载失败时保留空列表 */
+      }
+      loading.remove();
+      list.textContent = '';
+      shown = comments.length;
+      syncCount();
+      if (comments.length === 0) {
+        list.appendChild(el('p', 'text-sm text-slate-400', labels.noComments));
+      } else {
+        for (const comment of comments) {
+          list.appendChild(
+            renderIssueComment(comment, locale, platform, commentActions(comment.author === viewer)),
+          );
+        }
+      }
+      return comments;
+    };
+    void loadComments();
+
+    // 评论输入：有该平台登录态时显示输入框 + 评论按钮；否则提示登录当前平台
+    const footer = el('div', 'mt-3 flex flex-col items-start gap-2');
+    footer.dataset.role = 'issue-comment-form';
+    if (token) {
+      const textarea = el('textarea', 'input min-h-20 w-full');
+      textarea.placeholder = labels.commentPh;
+      textarea.dataset.field = 'issue-comment';
+      const status = el('p', 'hidden text-xs');
+      status.dataset.role = 'comment-status';
+      const submit = el('button', 'btn btn-primary', labels.commentSubmit);
+      submit.type = 'button';
+      submit.dataset.action = 'submit-comment';
+      submit.addEventListener('click', () => {
+        void (async () => {
+          const body = textarea.value.trim();
+          if (!body) return;
+          submit.disabled = true;
+          status.classList.add('hidden');
+          try {
+            const created = await adapter.createIssueComment(token, user, repo, issue.number, body);
+            textarea.value = '';
+            // 本地追加新评论（优先用接口返回的评论数据，含真实 id 与链接），无需整列刷新
+            const placeholder = list.querySelector('p');
+            if (shown === 0) placeholder?.remove();
+            const mine: IssueCommentInfo =
+              created ?? {
+                id: -1,
+                author: viewer,
+                body,
+                createdAt: new Date().toISOString(),
+              };
+            list.appendChild(renderIssueComment(mine, locale, platform, commentActions(true)));
+            shown += 1;
+            syncCount();
+          } catch (error) {
+            status.className = 'text-xs text-rose-600';
+            status.textContent = error instanceof Error ? error.message.slice(0, 80) : labels.commentFailed;
+            status.classList.remove('hidden');
+          } finally {
+            submit.disabled = false;
+          }
+        })();
+      });
+      footer.append(textarea, status, submit);
+    } else {
+      footer.appendChild(el('p', 'text-sm text-slate-400', labels.loginToComment));
+    }
+    box.appendChild(footer);
+    els.issues.appendChild(box);
+  };
+  renderCommentsArea();
 }
 
 export async function initDetail(init: DetailInit): Promise<void> {

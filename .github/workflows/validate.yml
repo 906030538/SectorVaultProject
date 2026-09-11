@@ -1,57 +1,65 @@
 name: Validate index PR
 
+# 使用 pull_request_target：始终执行本仓库（index 分支）最新版本的门禁，
+# 而不是 fork 中可能过期的副本。
+# 安全模式：只检出基线分支执行受信脚本；PR 的代码仅作为数据读入（../pr 工作树），
+# 绝不执行 PR 中的任何代码或安装其依赖。
 on:
-  pull_request:
+  pull_request_target:
     branches: [index]
     paths:
       - "index/**"
       - "config.json"
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout base branch (trusted code)
+        uses: actions/checkout@v4
         with:
+          ref: ${{ github.base_ref }}
           fetch-depth: 0
+      - name: Fetch PR head as data-only worktree
+        run: |
+          git fetch origin "refs/pull/${{ github.event.pull_request.number }}/head:pr-head"
+          git worktree add ../pr pr-head
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Reject manual edits to derived current.json
         run: |
-          changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- index/current.json)
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}...pr-head" -- index/current.json)
           if [ -n "$changed" ]; then
             echo "::error::index/current.json 是由 Action 生成的派生数据，请修改 index/archive/ 下的归档索引"
             exit 1
           fi
       - name: Check submission date immutability
+        run: node scripts/check-submitted-at.mjs index/archive ../pr/index/archive
+      - name: Validate PR archive JSON against schemas
         run: |
-          git worktree add ../base origin/${{ github.base_ref }}
-          node scripts/check-submitted-at.mjs ../base/index/archive index/archive
-      - name: Validate archive JSON against schemas
-        run: |
-          if ls index/archive/*.json >/dev/null 2>&1; then
+          if ls ../pr/index/archive/*.json >/dev/null 2>&1; then
             npx --yes ajv-cli validate \
               -s schema/archive.schema.json \
               -r schema/submission.schema.json \
               -r schema/user.schema.json \
-              -d "index/archive/*.json" --spec=draft7
+              -d "../pr/index/archive/*.json" --spec=draft7
           else
-            echo "no archive files yet, skipped"
+            echo "no archive files in PR, skipped"
           fi
       - name: Validate config.json
-        run: npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
+        run: npx --yes ajv-cli validate -s schema/config.schema.json -d ../pr/config.json --spec=draft7
       - name: Check PR scope (auto merge eligibility)
         id: scope
         run: |
           {
             node scripts/check-pr-scope.mjs \
-              ../base/index/archive index/archive \
-              origin/${{ github.base_ref }} HEAD
+              index/archive ../pr/index/archive \
+              "origin/${{ github.base_ref }}" pr-head
           } >> "$GITHUB_OUTPUT"
       - name: Auto merge single-submission PRs
         # fork 来的 PR 中内置 GITHUB_TOKEN 被降级为只读，自动合并必须用 PAT/App token

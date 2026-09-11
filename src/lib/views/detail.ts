@@ -18,7 +18,7 @@ import { getToken, loadSessionBy } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
 import { normalizeLocale, type Locale } from '@/i18n';
-import { applyCover, badgeSvg, fileIconUrl, isRateLimitError, setAvatar, showApiLimitNotice } from '@/lib/ui';
+import { applyCover, badgeSvg, fileIconUrl, isRateLimitError, officialStarBadgeUrl, platformRepoUrl, setAvatar, showApiLimitNotice } from '@/lib/ui';
 import { withBase } from '@/lib/base';
 import type { IssueCommentInfo, IssueInfo, IssueReactionInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
 
@@ -32,14 +32,6 @@ function el<K extends keyof HTMLElementTagNameMap>(
   if (text) node.textContent = text;
   return node;
 }
-
-/** 各平台站点根地址（删除态的跳转源仓库用） */
-const WEB_BASE: Record<Platform, string> = {
-  github: 'https://github.com',
-  gitee: 'https://gitee.com',
-  atomgit: 'https://atomgit.com',
-  gitcode: 'https://gitcode.com',
-};
 
 /** 源稿件不存在判定：404/Not Found，或空仓库（内容已被清空） */
 function isSubmissionMissingError(error: unknown): boolean {
@@ -77,7 +69,7 @@ function renderDeleted(
   user.dataset.action = 'goto-user';
 
   const source = el('a', 'btn btn-primary', labels.sourceRepo);
-  source.href = `${WEB_BASE[entry.platform]}/${entry.owner}/${entry.repo}`;
+  source.href = platformRepoUrl(entry.platform, entry.owner, entry.repo);
   source.target = '_blank';
   source.rel = 'noopener';
   source.dataset.action = 'goto-source-repo';
@@ -1102,17 +1094,26 @@ function renderAuthor(
   if (displayName !== entry.owner) userLink.title = entry.owner;
   info.appendChild(userLink);
 
-  // 仓库 badge（owner/repo | 平台）+ 收藏 badge（★ | 数量）
-  if (repoInfo?.htmlUrl) {
-    const repoBadge = document.createElement('a');
-    repoBadge.href = repoInfo.htmlUrl;
-    repoBadge.target = '_blank';
-    repoBadge.rel = 'noopener';
-    repoBadge.dataset.role = 'repo-badge';
-    repoBadge.innerHTML = badgeSvg(`${entry.owner}/${entry.repo}`, PLATFORM_NAMES[platform], '#334155', PLATFORM_BADGE_BG[platform]);
-    info.appendChild(repoBadge);
-  }
-  if (repoInfo) {
+  // 仓库 badge（owner/repo | 平台）+ 收藏 badge：Gitee/AtomGit 用平台官方 star badge 图标
+  const repoBadge = document.createElement('a');
+  repoBadge.href = repoInfo?.htmlUrl?.replace(/\.git$/, '') ?? platformRepoUrl(platform, entry.owner, entry.repo);
+  repoBadge.target = '_blank';
+  repoBadge.rel = 'noopener';
+  repoBadge.dataset.role = 'repo-badge';
+  repoBadge.innerHTML = badgeSvg(`${entry.owner}/${entry.repo}`, PLATFORM_NAMES[platform], '#334155', PLATFORM_BADGE_BG[platform]);
+  info.appendChild(repoBadge);
+  const officialBadge = officialStarBadgeUrl(platform, entry.owner, entry.repo);
+  if (officialBadge) {
+    const img = document.createElement('img');
+    img.src = officialBadge;
+    img.alt = labels.stars;
+    img.title = labels.stars;
+    img.className = 'h-5 w-auto';
+    img.dataset.role = 'repo-stars';
+    // 加载失败（mock 模式/平台改版）时直接隐藏，不留破图
+    img.addEventListener('error', () => img.remove());
+    info.appendChild(img);
+  } else if (repoInfo) {
     const starBadge = document.createElement('span');
     starBadge.dataset.role = 'repo-stars';
     starBadge.title = labels.stars;

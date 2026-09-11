@@ -44,7 +44,7 @@
 5. 如果有封面先显示封面再显示参数。
 6. 渲染正文，不用包含文件头的各种属性；正文结束后显示tag列表。
 7. 仓库媒体区只展示可显示/播放的媒体（图片/音频/视频），排除封面与工程文件；无内容时隐藏区块。
-8. 作者卡显示用户头像（API拉取失败回退首字母）、作者名（索引记录优先，回退仓库用户名）、仓库badge（owner/repo|平台色）、收藏badge（★|数量）、许可证。
+8. 作者卡显示用户头像（API拉取失败回退首字母）、作者名（索引记录优先，回退仓库用户名）、仓库badge（owner/repo|平台色，链接优先用API返回的htmlUrl，缺省按平台拼接）、收藏badge（Gitee/AtomGit为平台官方star badge图，其余平台为★|数量SVG）、许可证（稿件级优先，缺省仓库级）。
 9. 工程文件列表：非加密文件整框可点击下载（无独立按钮），悬停手势+扩展名图标（public/icons按扩展名自动识别）；加密文件两行布局（名称行/密码+解密按钮行），解密成功后切换普通文件样式（隐藏控件、标签改已解密、记住密码）。
 10. 附件区（原关联release区）：标题行右侧"前往release"按钮；卡片先渲染release正文（发布简介+链接）再列附件列表。
 11. 留言区：评论列表（头像拉取+本地追加+本人评论可删+右置删除按钮+去除超链接）+ 评论输入框（满行宽度）。
@@ -70,7 +70,7 @@
 ### 站点介绍
 1. 介绍本网站架构和优势。
 2. 显示索引的稿件数量和用户数量。
-3. 显示索引仓收藏badges（shields风格SVG）：各平台badge带平台色，星标数直连API读取；AtomGit/GitCode经CF worker代理（`/api/repo-info`）读取（平台不返回CORS头）。
+3. 显示索引仓收藏badges：Gitee/AtomGit直接引用平台官方star badge图（`{repo}/badge/star.svg`、`{repo}/star/badge.svg`，img加载不受CORS限制）；其余平台用shields风格SVG，星标数直连API读取，不可读时显示–。
 
 ## 用户空间
 用户空间既作为主站点的一个子路由，也可以独立部署。
@@ -228,7 +228,6 @@ svp-archive.json -- 本地索引
 - `functions/oauth/env.ts`：下发各平台clientId（环境变量注入）。
 - `functions/oauth/[platform]/token.ts`：token交换代理（secret留服务端）。
 - `functions/gh-oauth/[[path]].ts`：GitHub设备流代理。
-- `functions/api/repo-info.ts`：仓库信息代理（AtomGit/GitCode不返回CORS头时经此读取，支持令牌透传）。
 
 ## 静态资源
 - `public/icons/`：文件扩展名SVG图标目录（49个，按扩展名自动匹配，未知类型回退file.svg）。

@@ -1,4 +1,4 @@
-import type { EngagementStats, SubmissionEntry } from '@/types';
+import type { EngagementStats, Platform, SubmissionEntry } from '@/types';
 import faviconUrl from '../../favicon.svg?url';
 import logoSmallUrl from '../../logo-small.svg?url';
 import { POSTS_DIR } from '@/config';
@@ -60,6 +60,31 @@ export function badgeSvg(label: string, value: string, labelBg = '#334155', valu
   const valueW = Math.round(value.length * 6.6 + 16);
   const total = labelW + valueW;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="20" role="img" aria-label="${escXml(label)}: ${escXml(value)}"><title>${escXml(label)} ${escXml(value)}</title><rect width="${labelW}" height="20" rx="3" fill="${labelBg}"/><rect x="${labelW}" width="${valueW}" height="20" rx="3" fill="${valueBg}"/><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11"><text x="${labelW / 2}" y="14">${escXml(label)}</text><text x="${labelW + valueW / 2}" y="14">${escXml(value)}</text></g></svg>`;
+}
+
+/** 各平台站点根地址 */
+const PLATFORM_WEB_BASE: Record<Platform, string> = {
+  github: 'https://github.com',
+  gitee: 'https://gitee.com',
+  atomgit: 'https://atomgit.com',
+  gitcode: 'https://gitcode.com',
+};
+
+/** 元仓库官方 star badge 路径（无官方 badge 的平台不在此列） */
+const OFFICIAL_STAR_BADGE: Partial<Record<Platform, string>> = {
+  gitee: '/badge/star.svg',
+  atomgit: '/star/badge.svg',
+};
+
+/** 仓库 web 地址（去除 .git 后缀） */
+export function platformRepoUrl(platform: Platform, owner: string, repo: string): string {
+  return `${PLATFORM_WEB_BASE[platform]}/${owner}/${repo}`.replace(/\.git$/, '');
+}
+
+/** 平台官方 star badge 图片地址；平台未提供时返回 null（img 加载不受 CORS 限制） */
+export function officialStarBadgeUrl(platform: Platform, owner: string, repo: string): string | null {
+  const path = OFFICIAL_STAR_BADGE[platform];
+  return path ? `${platformRepoUrl(platform, owner, repo)}${path}` : null;
 }
 
 /** 无封面/加载失败时的默认占位：logo-small.svg */

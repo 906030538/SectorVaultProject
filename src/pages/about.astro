@@ -66,8 +66,7 @@ const locale = DEFAULT_LOCALE;
     import { loadLineIndexMerged } from '@/lib/index/loader';
     import { getIndexSources } from '@/lib/index/sources';
     import { loadRepoInfo } from '@/lib/content';
-    import { getOauthBase } from '@/lib/index/sources';
-    import { badgeSvg } from '@/lib/ui';
+    import { badgeSvg, officialStarBadgeUrl, platformRepoUrl } from '@/lib/ui';
     import type { Platform } from '@/types';
 
     try {
@@ -81,18 +80,13 @@ const locale = DEFAULT_LOCALE;
       /* 索引加载失败时保留占位符 */
     }
 
-    // 索引仓收藏 badges：shields 风格内联 SVG，星标数经各平台适配器读取
+    // 索引仓收藏 badges：Gitee/AtomGit 用平台官方 star badge 图；
+    // 其余平台用 shields 风格内联 SVG，星标数经各平台适配器读取
     const BADGE_LABEL_BG: Record<Platform, string> = {
       github: '#24292f',
       gitee: '#c71d23',
       atomgit: '#2b6fe0',
       gitcode: '#fe7300',
-    };
-    const WEB_BASE: Record<Platform, string> = {
-      github: 'https://github.com',
-      gitee: 'https://gitee.com',
-      atomgit: 'https://atomgit.com',
-      gitcode: 'https://gitcode.com',
     };
 
     void (async () => {
@@ -105,52 +99,34 @@ const locale = DEFAULT_LOCALE;
         seen.add(key);
         const labelBg = BADGE_LABEL_BG[source.platform] ?? '#334155';
         const label = `${source.owner}/${source.repo}`;
-        const webUrl = `${WEB_BASE[source.platform]}/${source.owner}/${source.repo}`.replace(/\.git$/, '');
         const link = document.createElement('a');
-        link.href = webUrl;
+        link.href = platformRepoUrl(source.platform, source.owner, source.repo);
         link.target = '_blank';
         link.rel = 'noopener';
         link.title = `${key}@${source.branch}`;
+        const officialBadge = officialStarBadgeUrl(source.platform, source.owner, source.repo);
+        if (officialBadge) {
+          const img = document.createElement('img');
+          img.src = officialBadge;
+          img.alt = `${label} star`;
+          img.className = 'h-5';
+          link.appendChild(img);
+          host.appendChild(link);
+          continue;
+        }
         link.innerHTML = badgeSvg(label, '★ …', labelBg);
         host.appendChild(link);
         const setBadge = (value: string): void => {
           const svg = link.querySelector('svg');
           if (svg) svg.outerHTML = badgeSvg(label, value, labelBg);
         };
-        // 星标数异步补全；仓库详情不可读时显示 –
-        // AtomGit/GitCode 的仓库详情端点不返回 CORS 头（浏览器跨域被阻断），
-        // 先直连 API，失败时经 oauthBase 代理读取（CF worker）
-        const fetchStarsViaProxy = async (): Promise<number | null> => {
-          const base = await getOauthBase();
-          if (!base) return null;
-          const url = `${WEB_BASE[source.platform]}/api/v5/repos/${source.owner}/${source.repo}`;
-          // 部分平台仓库详情要求认证（AtomGit）：带上已保存的本平台令牌
-          const token = localStorage.getItem(`svp-token-${source.platform}`);
-          const proxyUrl = `${base}/api/repo-info?url=${encodeURIComponent(url)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
-          try {
-            const response = await fetch(proxyUrl);
-            if (!response.ok) return null;
-            const data = (await response.json()) as { stargazers_count?: number };
-            return data.stargazers_count ?? null;
-          } catch {
-            return null;
-          }
-        };
+        // 星标数异步补全；仓库详情不可读（匿名受限/无 CORS 头）时显示 –
         void loadRepoInfo(source.platform, source.owner, source.repo)
-          .then(async (info) => {
+          .then((info) => {
             if (info?.htmlUrl) link.href = info.htmlUrl.replace(/\.git$/, '');
-            if (info) {
-              setBadge(`★ ${info.stars}`);
-            } else {
-              // 直连失败（CORS/匿名受限）：经代理重试
-              const stars = await fetchStarsViaProxy();
-              setBadge(`★ ${stars !== null ? stars : '–'}`);
-            }
+            setBadge(`★ ${info ? info.stars : '–'}`);
           })
-          .catch(async () => {
-            const stars = await fetchStarsViaProxy();
-            setBadge(`★ ${stars !== null ? stars : '–'}`);
-          });
+          .catch(() => setBadge('★ –'));
       }
     })();
   </script>

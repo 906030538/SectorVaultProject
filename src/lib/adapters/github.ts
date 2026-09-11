@@ -757,9 +757,9 @@ export class GitHubAdapter implements GitPlatformAdapter {
     }
 
     // 工作分支（fork 异步就绪时重试创建）。
-    // 基准默认取上游索引分支头；既有 fork 是落后快照、缺上游新提交对象，
-    // 直接以其建 ref 会 422（Reference update failed）——先把上游索引分支
-    // 快进合并进 fork（跨仓 merge API 引入对象），无法快进时退回 fork 自身分支头
+    // 既有 fork 的索引分支会落后于上游：先把 fork 的索引分支 ref 强制快进到上游头
+    // （fork 网络共享对象库，可直接指向上游 sha；即「Sync fork」的实现），
+    // 再以该 sha 建工作分支；同步失败时退回 fork 自身分支头
     // （提交内容本就基于上游最新归档构建，仍可干净合并）
     const prBranch = `svp-index-${Date.now().toString(36)}`;
     let refSha = baseSha;
@@ -767,14 +767,14 @@ export class GitHubAdapter implements GitPlatformAdapter {
       try {
         if (!sameOwner) {
           try {
-            await octokit.rest.repos.merge({
+            await octokit.rest.git.updateRef({
               owner: headOwner,
               repo,
-              base: branch,
-              head: `${owner}:${branch}`,
+              ref: `heads/${branch}`,
+              sha: baseSha,
+              force: true,
             });
-          } catch (error) {
-            if (!/409|Conflict/i.test(String(error))) throw error;
+          } catch {
             const { data } = await octokit.rest.git.getRef({
               owner: headOwner,
               repo,

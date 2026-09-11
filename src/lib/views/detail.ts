@@ -54,7 +54,6 @@ function renderDeleted(
   const box = el('div', 'card flex flex-col items-center gap-4 p-10 text-center');
   box.dataset.role = 'deleted-notice';
   box.appendChild(el('h2', 'text-xl font-semibold', labels.deleted));
-  box.appendChild(el('p', 'text-sm text-slate-500 dark:text-slate-400', labels.deletedHint));
   const buttons = el('div', 'mt-2 flex flex-wrap justify-center gap-2');
 
   const back = el('button', 'btn', labels.back);
@@ -120,7 +119,6 @@ export interface DetailLabels {
   loginToComment: string;
   loadError: string;
   deleted: string;
-  deletedHint: string;
   back: string;
   viewCollection: string;
   viewUser: string;
@@ -427,7 +425,7 @@ function renderRelease(
   // release 正文（发布简介 + 链接，Markdown 安全渲染）
   if (release.body.trim()) {
     const body = document.createElement('div');
-    body.className = 'prose-svp text-sm';
+    body.className = 'text-sm';
     body.dataset.role = 'release-body';
     body.innerHTML = DOMPurify.sanitize(
       marked.parse(release.body, { async: false }),
@@ -537,14 +535,14 @@ function renderIssueComment(
   const author = comment.author
     ? comment.authorUrl
       ? (() => {
-          const a = document.createElement('a');
-          a.href = comment.authorUrl!;
-          a.target = '_blank';
-          a.rel = 'noopener';
-          a.className = 'font-medium hover:text-emerald-600 dark:hover:text-emerald-400';
-          a.textContent = comment.author;
-          return a;
-        })()
+        const a = document.createElement('a');
+        a.href = comment.authorUrl!;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.className = 'font-medium hover:text-emerald-600 dark:hover:text-emerald-400';
+        a.textContent = comment.author;
+        return a;
+      })()
       : el('span', undefined, comment.author)
     : el('span');
   head.append(
@@ -931,10 +929,10 @@ export async function initDetail(init: DetailInit): Promise<void> {
   els.title.textContent = entry.title;
   els.date.textContent = entry.submittedAt
     ? new Date(entry.submittedAt).toLocaleDateString(locale, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      })
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
     : '';
 
   const platform: Platform = entry.platform;
@@ -966,10 +964,10 @@ export async function initDetail(init: DetailInit): Promise<void> {
   // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
   const loaded = await Promise.all([
     preloaded ??
-      loadSubmissionContent(platform, user, repo, slug).catch((error) => {
-        if (isRateLimitError(error)) showApiLimitNotice(platform);
-        throw error;
-      }),
+    loadSubmissionContent(platform, user, repo, slug).catch((error) => {
+      if (isRateLimitError(error)) showApiLimitNotice(platform);
+      throw error;
+    }),
     loadRepoInfo(platform, user, repo).catch(() => null),
     loadReleases(platform, user, repo).catch(() => []),
     loadIssues(platform, user, repo).catch(() => []),

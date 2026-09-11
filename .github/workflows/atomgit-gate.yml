@@ -26,7 +26,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Skip sync pushes already contained in index
+        run: |
+          if git merge-base --is-ancestor HEAD origin/index; then
+            echo "HEAD already contained in index (branch sync), skip gate"
+            echo "skip=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
       - name: Restrict changes to archive files
+        if: env.skip != 'true'
         run: |
           non_archive=$(git diff --name-only origin/index...HEAD | grep -v '^index/archive/[0-9]\{4\}-[0-9]\{2\}\.json$' || true)
           if [ -n "$non_archive" ]; then
@@ -35,6 +43,7 @@ jobs:
             exit 1
           fi
       - name: Validate archive JSON against schemas
+        if: env.skip != 'true'
         run: |
           if ls index/archive/*.json >/dev/null 2>&1; then
             npx --yes ajv-cli validate \
@@ -44,10 +53,12 @@ jobs:
               -d "index/archive/*.json" --spec=draft7
           fi
       - name: Check submission date immutability
+        if: env.skip != 'true'
         run: |
           git worktree add ../index-wt origin/index
           node scripts/check-submitted-at.mjs ../index-wt/index/archive index/archive
       - name: Check scope
+        if: env.skip != 'true'
         run: |
           out=$(node scripts/check-pr-scope.mjs ../index-wt/index/archive index/archive origin/index HEAD)
           echo "$out"
@@ -57,6 +68,7 @@ jobs:
             exit 1
           fi
       - name: Merge atomgit into index
+        if: env.skip != 'true'
         run: |
           gh api -X POST "repos/${{ github.repository }}/merges" \
             -f base=index \

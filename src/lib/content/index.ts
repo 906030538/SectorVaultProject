@@ -139,7 +139,8 @@ const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif']);
 const AUDIO_EXT = new Set(['wav', 'mp3', 'ogg', 'flac', 'm4a']);
 const VIDEO_EXT = new Set(['mp4', 'webm', 'mov', 'mkv']);
 
-function mediaKind(name: string): MediaItem['kind'] {
+/** 文件扩展名 → 媒体类别（详情页工程文件与媒体区的分流依据） */
+export function mediaKind(name: string): MediaItem['kind'] {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   if (IMAGE_EXT.has(ext)) return 'image';
   if (AUDIO_EXT.has(ext)) return 'audio';
@@ -223,11 +224,17 @@ export async function loadSubmissionContent(
     loadSlugDir(platform, user, repo, baseDir).catch(() => [] as string[]),
   ]);
   const parsed = parseReadme(raw);
-  const projectNames = new Set(parsed.files.map((f) => f.name));
+  const projectFiles = new Map(parsed.files.map((f) => [f.name, f] as const));
 
   const adapter = await getAdapterAsync(platform);
   const media: MediaItem[] = dir
-    .filter((name) => name !== 'README.md' && !projectNames.has(name))
+    .filter((name) => {
+      if (name === 'README.md') return false;
+      const file = projectFiles.get(name);
+      // 明文媒体类工程文件保留在媒体列表（详情页媒体区展示）；
+      // 其余工程文件（含压缩/加密，物理名为 .zip 后缀不在此列）不重复进媒体区
+      return !file || (!file.compressed && !file.encrypted && mediaKind(name) !== 'other');
+    })
     .map((name) => ({ name, kind: mediaKind(name), url: adapter.rawUrl(user, repo, `${baseDir}/${name}`) }));
 
   return { parsed, media, baseDir };

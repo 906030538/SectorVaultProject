@@ -14,7 +14,11 @@ const locale = DEFAULT_LOCALE;
   {
     /* 集合详情或稿件详情：客户端按段数区分（2 段 = 集合，3 段起 = 稿件） */
   }
-  <article class="mx-auto hidden w-full max-w-3xl lg:max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8" data-view-skeleton="detail">
+  <article
+    class="mx-auto w-full max-w-3xl lg:max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8"
+    data-view-skeleton="detail"
+    hidden
+  >
     <div class="min-w-0 lg:row-start-1">
       <header>
         <div class="flex flex-wrap items-center gap-3">
@@ -76,7 +80,7 @@ const locale = DEFAULT_LOCALE;
     </section>
   </article>
 
-  <div class="hidden" data-view-skeleton="collection">
+  <div data-view-skeleton="collection" hidden>
     <header class="mb-6">
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-2xl font-bold" data-role="repo-name"></h1>
@@ -164,7 +168,9 @@ void (async () => {
     try {
       if (slug) {
         document.title = `${slug} · ${repo} - ${SITE_NAME}`;
-        root.querySelector<HTMLElement>('[data-view-skeleton="detail"]')!.classList.remove('hidden');
+        // hidden 属性 + Tailwind preflight 的 !important：显示切换不会被 lg:grid 等
+        // display 工具类覆盖（hidden 类会被同前缀变体压过，导致宽屏串显另一视图）
+        root.querySelector<HTMLElement>('[data-view-skeleton="detail"]')!.removeAttribute('hidden');
         pick('author-path').textContent = `${user}/${repo}`;
         await initDetail({
           user,
@@ -191,7 +197,7 @@ void (async () => {
         });
       } else {
         document.title = `${repo} - ${SITE_NAME}`;
-        root.querySelector<HTMLElement>('[data-view-skeleton="collection"]')!.classList.remove('hidden');
+        root.querySelector<HTMLElement>('[data-view-skeleton="collection"]')!.removeAttribute('hidden');
         await initCollection({
           user,
           repo,

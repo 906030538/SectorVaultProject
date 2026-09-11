@@ -936,7 +936,7 @@ export async function initEditor(
   const isEdit = config.mode === 'edit';
 
   // ---- 状态初始化 ----
-  // 作者默认登录用户（发布时作为 git 提交作者；可改）
+  // 作者输入默认留空（占位提示登录用户；发布时 git 提交作者名缺省回退仓库属主）
   const defaultAuthor = loadSession()?.name ?? loadSession()?.login ?? '';
   // 平台切换时需要同步的提示元素回调（发布简介后的 GitHub 附件指引等）
   const summaryHintSyncs: Array<() => void> = [];
@@ -950,7 +950,7 @@ export async function initEditor(
     slug: config.slug ?? todaySlug(),
     type: 'project',
     title: '',
-    author: defaultAuthor,
+    author: '',
     email: '',
     params: 'with-params',
     lists: { videos: [], tracks: [], engines: [], voicebanks: [], songLanguages: [] },

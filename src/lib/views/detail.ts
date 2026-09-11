@@ -7,6 +7,7 @@ import {
   loadReleases,
   loadIssues,
   loadSubmissionContent,
+  mediaKind,
   type MediaItem,
   type ProjectFile,
   type SubmissionContent,
@@ -1022,12 +1023,16 @@ export async function initDetail(init: DetailInit): Promise<void> {
     .map((v) => v.trim())
     .filter(Boolean);
   renderTags(tags, els);
-  // 媒体区只展示可显示/播放的媒体：排除封面（已在顶部展示）与工程文件（工程文件区展示）
+  // 媒体分流：工程文件中的明文图片/音频/视频不在文件列表显示，改在仓库媒体区展示
+  // （压缩/加密文件无法直接展示，仍留在工程文件区）
   const coverName = entry.cover && !/^https?:/.test(entry.cover) ? entry.cover : null;
-  const fileNames = new Set(content.parsed.files.map((f) => f.name));
+  const plainMedia = (file: ProjectFile): boolean =>
+    !file.compressed && !file.encrypted && mediaKind(file.name) !== 'other';
+  const filesOnly = content.parsed.files.filter((file) => !plainMedia(file));
+  // 媒体区展示可显示/播放的媒体：排除封面（已在顶部展示）；明文媒体类工程文件
+  // 物理上就在仓库目录里（content.media 含其条目），不再按工程文件名排除
   const displayable = content.media.filter(
-    (item) =>
-      item.kind !== 'other' && item.name !== coverName && !fileNames.has(item.name),
+    (item) => item.kind !== 'other' && item.name !== coverName,
   );
   if (displayable.length) {
     renderMedia(displayable, els);
@@ -1039,7 +1044,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   // 作者卡 + 许可证（稿件级优先，缺省仓库级）
   renderAuthor(entry, repoInfo, content, labels, els, platform);
 
-  renderFiles(init, platform, content.baseDir, content.parsed.files, els);
+  renderFiles(init, platform, content.baseDir, filesOnly, els);
 
   const release = releases.find((r) => r.tag === slug) ?? null;
   renderRelease(init, platform, release, labels, els);

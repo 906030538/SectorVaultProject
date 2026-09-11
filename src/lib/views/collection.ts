@@ -272,9 +272,8 @@ export async function initCollection(init: CollectionInit): Promise<void> {
     els.next.disabled = page >= totalPages - 1;
 
     for (const btn of Array.from(els.tabs.querySelectorAll<HTMLButtonElement>('button'))) {
-      const active = btn.dataset.tab === tab;
-      btn.classList.toggle('btn-primary', active);
-      btn.classList.toggle('btn', !active);
+      // btn 基类两态都保留（选中只叠加 btn-primary），否则选中态丢失按钮基础样式
+      btn.classList.toggle('btn-primary', btn.dataset.tab === tab);
     }
   }
 

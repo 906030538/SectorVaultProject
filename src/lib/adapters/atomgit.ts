@@ -114,13 +114,14 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   }
 
   async getViewer(token: string): Promise<AuthInfo> {
-    const user = await this.request<{ login: string; name?: string; avatar_url?: string }>('/user', {
+    const user = await this.request<{ login: string; name?: string; email?: string; avatar_url?: string }>('/user', {
       token,
     });
     return {
       platform: this.platform,
       login: user.login,
       name: user.name ?? undefined,
+      email: user.email ?? undefined,
       avatarUrl: user.avatar_url ?? '',
     };
   }

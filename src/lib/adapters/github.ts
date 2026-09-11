@@ -84,6 +84,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
       platform: 'github',
       login: data.login,
       name: data.name ?? undefined,
+      email: data.email ?? undefined,
       avatarUrl: data.avatar_url,
     };
   }
@@ -755,15 +756,38 @@ export class GitHubAdapter implements GitPlatformAdapter {
       headOwner = login;
     }
 
-    // 工作分支（fork 异步就绪时重试创建）
+    // 工作分支（fork 异步就绪时重试创建）。
+    // 基准默认取上游索引分支头；既有 fork 是落后快照、缺上游新提交对象，
+    // 直接以其建 ref 会 422（Reference update failed）——先把上游索引分支
+    // 快进合并进 fork（跨仓 merge API 引入对象），无法快进时退回 fork 自身分支头
+    // （提交内容本就基于上游最新归档构建，仍可干净合并）
     const prBranch = `svp-index-${Date.now().toString(36)}`;
+    let refSha = baseSha;
     for (let attempt = 0; ; attempt += 1) {
       try {
+        if (!sameOwner) {
+          try {
+            await octokit.rest.repos.merge({
+              owner: headOwner,
+              repo,
+              base: branch,
+              head: `${owner}:${branch}`,
+            });
+          } catch (error) {
+            if (!/409|Conflict/i.test(String(error))) throw error;
+            const { data } = await octokit.rest.git.getRef({
+              owner: headOwner,
+              repo,
+              ref: `heads/${branch}`,
+            });
+            refSha = data.object.sha;
+          }
+        }
         await octokit.rest.git.createRef({
           owner: headOwner,
           repo,
           ref: `refs/heads/${prBranch}`,
-          sha: baseSha,
+          sha: refSha,
         });
         break;
       } catch (error) {

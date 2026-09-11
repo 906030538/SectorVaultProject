@@ -619,8 +619,9 @@ function renderCoverControl(labels: EditorLabels, state: EditorState, editable: 
   input.accept = 'image/*';
   input.setAttribute('data-field', 'cover');
 
-  // 已选封面预览（本地 object URL；取消选择或移除时回收）
-  const preview = el('img', 'mt-2 max-h-48 w-auto rounded-lg border border-slate-200 dark:border-slate-700');
+  // 已选封面预览（本地 object URL；取消选择或移除时回收）。
+  // self-start 抵消父级 flex 列的 stretch 拉伸，保持原图比例：高最多 192px、宽最多容器宽
+  const preview = el('img', 'mt-2 h-auto max-h-48 w-auto max-w-full self-start rounded-lg border border-slate-200 dark:border-slate-700');
   preview.alt = '';
   preview.setAttribute('data-role', 'cover-preview');
   let previewUrl = '';
@@ -877,7 +878,8 @@ function buildDraft(state: EditorState): SubmissionDraft {
     type: state.type,
     title: state.title,
     author: state.author || undefined,
-    email: state.email || undefined,
+    // 邮箱留空时缺省取当前平台登录用户的邮箱（而非留空）
+    email: state.email.trim() || loadSessionBy(state.platform)?.email || undefined,
     params: state.params,
     videos: state.lists.videos.filter(Boolean),
     tracks: state.lists.tracks.filter(Boolean),
@@ -938,6 +940,8 @@ export async function initEditor(
   const defaultAuthor = loadSession()?.name ?? loadSession()?.login ?? '';
   // 平台切换时需要同步的提示元素回调（发布简介后的 GitHub 附件指引等）
   const summaryHintSyncs: Array<() => void> = [];
+  // 平台切换时需要同步的默认值回调（邮箱缺省取当前平台登录用户邮箱）
+  const defaultEmailSyncs: Array<() => void> = [];
 
   const state: EditorState = {
     user: config.user ?? '',
@@ -1058,6 +1062,7 @@ export async function initEditor(
       config.repo = match.repo;
       syncAttachmentVisibility();
       for (const sync of summaryHintSyncs) sync();
+      for (const sync of defaultEmailSyncs) sync();
     }
   };
   repoSelect.addEventListener('change', applyRepoSelection);
@@ -1161,9 +1166,21 @@ export async function initEditor(
   emailInput.value = state.email;
   emailInput.placeholder = 'name@example.com';
   emailInput.setAttribute('data-field', 'email');
+  // 用户手动改过邮箱后不再自动填充；留空时缺省取当前平台登录用户的邮箱
+  let emailTouched = false;
+  const syncDefaultEmail = (): void => {
+    if (emailTouched || emailInput.value) return;
+    const fallback = loadSessionBy(state.platform)?.email ?? '';
+    if (fallback) {
+      emailInput.value = fallback;
+      state.email = fallback;
+    }
+  };
   emailInput.addEventListener('input', () => {
+    emailTouched = true;
     state.email = emailInput.value;
   });
+  defaultEmailSyncs.push(syncDefaultEmail);
   emailBox.appendChild(emailInput);
   authorRow.append(authorBox, emailBox);
   form.appendChild(authorRow);
@@ -1358,6 +1375,9 @@ export async function initEditor(
     if (entry.email) {
       state.email = entry.email;
       emailInput.value = entry.email;
+    } else {
+      // 原稿无邮箱：缺省取当前平台登录用户的邮箱
+      syncDefaultEmail();
     }
     state.params = entry.paramState ?? 'with-params';
     const radio = paramsRow.querySelector<HTMLInputElement>(`input[value="${state.params}"]`);

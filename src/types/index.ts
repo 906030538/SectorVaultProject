@@ -213,5 +213,7 @@ export interface AuthInfo {
   platform: Platform;
   login: string;
   name?: string;
+  /** 平台账号邮箱（git 提交作者邮箱缺省；账号未公开邮箱时缺失） */
+  email?: string;
   avatarUrl: string;
 }

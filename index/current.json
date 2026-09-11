@@ -26,9 +26,48 @@
       ],
       "issue": "6",
       "release": "382315262"
+    },
+    {
+      "slug": "230116-夜空中最亮的星",
+      "owner": "y2361547758",
+      "repo": "svp-default",
+      "platform": "github",
+      "type": "project",
+      "title": "夜空中最亮的星",
+      "submittedAt": "2023-01-15T16:00:00.000Z",
+      "publishedAt": "2026-09-11T21:02:47.794Z",
+      "cover": "718745031df4d3bf73f4ba9394c64c0672f13d1c.jpg",
+      "tags": [
+        "夢ノ結唱",
+        "逃跑计划",
+        "跨语种"
+      ],
+      "paramState": "with-params",
+      "songs": [
+        "夜空中最亮的星"
+      ],
+      "engines": [
+        "CeVIO AI"
+      ],
+      "voicebanks": [
+        "POPY"
+      ],
+      "languages": [
+        "zh"
+      ],
+      "issue": "1"
     }
   ],
   "users": [
+    {
+      "platform": "github",
+      "owner": "y2361547758",
+      "repos": [
+        {
+          "repo": "svp-default"
+        }
+      ]
+    },
     {
       "platform": "github",
       "owner": "906030538",
@@ -39,8 +78,15 @@
       ]
     }
   ],
-  "userCount": 1,
+  "userCount": 2,
   "archives": [
+    {
+      "file": "2023-01.json",
+      "byType": {
+        "project": 1,
+        "article": 0
+      }
+    },
     {
       "file": "2023-03.json",
       "byType": {

@@ -1,0 +1,49 @@
+{
+  "submissions": [
+    {
+      "slug": "230806-無路矢",
+      "owner": "y2361547758",
+      "repo": "svp-default",
+      "platform": "github",
+      "type": "project",
+      "title": "無路矢",
+      "submittedAt": "2023-08-06T04:05:00.000Z",
+      "publishedAt": "2026-09-11T23:12:48.893Z",
+      "cover": "封面.png",
+      "tags": [
+        "夢ノ結唱",
+        "MyGO",
+        "BanG Dream!",
+        "青木阳菜",
+        "羊宫妃娜"
+      ],
+      "paramState": "tuned",
+      "songs": [
+        "無路矢"
+      ],
+      "engines": [
+        "CeVIO AI"
+      ],
+      "voicebanks": [
+        "POPY",
+        "ROSE"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "issue": "5",
+      "release": "387382997"
+    }
+  ],
+  "users": [
+    {
+      "platform": "github",
+      "owner": "y2361547758",
+      "repos": [
+        {
+          "repo": "svp-default"
+        }
+      ]
+    }
+  ]
+}

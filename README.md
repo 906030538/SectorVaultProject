@@ -112,6 +112,8 @@
 
 校验通过且 PR 只涉及单个投稿（无文件删除、新增/改动稿件 ≤ 1 条）时，由 `gh pr merge --auto --squash` 自动合入，无需人工审核；其余情况（删除文件或同时修改多个投稿）转为人工流程：PR 会被评论标注原因并请求管理员审核。校验失败则 PR 被阻塞，需修改后重新推送。
 
+> **密钥要求**：来自 fork 的 PR 中内置 `GITHUB_TOKEN` 被降级为只读，自动合并不可用（`Resource not accessible by integration`）。需要在仓库 Settings → Secrets → Actions 配置 `SVP_BOT_TOKEN`（PAT 或 GitHub App token，需本仓库 `contents:write` + `pull-requests:write`），自动合并与评论步骤会优先使用它；未配置时回退内置 token（仅同仓库分支的 PR 可自动合并）。
+
 ## 镜像仓库门禁（Gitee / Atomgit）
 
 本仓库在 Gitee 和 Atomgit 上部署为镜像仓，镜像的 `index` 分支同样接收投稿提交。收到推送后由各自的流水线执行同一套门禁（`scripts/mirror-gate.sh`）：

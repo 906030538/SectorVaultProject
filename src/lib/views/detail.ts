@@ -9,8 +9,10 @@ import {
   loadSubmissionContent,
   type MediaItem,
   type ProjectFile,
+  type SubmissionContent,
 } from '@/lib/content';
 import { findEntry, forgetSubmissionFromCache } from '@/lib/index/loader';
+import { getLineSources } from '@/lib/index/sources';
 import { storedProjectFileName } from '@/lib/editor/pipeline';
 import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { getToken, loadSessionBy } from '@/lib/auth';
@@ -19,7 +21,7 @@ import { buildAuthLabels } from '@/lib/labels';
 import { normalizeLocale, type Locale } from '@/i18n';
 import { applyCover, badgeSvg, fileIconUrl, isRateLimitError, officialStarBadgeUrl, platformRepoUrl, setAvatar, showApiLimitNotice } from '@/lib/ui';
 import { withBase } from '@/lib/base';
-import type { IssueCommentInfo, IssueInfo, IssueReactionInfo, Platform, ReleaseInfo, SubmissionEntry } from '@/types';
+import type { IssueCommentInfo, IssueInfo, IssueReactionInfo, Platform, ReleaseInfo, SubmissionEntry, SubmissionType } from '@/types';
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -853,21 +855,86 @@ async function renderIssueSection(
   renderCommentsArea();
 }
 
+/**
+ * 索引未收录时的兜底（如索引 PR 未合并、镜像仓拒写）：
+ * 按当前线路源平台读取稿件正文（README formatter）与内容仓本地索引
+ * （svp-archive.json，发布时写入），组装展示用条目。正文不存在时返回 null。
+ */
+async function findEntryFromRepo(
+  user: string,
+  repo: string,
+  slug: string,
+): Promise<{ entry: SubmissionEntry; content: SubmissionContent } | null> {
+  const platforms = [...new Set((await getLineSources()).map((source) => source.platform))];
+  for (const platform of platforms) {
+    let content: SubmissionContent;
+    try {
+      content = await loadSubmissionContent(platform, user, repo, slug);
+    } catch {
+      continue; // 正文不存在（或不可读）则尝试下一平台
+    }
+    let archived: SubmissionEntry | null = null;
+    try {
+      const raw = await (await getAdapterAsync(platform)).readFile(user, repo, 'svp-archive.json');
+      const archive = JSON.parse(raw) as { submissions?: SubmissionEntry[] };
+      archived = (archive.submissions ?? []).find((e) => e.slug === slug) ?? null;
+    } catch {
+      /* 本地索引缺失时仅用 formatter 组装 */
+    }
+    const attrs = content.parsed.attrs;
+    const type = (archived?.type ?? attrs.type ?? 'project') as SubmissionType;
+    const submittedAt = archived?.submittedAt || attrs.submittedAt || '';
+    const entry: SubmissionEntry = {
+      ...(archived ?? {}),
+      platform,
+      owner: user,
+      repo,
+      slug,
+      type,
+      title: archived?.title || attrs.title || slug,
+      submittedAt,
+      publishedAt: archived?.publishedAt || attrs.publishedAt || submittedAt,
+    };
+    if (type === 'project') {
+      const fromAttrs = (key: string): string[] | undefined => {
+        const values = (attrs[key] ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+        return values.length ? values : undefined;
+      };
+      entry.paramState = archived?.paramState;
+      entry.songs = archived?.songs ?? fromAttrs('songs');
+      entry.engines = archived?.engines ?? fromAttrs('engines');
+      entry.voicebanks = archived?.voicebanks ?? fromAttrs('voicebanks');
+      entry.languages = archived?.languages ?? fromAttrs('languages');
+    }
+    return { entry, content };
+  }
+  return null;
+}
+
 export async function initDetail(init: DetailInit): Promise<void> {
   const { user, repo, slug, locale, labels, els } = init;
 
-  const entry = await findEntry(user, repo, slug);
+  let entry = await findEntry(user, repo, slug);
+  let preloaded: SubmissionContent | null = null;
   if (!entry) {
-    els.body.textContent = labels.loadError;
-    return;
+    // 索引未收录：从当前线路的内容仓兜底（正文 + 本地索引 + formatter）
+    const fallback = await findEntryFromRepo(user, repo, slug);
+    if (!fallback) {
+      els.body.textContent = labels.loadError;
+      return;
+    }
+    entry = fallback.entry;
+    preloaded = fallback.content;
   }
 
   els.title.textContent = entry.title;
-  els.date.textContent = new Date(entry.submittedAt).toLocaleDateString(locale, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+  els.date.textContent = entry.submittedAt
+    ? new Date(entry.submittedAt).toLocaleDateString(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+    : '';
 
   const platform: Platform = entry.platform;
 
@@ -897,10 +964,11 @@ export async function initDetail(init: DetailInit): Promise<void> {
   }
   // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
   const loaded = await Promise.all([
-    loadSubmissionContent(platform, user, repo, slug).catch((error) => {
-      if (isRateLimitError(error)) showApiLimitNotice(platform);
-      throw error;
-    }),
+    preloaded ??
+      loadSubmissionContent(platform, user, repo, slug).catch((error) => {
+        if (isRateLimitError(error)) showApiLimitNotice(platform);
+        throw error;
+      }),
     loadRepoInfo(platform, user, repo).catch(() => null),
     loadReleases(platform, user, repo).catch(() => []),
     loadIssues(platform, user, repo).catch(() => []),

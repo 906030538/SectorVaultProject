@@ -142,7 +142,9 @@ export function buildIssueBody(draft: SubmissionDraft): string {
     lines.push(`**${t(locale, 'editor.params')}**: ${t(locale, paramKey)}`);
   }
   row(t(locale, 'label.videos'), draft.videos);
-  return lines.join('\n');
+  // 平台不允许 issue 内容为空：始终带上原仓库 slug 目录链接（读者在平台侧也能直达内容）
+  const repoLink = `${repoWebBase(draft.platform)}/${draft.user}/${draft.repo}/tree/main/${POSTS_DIR}/${draft.slug}`;
+  return lines.length ? `${lines.join('\n')}\n\n${repoLink}` : repoLink;
 }
 
 /** Release 正文：发布简介 + 原仓库 slug 目录链接 +（若部署了用户空间静态页）用户空间链接 */

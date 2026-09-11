@@ -127,6 +127,17 @@
 | Gitee   | `.workflow/mirror-gate.yml`（Go）   | 流水线参数中配置密钥 `SVP_GITHUB_TOKEN`                   |
 | Atomgit | `.gitcode/workflows/mirror-gate.yml`| 仓库密钥 `SVP_GITHUB_TOKEN`                               |
 
+### 无流水线平台：atomgit 分支直推
+
+部分平台缺少流水线能力但支持自动推送镜像到 GitHub。此类镜像直接推送到本仓库的 **`atomgit` 分支**（基于 `index` 分支创建），由 GitHub 侧的 `.github/workflows/atomgit-gate.yml` 在收到推送事件后执行门禁：
+
+1. **改动范围限制**：只允许修改 `index/archive/YYYY-MM.json`，改动其他文件（含 workflow、schema）即失败——防止借镜像推送绕过门禁；
+2. **Schema 校验 + 投稿日期不可变**：与 `index` 分支当前状态对比校验；
+3. **范围检查**：删除文件或一次修改多个投稿时不自动合入，需拆分提交或走人工 PR；
+4. **自动合入**：全部通过后通过 Merges API 将 `atomgit` 合入 `index`，随之触发 `rebuild.yml` 重建。
+
+建议在 GitHub 仓库设置中将 `atomgit` 分支设为受保护分支（仅允许镜像集成身份推送），并启用线性检查以避免本地合并提交混入。
+
 ## 配置
 
 `config.json`：

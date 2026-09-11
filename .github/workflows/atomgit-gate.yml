@@ -1,0 +1,66 @@
+name: Atomgit branch gate
+
+# 无流水线能力平台的镜像门禁：镜像集成直接推送到 atomgit 分支，
+# 本工作流校验通过后自动合入 index 分支（触发 rebuild 重建 current.json）。
+# 安全约束：该分支只允许改动 index/archive/YYYY-MM.json；
+# 删除文件、多投稿、投稿日期篡改等一律拒绝自动合入，需人工处理。
+on:
+  push:
+    branches: [atomgit]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atomgit-gate
+  cancel-in-progress: false
+
+jobs:
+  gate-and-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: atomgit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Restrict changes to archive files
+        run: |
+          non_archive=$(git diff --name-only origin/index...HEAD | grep -v '^index/archive/[0-9]\{4\}-[0-9]\{2\}\.json$' || true)
+          if [ -n "$non_archive" ]; then
+            echo "::error::atomgit 分支仅允许修改 index/archive/YYYY-MM.json，其余改动请走人工 PR"
+            echo "$non_archive"
+            exit 1
+          fi
+      - name: Validate archive JSON against schemas
+        run: |
+          if ls index/archive/*.json >/dev/null 2>&1; then
+            npx --yes ajv-cli validate \
+              -s schema/archive.schema.json \
+              -r schema/submission.schema.json \
+              -r schema/user.schema.json \
+              -d "index/archive/*.json" --spec=draft7
+          fi
+      - name: Check submission date immutability
+        run: |
+          git worktree add ../index-wt origin/index
+          node scripts/check-submitted-at.mjs ../index-wt/index/archive index/archive
+      - name: Check scope
+        run: |
+          out=$(node scripts/check-pr-scope.mjs ../index-wt/index/archive index/archive origin/index HEAD)
+          echo "$out"
+          decision=$(echo "$out" | sed -n 's/^decision=//p')
+          if [ "$decision" != "auto" ]; then
+            echo "::error::删除文件或一次修改多个投稿，不能自动合入；请拆分为单投稿提交或走人工 PR"
+            exit 1
+          fi
+      - name: Merge atomgit into index
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/merges" \
+            -f base=index \
+            -f head=atomgit \
+            -f commit_message="mirror(atomgit): merge gate-passed submission"
+        env:
+          GH_TOKEN: ${{ github.token }}

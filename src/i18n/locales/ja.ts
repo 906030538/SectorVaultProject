@@ -36,7 +36,6 @@ const ja: Record<MessageKey, string> = {
   'login.exchanging': 'トークンを取得しています…',
   'login.back': 'ホームに戻る',
   'login.retry': '再認証',
-  'auth.demoHint': 'デモモード：任意のトークンでデモアカウントとしてログインします',
 
   'theme.label': 'テーマ',
   'theme.auto': 'システムに従う',
@@ -181,7 +180,7 @@ const ja: Record<MessageKey, string> = {
   'about.advantage1': 'コンテンツは自分の Git リポジトリに保存され、移行コストはゼロ',
   'about.advantage2': 'インデックスとサイトは同一リポジトリの別ブランチで管理、完全にオープン',
   'about.advantage3': 'GitHub / Gitee / AtomGit に対応',
-  'about.advantage4': 'ディレクトリ単位のライセンスと暗号化プロジェクトに対応',
+  'about.advantage4': '完全静的サイトを複数のGitプラットフォームで分散ホスト — いずれかのプラットフォームにアクセスできる限り永遠にオンライン',
   'about.stats': '規模',
 
   'user.title': 'ユーザースペース',
@@ -215,7 +214,6 @@ const ja: Record<MessageKey, string> = {
   'editor.licenseNone': '設定しない',
   'editor.licenseCustom': 'カスタム',
   'editor.licenseCustomPh': 'カスタムライセンス全文を入力',
-  'editor.demoBanner': 'デモモード：公開フローはローカルシミュレーションで、実際のリポジトリには書き込みません',
   'editor.repo': '投稿リポジトリ',
   'editor.slug': 'slug（日付-タイトル）',
   'editor.typeLabel': '投稿タイプ',

@@ -1,9 +1,8 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { unzipSync, zipSync, strToU8 } from 'fflate';
+import { unzipSync } from 'fflate';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import {
-  isMockAvailable,
   loadRepoInfo,
   loadReleases,
   loadIssues,
@@ -227,15 +226,6 @@ function saveBlob(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-/** 演示模式下合成的工程文件字节（压缩文件生成真实 ZIP，便于演练解压管线） */
-function mockFileBytes(file: ProjectFile): Uint8Array {
-  const content = strToU8(`Sector Vault Project mock project file: ${file.name}\n`);
-  if (file.compressed || file.encrypted) {
-    return zipSync({ [file.name]: content });
-  }
-  return content;
-}
-
 async function downloadProjectFile(
   init: DetailInit,
   platform: Platform,
@@ -244,17 +234,11 @@ async function downloadProjectFile(
   password?: string,
 ): Promise<void> {
   const { user, repo } = init;
-  const mock = await isMockAvailable();
-  let bytes: Uint8Array;
-  if (mock) {
-    bytes = mockFileBytes(file);
-  } else {
-    // 物理存储名：压缩/加密文件带 .zip 后缀（显示名保持原名）
-    const url = (await getAdapterAsync(platform)).rawUrl(user, repo, `${baseDir}/${storedProjectFileName(file)}`);
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    bytes = new Uint8Array(await response.arrayBuffer());
-  }
+  // 物理存储名：压缩/加密文件带 .zip 后缀（显示名保持原名）
+  const url = (await getAdapterAsync(platform)).rawUrl(user, repo, `${baseDir}/${storedProjectFileName(file)}`);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
 
   if (!file.compressed && !file.encrypted) {
     saveBlob(new Blob([bytes as BlobPart]), file.name);
@@ -1163,7 +1147,7 @@ function renderAuthor(
     img.title = labels.stars;
     img.className = 'h-5 w-auto';
     img.dataset.role = 'repo-stars';
-    // 加载失败（mock 模式/平台改版）时直接隐藏，不留破图
+    // 加载失败（平台改版等）时直接隐藏，不留破图
     img.addEventListener('error', () => img.remove());
     info.appendChild(img);
   } else if (repoInfo) {

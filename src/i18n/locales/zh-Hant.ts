@@ -36,7 +36,6 @@ const zhHant: Record<MessageKey, string> = {
   'login.exchanging': '正在取得權杖…',
   'login.back': '返回首頁',
   'login.retry': '重新授權',
-  'auth.demoHint': '演示模式：任意權杖將以演示帳戶登入',
 
   'theme.label': '主題',
   'theme.auto': '跟隨系統',
@@ -180,7 +179,7 @@ const zhHant: Record<MessageKey, string> = {
   'about.advantage1': '內容儲存在你自己的 Git 倉庫，平台遷移零成本',
   'about.advantage2': '索引與站點共倉庫分支管理，開源透明',
   'about.advantage3': '支援 GitHub / Gitee / AtomGit 多平台',
-  'about.advantage4': '授權條款清晰，支援目錄級授權與加密工程',
+  'about.advantage4': '純靜態部署、多平台分散式託管，任一 Git 平台可存取即可存取，永遠線上',
   'about.stats': '資料規模',
 
   'user.title': '使用者空間',
@@ -214,7 +213,6 @@ const zhHant: Record<MessageKey, string> = {
   'editor.licenseNone': '不設定',
   'editor.licenseCustom': '自訂',
   'editor.licenseCustomPh': '輸入自訂許可證全文',
-  'editor.demoBanner': '演示模式：發布流程為本地模擬，不會寫入真實倉庫',
   'editor.repo': '投稿倉庫',
   'editor.slug': 'slug（日期-標題）',
   'editor.typeLabel': '投稿類型',

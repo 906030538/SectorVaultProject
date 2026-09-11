@@ -157,13 +157,3 @@ export const LIST_CANDIDATES: Partial<Record<'engines' | 'voicebanks' | 'songLan
   ],
   songLanguages: ['zh', 'ja', 'en', 'ko', 'es', 'yue', 'nan', 'hak'],
 };
-
-/** 演示模式发布管线每步模拟耗时（毫秒） */
-export const MOCK_PIPELINE_STEP_DELAY = 200;
-
-/** 开发期使用的本地模拟索引（结构同真实索引仓：current + 按月归档） */
-export const MOCK_INDEX_URL = '/mock/index/current.json';
-export const MOCK_ARCHIVE_BASE = '/mock/index/archive';
-
-/** 开发期使用的本地模拟内容（正文/目录/Release/Issue） */
-export const MOCK_CONTENT_URL = '/mock/content.json';

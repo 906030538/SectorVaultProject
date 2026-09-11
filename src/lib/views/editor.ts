@@ -5,7 +5,7 @@ import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, SUPP
 import { withBase } from '@/lib/base';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSession, loadSessionBy, saveSession, setToken } from '@/lib/auth';
-import { isMockAvailable, loadReleases, loadSubmissionContent, type ProjectFile } from '@/lib/content';
+import { loadReleases, loadSubmissionContent, type ProjectFile } from '@/lib/content';
 import {
   defaultScheme,
   detectTextLike,
@@ -24,11 +24,10 @@ import {
   type StepId,
   type SubmissionDraft,
 } from '@/lib/editor/pipeline';
-import { findEntry, loadMockIndex } from '@/lib/index/loader';
+import { findEntry } from '@/lib/index/loader';
 import type { ParamStatus, Platform, ReleaseAsset, SubmissionEntry, SubmissionType } from '@/types';
 
 export interface EditorLabels {
-  demoBanner: string;
   repo: string;
   slug: string;
   typeLabel: string;
@@ -619,12 +618,32 @@ function renderCoverControl(labels: EditorLabels, state: EditorState, editable: 
   input.type = 'file';
   input.accept = 'image/*';
   input.setAttribute('data-field', 'cover');
+
+  // 已选封面预览（本地 object URL；取消选择或移除时回收）
+  const preview = el('img', 'mt-2 max-h-48 w-auto rounded-lg border border-slate-200 dark:border-slate-700');
+  preview.alt = '';
+  preview.setAttribute('data-role', 'cover-preview');
+  let previewUrl = '';
+  const setPreview = (file: File | null): void => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = file ? URL.createObjectURL(file) : '';
+    if (file) {
+      preview.src = previewUrl;
+      preview.hidden = false;
+    } else {
+      preview.removeAttribute('src');
+      preview.hidden = true;
+    }
+  };
+  preview.hidden = true;
+
   input.addEventListener('change', () => {
     const file = input.files?.[0];
     if (!file) return;
     state.cover = file;
     state.coverName = file.name;
     state.coverRemoved = false;
+    setPreview(file);
     refresh();
   });
 
@@ -636,6 +655,7 @@ function renderCoverControl(labels: EditorLabels, state: EditorState, editable: 
     state.coverName = '';
     state.coverRemoved = editable;
     input.value = '';
+    setPreview(null);
     refresh();
   });
 
@@ -645,7 +665,7 @@ function renderCoverControl(labels: EditorLabels, state: EditorState, editable: 
   };
 
   refresh();
-  content.append(info, input, removeBtn);
+  content.append(info, input, removeBtn, preview);
   return box;
 }
 
@@ -899,20 +919,12 @@ export async function initEditor(
   labels: EditorLabels,
   root: HTMLElement,
 ): Promise<void> {
-  const mock = await isMockAvailable();
-
   root.textContent = '';
-  if (mock) {
-    const banner = el('p', 'mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950 dark:text-amber-300', labels.demoBanner);
-    banner.setAttribute('data-role', 'demo-banner');
-    root.appendChild(banner);
-  } else {
-    // 多平台 token 并存：任一平台已登录即进入表单，目标平台缺令牌在提交时提示
-    const hasAnyToken = SUPPORTED_PLATFORMS.some((platform) => getToken(platform));
-    if (!hasAnyToken) {
-      renderAuthGate(root, labels);
-      return;
-    }
+  // 多平台 token 并存：任一平台已登录即进入表单，目标平台缺令牌在提交时提示
+  const hasAnyToken = SUPPORTED_PLATFORMS.some((platform) => getToken(platform));
+  if (!hasAnyToken) {
+    renderAuthGate(root, labels);
+    return;
   }
 
   const form = el('form', 'flex max-w-3xl flex-col gap-5');
@@ -1060,33 +1072,21 @@ export async function initEditor(
       repoSelect.disabled = true;
       return;
     }
-    if (mock) {
-      const index = await loadMockIndex();
-      const seen = new Set<string>();
-      for (const u of index.users) {
-        for (const ref of u.repos ?? []) {
-          if (seen.has(ref.repo)) continue;
-          seen.add(ref.repo);
-          repoOptions.push({ user: u.owner, repo: ref.repo, platform: u.platform });
+    // 合并全部已保存 token 平台的仓库（会话按平台分别读取，缺失时实时校验令牌获取）
+    for (const platform of SUPPORTED_PLATFORMS) {
+      const token = getToken(platform);
+      if (!token) continue;
+      let login = loadSessionBy(platform)?.login;
+      if (!login) {
+        try {
+          login = (await (await getAdapterAsync(platform)).getViewer(token)).login;
+        } catch {
+          continue; // 令牌失效的平台跳过
         }
       }
-    } else {
-      // 合并全部已保存 token 平台的仓库（会话按平台分别读取，缺失时实时校验令牌获取）
-      for (const platform of SUPPORTED_PLATFORMS) {
-        const token = getToken(platform);
-        if (!token) continue;
-        let login = loadSessionBy(platform)?.login;
-        if (!login) {
-          try {
-            login = (await (await getAdapterAsync(platform)).getViewer(token)).login;
-          } catch {
-            continue; // 令牌失效的平台跳过
-          }
-        }
-        const repos = await (await getAdapterAsync(platform)).listRepos(login, CONTENT_REPO_PREFIX);
-        for (const repo of repos) {
-          repoOptions.push({ user: login, repo: repo.name, platform });
-        }
+      const repos = await (await getAdapterAsync(platform)).listRepos(login, CONTENT_REPO_PREFIX);
+      for (const repo of repos) {
+        repoOptions.push({ user: login, repo: repo.name, platform });
       }
     }
     for (const option of repoOptions) {
@@ -1217,8 +1217,8 @@ export async function initEditor(
   projectOnly.push(listContainer);
   form.appendChild(listContainer);
 
+  // 封面控件两种类型均显示（专栏也可配图）
   const coverControl = renderCoverControl(labels, state, isEdit);
-  projectOnly.push(coverControl);
   form.appendChild(coverControl);
 
   const fileControl = renderFileControl(labels, state);
@@ -1669,8 +1669,8 @@ export async function initEditor(
       if (stateName === 'done' || stateName === 'warning') persistProgress();
     };
     // 互动（发布/保存）按稿件所在平台取对应令牌；缺失时提示登录
-    const token = mock ? null : getToken(state.platform);
-    if (!mock && !token) {
+    const token = getToken(state.platform);
+    if (!token) {
       validation.classList.remove('hidden');
       validation.classList.add('flex');
       validation.appendChild(el('li', undefined, labels.authRequired));
@@ -1693,13 +1693,13 @@ export async function initEditor(
           coverRemoved: state.coverRemoved,
           removedAssets: state.removedAssets,
         };
-        await updateSubmission(draft, ctx, token, mock, onStep);
+        await updateSubmission(draft, ctx, token, onStep);
         config.user = draft.user;
         config.repo = draft.repo;
         config.slug = draft.slug;
         renderDone(root, labels, config, config.mode);
       } else {
-        await publishSubmission(draft, token, mock, onStep, currentProgress ?? {});
+        await publishSubmission(draft, token, onStep, currentProgress ?? {});
         config.user = draft.user;
         config.repo = draft.repo;
         config.slug = draft.slug;

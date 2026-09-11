@@ -34,7 +34,6 @@ const zhHans = {
   'login.exchanging': '正在获取令牌…',
   'login.back': '返回首页',
   'login.retry': '重新授权',
-  'auth.demoHint': '演示模式：任意令牌将以演示账户登录',
 
   'theme.label': '主题',
   'theme.auto': '跟随系统',
@@ -178,7 +177,7 @@ const zhHans = {
   'about.advantage1': '内容储存在你自己的 Git 仓库，平台迁移零成本',
   'about.advantage2': '索引与站点共仓库分支管理，开源透明',
   'about.advantage3': '支持 GitHub / Gitee / AtomGit 多平台',
-  'about.advantage4': '许可证清晰，支持目录级许可证与加密工程',
+  'about.advantage4': '纯静态部署、多平台分布式托管，任一 Git 平台可访问即可访问，永远在线',
   'about.stats': '数据规模',
 
   'user.title': '用户空间',
@@ -212,7 +211,6 @@ const zhHans = {
   'editor.licenseNone': '不设置',
   'editor.licenseCustom': '自定义',
   'editor.licenseCustomPh': '输入自定义许可证全文',
-  'editor.demoBanner': '演示模式：发布流程为本地模拟，不会写入真实仓库',
   'editor.repo': '投稿仓库',
   'editor.slug': 'slug（日期-标题）',
   'editor.typeLabel': '投稿类型',

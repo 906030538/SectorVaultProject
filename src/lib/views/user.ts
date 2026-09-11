@@ -1,12 +1,12 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { CONTENT_REPO_PREFIX, LICENSE_OPTIONS, MOCK_PIPELINE_STEP_DELAY, SUPPORTED_PLATFORMS } from '@/config';
+import { CONTENT_REPO_PREFIX, LICENSE_OPTIONS, SUPPORTED_PLATFORMS } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSessionBy } from '@/lib/auth';
 import { applyCover, coverPlaceholder, setAvatar } from '@/lib/ui';
 import { withBase } from '@/lib/base';
-import { isMockAvailable, loadAbout, loadRepoInfo } from '@/lib/content';
-import { iterateAllSubmissions, loadLineIndexMerged, loadMockIndex } from '@/lib/index/loader';
+import { loadAbout, loadRepoInfo } from '@/lib/content';
+import { iterateAllSubmissions, loadLineIndexMerged } from '@/lib/index/loader';
 import { getRepoPrefix, getRepoTemplates } from '@/lib/index/sources';
 import type { AuthInfo, IndexFile, Platform, SubmissionEntry } from '@/types';
 
@@ -66,21 +66,13 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function loadIndex(): Promise<IndexFile> {
-  if (await isMockAvailable()) return loadMockIndex();
   // current + 归档合并：无 CI 线路的 users 记录在归档里
   return loadLineIndexMerged();
 }
 
 async function loadUserEntries(name: string): Promise<SubmissionEntry[]> {
-  if (await isMockAvailable()) {
-    return (await loadMockIndex()).submissions.filter((e) => e.owner === name);
-  }
-  // 与集合页相同的口径：真实模式遍历全部索引源
+  // 与集合页相同的口径：遍历全部索引源
   const all: SubmissionEntry[] = [];
   for await (const entry of iterateAllSubmissions()) {
     if (entry.owner === name) all.push(entry);
@@ -197,7 +189,7 @@ async function openCreateDialog(init: UserInit, platform: Platform): Promise<voi
   // 属主候选：账户所在组织（列表不可用时仅个人账户）
   const adapter = await getAdapterAsync(platform);
   const token = getToken(platform);
-  if (token && !(await isMockAvailable())) {
+  if (token) {
     void adapter
       .listOwners(token)
       .then((choices) => {
@@ -291,18 +283,14 @@ async function openCreateDialog(init: UserInit, platform: Platform): Promise<voi
         ? templates[Number(templateSelect.value)]
         : undefined;
     try {
-      if (await isMockAvailable()) {
-        await sleep(MOCK_PIPELINE_STEP_DELAY * 2);
-      } else {
-        if (!token) throw new Error('missing token');
-        await adapter.createRepo(token, {
-          owner: ownerSelect.value,
-          name: `${prefixInput.value.trim()}${repoName}`,
-          template,
-          license: !isCustom && licenseSelect.value ? licenseSelect.value : undefined,
-          ...(isCustom ? { licenseText: customText } : {}),
-        });
-      }
+      if (!token) throw new Error('missing token');
+      await adapter.createRepo(token, {
+        owner: ownerSelect.value,
+        name: `${prefixInput.value.trim()}${repoName}`,
+        template,
+        license: !isCustom && licenseSelect.value ? licenseSelect.value : undefined,
+        ...(isCustom ? { licenseText: customText } : {}),
+      });
       status.textContent = labels.created;
       create.removeAttribute('disabled');
       setTimeout(() => overlay.remove(), 800);

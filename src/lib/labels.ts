@@ -168,7 +168,6 @@ export function buildAuthLabels(locale: Locale): AuthLabels {
     tokenPh: t(locale, 'editor.tokenPh'),
     tokenSave: t(locale, 'editor.tokenSave'),
     tokenBad: t(locale, 'editor.tokenBad'),
-    demoHint: t(locale, 'auth.demoHint'),
     cancel: t(locale, 'common.cancel'),
     oauthLogin: t(locale, 'auth.oauthLogin'),
     deviceLogin: t(locale, 'auth.deviceLogin'),
@@ -187,7 +186,6 @@ export function buildLicenseOptions(locale: Locale): { value: string; label: str
 /** 编辑器页面的标签对象 */
 export function buildEditorLabels(locale: Locale): EditorLabels {
   return {
-    demoBanner: t(locale, 'editor.demoBanner'),
     repo: t(locale, 'editor.repo'),
     slug: t(locale, 'editor.slug'),
     typeLabel: t(locale, 'editor.typeLabel'),

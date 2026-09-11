@@ -3,7 +3,6 @@ import type { Locale } from '@/i18n';
 import { getToken } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
-import { isMockAvailable } from '@/lib/content';
 import {
   deleteSubmission,
   type DeleteOnStep,
@@ -82,7 +81,6 @@ export async function openDeleteSubmissionDialog(
   const labels = buildLabels(locale as Locale);
   const { slug } = entry;
   const token = getToken(entry.platform);
-  const mock = await isMockAvailable();
 
   // 未登录稿件所在平台：引导授权（弹窗预选该平台）
   if (!token) {
@@ -189,7 +187,7 @@ export async function openDeleteSubmissionDialog(
     body.append(error, actions);
 
     const execute = (): Promise<void> =>
-      deleteSubmission(entry, token, mock, onStep)
+      deleteSubmission(entry, token, onStep)
         .then(() => {
           retry.remove();
           close.textContent = labels.done;

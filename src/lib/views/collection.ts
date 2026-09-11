@@ -1,6 +1,6 @@
 import { LICENSE_OPTIONS, PAGE_SIZE } from '@/config';
-import { isMockAvailable, loadEngagements, loadRepoInfo } from '@/lib/content';
-import { iterateAllSubmissions, loadMockIndex } from '@/lib/index/loader';
+import { loadEngagements, loadRepoInfo } from '@/lib/content';
+import { iterateAllSubmissions } from '@/lib/index/loader';
 import { getLineSources } from '@/lib/index/sources';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { withBase } from '@/lib/base';
@@ -67,25 +67,19 @@ async function loadRepoEntries(user: string, repo: string): Promise<SubmissionEn
         : [];
     })().catch(() => [] as SubmissionEntry[]);
 
-  if (await isMockAvailable()) {
-    fromIndex.push(...(await loadMockIndex()).submissions.filter((e) => e.owner === user && e.repo === repo));
-    platform = fromIndex[0]?.platform ?? null;
-    if (platform) localArchivePromises.push(readLocalArchive(platform));
-  } else {
-    for await (const entry of iterateAllSubmissions()) {
-      if (entry.owner !== user || entry.repo !== repo) continue;
-      fromIndex.push(entry);
-      if (!platform) {
-        platform = entry.platform;
-        localArchivePromises.push(readLocalArchive(platform));
-      }
-    }
+  for await (const entry of iterateAllSubmissions()) {
+    if (entry.owner !== user || entry.repo !== repo) continue;
+    fromIndex.push(entry);
     if (!platform) {
-      // 索引未收录该仓库（如索引 PR 未合并）：按线路源平台并行尝试本地索引
-      const sources = await getLineSources();
-      for (const p of [...new Set(sources.map((source) => source.platform))]) {
-        localArchivePromises.push(readLocalArchive(p));
-      }
+      platform = entry.platform;
+      localArchivePromises.push(readLocalArchive(platform));
+    }
+  }
+  if (!platform) {
+    // 索引未收录该仓库（如索引 PR 未合并）：按线路源平台并行尝试本地索引
+    const sources = await getLineSources();
+    for (const p of [...new Set(sources.map((source) => source.platform))]) {
+      localArchivePromises.push(readLocalArchive(p));
     }
   }
 

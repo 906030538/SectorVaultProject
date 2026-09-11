@@ -1,5 +1,4 @@
 import { loadSessionBy, logoutPlatform, saveSession, setToken } from '@/lib/auth';
-import { isMockAvailable } from '@/lib/content';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getOAuthConfig } from '@/lib/index/sources';
 import { pollDeviceToken, requestDeviceCode } from '@/lib/auth';
@@ -24,7 +23,6 @@ export interface AuthLabels {
   deviceLogin: string;
   tokenSave: string;
   tokenBad: string;
-  demoHint: string;
   cancel: string;
 }
 
@@ -36,10 +34,6 @@ const PLATFORM_NAMES: Record<string, string> = {
   gitee: 'Gitee',
   atomgit: 'AtomGit',
 };
-
-const MOCK_AVATAR = `data:image/svg+xml;utf8,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="32" fill="#6366f1"/><text x="32" y="42" font-family="sans-serif" font-size="28" fill="#fff" text-anchor="middle">D</text></svg>',
-)}`;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -312,16 +306,9 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
     submit.setAttribute('disabled', '');
     error.classList.add('hidden');
     try {
-      if (await isMockAvailable()) {
-        // 演示模式：任意令牌以演示账户登录
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        setToken(platform, token);
-        saveSession({ platform, login: 'demo', name: 'Demo', avatarUrl: MOCK_AVATAR });
-      } else {
-        const viewer = await (await getAdapterAsync(platform)).getViewer(token);
-        setToken(platform, token);
-        saveSession(viewer);
-      }
+      const viewer = await (await getAdapterAsync(platform)).getViewer(token);
+      setToken(platform, token);
+      saveSession(viewer);
       window.location.reload();
     } catch {
       error.classList.remove('hidden');
@@ -330,9 +317,6 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
   });
 
   card.append(tokenInput, error);
-  if (await isMockAvailable()) {
-    card.appendChild(el('p', 'mt-2 text-xs text-amber-600', labels.demoHint));
-  }
 
   const buttons = el('div', 'mt-4 flex justify-end gap-2');
   const cancel = el('button', 'btn', labels.cancel);

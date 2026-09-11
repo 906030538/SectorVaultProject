@@ -1,8 +1,8 @@
-import { INDEX_PATHS, MOCK_PIPELINE_STEP_DELAY, POSTS_DIR } from '@/config';
+import { INDEX_PATHS, POSTS_DIR } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import type { FileChange, GitPlatformAdapter } from '@/lib/adapters/types';
 import { generateReadme, type ProjectFile } from '@/lib/content';
-import { loadMockIndex, loadPrimaryArchive, loadPrimaryIndex } from '@/lib/index/loader';
+import { loadPrimaryArchive, loadPrimaryIndex } from '@/lib/index/loader';
 import { getIndexSources } from '@/lib/index/sources';
 import { DEFAULT_LOCALE, t } from '@/i18n';
 import type { MessageKey } from '@/i18n';
@@ -74,18 +74,8 @@ export interface EditContext {
   removedAssets: ReleaseAsset[];
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function runStep(
-  id: StepId,
-  mock: boolean,
-  onStep: OnStep,
-  work: () => Promise<void>,
-): Promise<void> {
+async function runStep(id: StepId, onStep: OnStep, work: () => Promise<void>): Promise<void> {
   onStep(id, 'running');
-  if (mock) await sleep(MOCK_PIPELINE_STEP_DELAY);
   await work();
   onStep(id, 'done');
 }
@@ -190,23 +180,18 @@ function repoWebBase(platform: Platform): string {
   }
 }
 
-async function loadIndex(mock: boolean): Promise<IndexFile> {
+async function loadIndex(): Promise<IndexFile> {
   // 索引 PR 始终以主索引源为写入目标
-  return mock ? loadMockIndex() : (await loadPrimaryIndex()).index;
+  return (await loadPrimaryIndex()).index;
 }
 
 /** 构造索引仓变更：按 user+repo+slug upsert 到投稿月份的归档文件，并确保 users 记录 */
-export async function buildIndexChange(entry: SubmissionEntry, mock: boolean): Promise<FileChange> {
+export async function buildIndexChange(entry: SubmissionEntry): Promise<FileChange> {
   // 归档是事实来源：先读取投稿月份的目标归档，不存在则创建只含本投稿的新归档；
   // current.json 由索引仓 CI 从归档重建，不在此修改
   const month = entry.submittedAt.slice(0, 7);
-  let base: IndexFile;
-  if (mock) {
-    base = await loadMockIndex();
-  } else {
-    const { index } = await loadPrimaryArchive(month);
-    base = index ?? { submissions: [], users: [] };
-  }
+  const { index } = await loadPrimaryArchive(month);
+  const base: IndexFile = index ?? { submissions: [], users: [] };
   const next: IndexFile = JSON.parse(JSON.stringify(base)) as IndexFile;
   if (!Array.isArray(next.submissions)) next.submissions = [];
   if (!Array.isArray(next.users)) next.users = [];
@@ -306,9 +291,9 @@ async function fileChange(
   return { path, content: processed.content, encoding: processed.encoding };
 }
 
-async function findUserSite(user: string, mock: boolean): Promise<string | undefined> {
+async function findUserSite(user: string): Promise<string | undefined> {
   try {
-    const index = await loadIndex(mock);
+    const index = await loadIndex();
     return index.users.find((u) => u.owner === user)?.pagesUrl ?? undefined;
   } catch {
     return undefined;
@@ -316,18 +301,10 @@ async function findUserSite(user: string, mock: boolean): Promise<string | undef
 }
 
 /** 构造索引仓删除变更：从投稿月份归档移除条目（条目不在该归档时返回 null） */
-export async function buildIndexRemoveChange(
-  entry: SubmissionEntry,
-  mock: boolean,
-): Promise<FileChange | null> {
+export async function buildIndexRemoveChange(entry: SubmissionEntry): Promise<FileChange | null> {
   const month = entry.submittedAt.slice(0, 7);
-  let base: IndexFile;
-  if (mock) {
-    base = await loadMockIndex();
-  } else {
-    const { index } = await loadPrimaryArchive(month);
-    base = index ?? { submissions: [], users: [] };
-  }
+  const { index } = await loadPrimaryArchive(month);
+  const base: IndexFile = index ?? { submissions: [], users: [] };
   if (
     !Array.isArray(base.submissions) ||
     !base.submissions.some(
@@ -350,15 +327,10 @@ export async function buildIndexRemoveChange(
 /** 向索引仓提交单文件 PR；源选择与稿件同平台优先，无则回退主源 */
 async function submitIndexPr(
   token: string | null,
-  mock: boolean,
   platform: Platform,
   change: FileChange,
   title: string,
 ): Promise<string | undefined> {
-  if (mock) {
-    await sleep(MOCK_PIPELINE_STEP_DELAY);
-    return undefined;
-  }
   if (!token) throw new Error('missing token');
   const sources = await getIndexSources();
   const source = sources.find((s) => s.platform === platform) ?? sources[0]!;
@@ -372,16 +344,14 @@ async function submitIndexPr(
 
 async function tryIndexPr(
   token: string | null,
-  mock: boolean,
   entry: SubmissionEntry,
   onStep: OnStep,
 ): Promise<void> {
   onStep('index', 'running');
   try {
-    const change = await buildIndexChange(entry, mock);
+    const change = await buildIndexChange(entry);
     const prUrl = await submitIndexPr(
       token,
-      mock,
       entry.platform,
       change,
       `index: +${entry.owner}/${entry.repo}/${entry.slug}`,
@@ -405,7 +375,6 @@ export type DeleteOnStep = (id: DeleteStepId, state: StepState, detail?: string)
 export async function deleteSubmission(
   entry: SubmissionEntry,
   token: string | null,
-  mock: boolean,
   onStep: DeleteOnStep,
 ): Promise<void> {
   const { owner: user, repo, slug, platform } = entry;
@@ -414,7 +383,7 @@ export async function deleteSubmission(
 
   // 文件：slug 目录 + 仓库 README 链接 + 本地索引条目合并为一个提交
   onStep('files', 'running');
-  await runDeleteStep(mock, onStep, 'files', async () => {
+  await runDeleteStep(onStep, 'files', async () => {
     const changes: FileChange[] = [];
     const dir = await (await adapter())
       .listDir(user, repo, `${POSTS_DIR}/${slug}`)
@@ -450,7 +419,7 @@ export async function deleteSubmission(
     } catch {
       /* 本地索引缺失时跳过 */
     }
-    if (changes.length && !mock) {
+    if (changes.length) {
       await (await adapter()).commitFiles(token!, user, repo, `Delete submission ${slug}`, changes);
     }
   });
@@ -460,7 +429,7 @@ export async function deleteSubmission(
   if (!entry.release) {
     onStep('release', 'warning');
   } else {
-    await runDeleteStepWarning(mock, onStep, 'release', async () => {
+    await runDeleteStepWarning(onStep, 'release', async () => {
       await (await adapter()).deleteRelease(token!, user, repo, entry.release!);
     });
   }
@@ -468,13 +437,12 @@ export async function deleteSubmission(
   // 索引：条目不在归档时视为完成
   onStep('index', 'running');
   try {
-    const change = await buildIndexRemoveChange(entry, mock);
+    const change = await buildIndexRemoveChange(entry);
     if (!change) {
       onStep('index', 'done');
     } else {
       const prUrl = await submitIndexPr(
         token,
-        mock,
         platform,
         change,
         `index: -${user}/${repo}/${slug}`,
@@ -488,16 +456,10 @@ export async function deleteSubmission(
 
 /** 删除步骤执行器：失败抛出（标记 error），由调用方提供重试 */
 async function runDeleteStep(
-  mock: boolean,
   onStep: DeleteOnStep,
   id: DeleteStepId,
   run: () => Promise<void>,
 ): Promise<void> {
-  if (mock) {
-    await sleep(MOCK_PIPELINE_STEP_DELAY);
-    onStep(id, 'done');
-    return;
-  }
   try {
     await run();
     onStep(id, 'done');
@@ -509,16 +471,10 @@ async function runDeleteStep(
 
 /** 尽力执行的删除步骤：失败降级为警告，不阻断整体流程 */
 async function runDeleteStepWarning(
-  mock: boolean,
   onStep: DeleteOnStep,
   id: DeleteStepId,
   run: () => Promise<void>,
 ): Promise<void> {
-  if (mock) {
-    await sleep(MOCK_PIPELINE_STEP_DELAY);
-    onStep(id, 'done');
-    return;
-  }
   try {
     await run();
     onStep(id, 'done');
@@ -655,7 +611,6 @@ async function ensureRepoInitialized(
 export async function publishSubmission(
   draft: SubmissionDraft,
   token: string | null,
-  mock: boolean,
   onStep: OnStep,
   progress: PublishProgress = {},
 ): Promise<{ issue: number | string; releaseId: number }> {
@@ -666,7 +621,7 @@ export async function publishSubmission(
   const now = new Date().toISOString();
   const skipped = new Set(progress.skipped ?? []);
   const isSkipped = (id: string): boolean => skipped.has(id);
-  // 惰性加载适配器：演示模式全程不触碰平台 SDK 代码
+  // 惰性加载适配器
   let adapterPromise: ReturnType<typeof getAdapterAsync> | null = null;
   const adapter = async () => (adapterPromise ??= getAdapterAsync(draft.platform));
 
@@ -684,7 +639,7 @@ export async function publishSubmission(
       onStep(id, 'done');
       return;
     }
-    await runStep(id, mock, onStep, work);
+    await runStep(id, onStep, work);
   }
 
   if (!draft.createIssue) {
@@ -693,10 +648,6 @@ export async function publishSubmission(
     onStep('issue', 'warning');
   } else {
     await resumeStep('issue', progress.issue !== undefined, async () => {
-      if (mock) {
-        issue = 13;
-        return;
-      }
       if (!token) throw new Error('missing token');
       issue = await (await adapter()).createIssue(token, user, repo, draft.slug, buildIssueBody(draft));
       progress.issue = issue;
@@ -709,7 +660,7 @@ export async function publishSubmission(
   progress.entry = entry;
 
   await resumeStep('files', progress.filesDone === true, async () => {
-    if (!mock) await ensureRepoInitialized(token, user, repo, adapter);
+    await ensureRepoInitialized(token, user, repo, adapter);
     // 内联媒体（封面 + 工程文件）、README 与本地索引（目录链接 + svp-archive.json）合并为一个提交
     const changes: FileChange[] = [];
     if (draft.cover) {
@@ -733,23 +684,17 @@ export async function publishSubmission(
       }),
       encoding: 'utf-8',
     });
-    if (!mock) {
-      // 许可证与内容仓不同时，向 slug 目录写入 LICENSE 文件
-      const licenseChange = await licenseFileChange(await adapter(), user, repo, slug, draft.license, draft.licenseText);
-      if (licenseChange) changes.push(licenseChange);
-      changes.push(await upsertRepoReadmeLink(await adapter(), user, repo, slug));
-      changes.push(await upsertLocalArchive(await adapter(), user, repo, slug, entry));
-      await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes, commitAuthor(draft));
-    }
+    // 许可证与内容仓不同时，向 slug 目录写入 LICENSE 文件
+    const licenseChange = await licenseFileChange(await adapter(), user, repo, slug, draft.license, draft.licenseText);
+    if (licenseChange) changes.push(licenseChange);
+    changes.push(await upsertRepoReadmeLink(await adapter(), user, repo, slug));
+    changes.push(await upsertLocalArchive(await adapter(), user, repo, slug, entry));
+    await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes, commitAuthor(draft));
     progress.filesDone = true;
   });
 
   await resumeStep('release', progress.releaseId !== undefined, async () => {
-    if (mock) {
-      releaseId = 1;
-      return;
-    }
-    const site = await findUserSite(user, mock);
+    const site = await findUserSite(user);
     // createRelease 按 tag 幂等（已存在则复用），重试不会重复建 release
     releaseId = await (await adapter()).createRelease(
       token!,
@@ -783,11 +728,9 @@ export async function publishSubmission(
     // release 被跳过或未创建时无法上传附件；release 补建后重试仍会进入此步
     onStep('assets', 'warning');
   } else {
-    await runStep('assets', mock, onStep, async () => {
+    await runStep('assets', onStep, async () => {
       for (const attachment of draft.attachments) {
-        if (!mock) {
-          await (await adapter()).uploadReleaseAsset(token!, user, repo, releaseId, attachment, attachment.name);
-        }
+        await (await adapter()).uploadReleaseAsset(token!, user, repo, releaseId, attachment, attachment.name);
       }
       progress.assetsDone = true;
     });
@@ -804,7 +747,7 @@ export async function publishSubmission(
       issue: progress.issue !== undefined ? String(progress.issue) : undefined,
       release: progress.releaseId !== undefined ? String(progress.releaseId) : undefined,
     };
-    await tryIndexPr(token, mock, entryForIndex, onStep);
+    await tryIndexPr(token, entryForIndex, onStep);
     progress.indexDone = true;
   }
 
@@ -822,24 +765,23 @@ export async function updateSubmission(
   draft: SubmissionDraft,
   ctx: EditContext,
   token: string | null,
-  mock: boolean,
   onStep: OnStep,
 ): Promise<void> {
   const { user, repo, slug } = draft;
-  // 惰性加载适配器：演示模式全程不触碰平台 SDK 代码
+  // 惰性加载适配器
   let adapterPromise: ReturnType<typeof getAdapterAsync> | null = null;
   const adapter = async () => (adapterPromise ??= getAdapterAsync(draft.platform));
   const coverChanged = ctx.coverRemoved || draft.cover !== null;
   const currentCover = draft.cover ? draft.cover.name : ctx.coverRemoved ? undefined : ctx.oldCover;
 
-  await runStep('cover', mock, onStep, async () => {
+  await runStep('cover', onStep, async () => {
     if (!coverChanged) return;
     const changes: FileChange[] = [];
     if (ctx.oldCover) changes.push({ path: `${POSTS_DIR}/${slug}/${ctx.oldCover}`, content: '', delete: true });
     if (draft.cover) {
       changes.push(await fileChange(`${POSTS_DIR}/${slug}/${draft.cover.name}`, draft.cover, 'raw'));
     }
-    if (changes.length && !mock) {
+    if (changes.length) {
       await (await adapter()).commitFiles(token!, user, repo, `Update ${slug} cover`, changes, commitAuthor(draft));
     }
   });
@@ -873,7 +815,7 @@ export async function updateSubmission(
 
   const removedFiles = ctx.oldFiles.filter((of) => !draft.files.some((f) => f.name === of.name));
   const newFiles = draft.files.filter((f) => f.file !== null);
-  await runStep('files', mock, onStep, async () => {
+  await runStep('files', onStep, async () => {
     // v5 系连续提交存在读后写延迟：文件与 README 拆分提交会使后者落进竞态窗口
     // （Update is not a fast forward），合并为单提交；本地归档一并写入
     const changes: FileChange[] = removedFiles.map((of) => ({
@@ -889,27 +831,25 @@ export async function updateSubmission(
       changes.push(await fileChange(`${POSTS_DIR}/${slug}/${stored}`, f.file!, f.scheme, f.password));
     }
     changes.push({ path: `${POSTS_DIR}/${slug}/README.md`, content: readme, encoding: 'utf-8' });
-    if (!mock) {
-      if (updatedEntry) {
-        try {
-          const archiveChange = await upsertLocalArchive(await adapter(), user, repo, slug, updatedEntry);
-          changes.push(archiveChange);
-        } catch (error) {
-          // 本地索引读取失败不阻断主提交
-          console.warn('[pipeline] 本地索引更新失败:', error);
-        }
+    if (updatedEntry) {
+      try {
+        const archiveChange = await upsertLocalArchive(await adapter(), user, repo, slug, updatedEntry);
+        changes.push(archiveChange);
+      } catch (error) {
+        // 本地索引读取失败不阻断主提交
+        console.warn('[pipeline] 本地索引更新失败:', error);
       }
-      await (await adapter()).commitFiles(token!, user, repo, `Update ${slug}`, changes, commitAuthor(draft));
     }
+    await (await adapter()).commitFiles(token!, user, repo, `Update ${slug}`, changes, commitAuthor(draft));
   });
   // README 已随文件同批提交
   onStep('readme', 'done');
 
   // 发布简介有改动时同步更新关联 release 正文（失败不阻断整体流程）
   const summaryChanged = (draft.summary ?? '').trim() !== (ctx.oldSummary ?? '').trim();
-  if (!mock && summaryChanged && ctx.releaseId !== null) {
+  if (summaryChanged && ctx.releaseId !== null) {
     try {
-      const site = await findUserSite(user, mock);
+      const site = await findUserSite(user);
       await (await adapter()).updateReleaseBody(
         token!,
         user,
@@ -927,24 +867,22 @@ export async function updateSubmission(
     // 找不到同 slug 的 release，附件无法同步
     onStep('assets', 'warning');
   } else {
-    await runStep('assets', mock, onStep, async () => {
+    await runStep('assets', onStep, async () => {
       if (!assetsTouched) return;
-      if (!mock) {
-        for (const asset of ctx.removedAssets) {
-          if (asset.id !== undefined) {
-            await (await adapter()).deleteReleaseAsset(token!, user, repo, ctx.releaseId!, asset.id);
-          }
+      for (const asset of ctx.removedAssets) {
+        if (asset.id !== undefined) {
+          await (await adapter()).deleteReleaseAsset(token!, user, repo, ctx.releaseId!, asset.id);
         }
-        for (const attachment of draft.attachments) {
-          await (await adapter()).uploadReleaseAsset(token!, user, repo, ctx.releaseId!, attachment, attachment.name);
-        }
+      }
+      for (const attachment of draft.attachments) {
+        await (await adapter()).uploadReleaseAsset(token!, user, repo, ctx.releaseId!, attachment, attachment.name);
       }
     });
   }
 
   // 本地归档已随文件同批提交；此处仅提交索引 PR
   if (updatedEntry) {
-    await tryIndexPr(token, mock, updatedEntry, onStep);
+    await tryIndexPr(token, updatedEntry, onStep);
   } else {
     onStep('index', 'done');
   }

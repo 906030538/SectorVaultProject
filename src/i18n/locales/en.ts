@@ -36,7 +36,6 @@ const en: Record<MessageKey, string> = {
   'login.exchanging': 'Exchanging token…',
   'login.back': 'Back to home',
   'login.retry': 'Retry authorization',
-  'auth.demoHint': 'Demo mode: any token signs you in as the demo account',
 
   'theme.label': 'Theme',
   'theme.auto': 'System',
@@ -181,7 +180,7 @@ const en: Record<MessageKey, string> = {
   'about.advantage1': 'Content lives in your own Git repository — zero-cost migration',
   'about.advantage2': 'Index and site share one repository on separate branches, fully open',
   'about.advantage3': 'Supports GitHub / Gitee / AtomGit',
-  'about.advantage4': 'Clear licensing with per-folder licenses and encrypted projects',
+  'about.advantage4': 'Fully static and distributed across Git platforms — always online as long as any host is reachable',
   'about.stats': 'Scale',
 
   'user.title': 'User space',
@@ -215,7 +214,6 @@ const en: Record<MessageKey, string> = {
   'editor.licenseNone': 'None',
   'editor.licenseCustom': 'Custom',
   'editor.licenseCustomPh': 'Enter custom license text',
-  'editor.demoBanner': 'Demo mode: the publish flow is simulated locally; nothing is written to real repositories',
   'editor.repo': 'Content repository',
   'editor.slug': 'slug (date-title)',
   'editor.typeLabel': 'Submission type',

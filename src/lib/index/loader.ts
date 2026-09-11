@@ -1,14 +1,11 @@
 import {
   INDEX_PATHS,
-  MOCK_ARCHIVE_BASE,
-  MOCK_INDEX_URL,
   type IndexSource,
 } from '@/config';
 import type { FilterState, IndexFile, Platform, SubmissionEntry, UserRecord } from '@/types';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getIndexSources, getLineSources } from '@/lib/index/sources';
 import { writeCookie } from '@/lib/cookies';
-import { isMockAvailable } from '@/lib/content';
 import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
 
 /** 已加载索引缓存，避免重复请求（设计：缓存已加载的索引） */
@@ -393,49 +390,12 @@ export function applyFilters(
   });
 }
 
-let mockIndexPromise: Promise<IndexFile> | undefined;
-
-/**
- * 开发期加载本地模拟索引：读 current.json 并按其 archives 清单
- * 合并全部归档，得到与 iterateAllSubmissions 相同口径的完整集合。
- */
-export async function loadMockIndex(): Promise<IndexFile> {
-  mockIndexPromise ??= (async () => {
-    const response = await fetch(MOCK_INDEX_URL);
-    if (!response.ok) throw new Error(`Failed to load mock index: ${response.status}`);
-    const current = (await response.json()) as IndexFile;
-    const files = [...(current.archives ?? [])]
-      .map((a) => a.file)
-      .filter((file) => file.endsWith('.json'))
-      .sort()
-      .reverse();
-    const parts: IndexFile[] = [current];
-    for (const file of files) {
-      try {
-        const res = await fetch(`${MOCK_ARCHIVE_BASE}/${file}`);
-        if (res.ok) parts.push((await res.json()) as IndexFile);
-      } catch {
-        /* 归档缺失时仅用 current */
-      }
-    }
-    return mergeIndexFiles(parts);
-  })();
-  return mockIndexPromise;
-}
-
 /** 按 owner/repo/slug 定位索引条目（详情页与编辑页共用） */
 export async function findEntry(
   user: string,
   repo: string,
   slug: string,
 ): Promise<SubmissionEntry | null> {
-  if (await isMockAvailable()) {
-    const index = await loadMockIndex();
-    return (
-      index.submissions.find((e) => e.owner === user && e.repo === repo && e.slug === slug) ??
-      null
-    );
-  }
   for await (const entry of iterateAllSourcesSubmissions()) {
     if (entry.owner === user && entry.repo === repo && entry.slug === slug) return entry;
   }

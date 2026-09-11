@@ -143,7 +143,7 @@ export type ReleaseReactionInfo = ReactionInfo;
 export type IssueReactionInfo = ReactionInfo;
 
 export interface ReleaseAsset {
-  /** 平台侧附件 id；mock 数据可缺省 */
+  /** 平台侧附件 id */
   id?: number;
   name: string;
   size: number;

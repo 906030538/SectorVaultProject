@@ -1,4 +1,4 @@
-import { MOCK_CONTENT_URL, POSTS_DIR, POWERED_BY } from '@/config';
+import { POSTS_DIR, POWERED_BY } from '@/config';
 import type { IssueInfo, Platform, ReleaseInfo, RepoInfo, SubmissionEntry } from '@/types';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { fetchEngagementForEntries } from '@/lib/index/stats';
@@ -31,45 +31,8 @@ export interface SubmissionContent {
   baseDir: string;
 }
 
-interface MockRepo {
-  stars: number;
-  license: string;
-}
-
-interface MockContent {
-  repos: Record<string, MockRepo>;
-  readmes: Record<string, string>;
-  dirs: Record<string, string[]>;
-  releases: Record<string, ReleaseInfo[]>;
-  issues: Record<string, IssueInfo[]>;
-  abouts?: Record<string, string>;
-}
-
-let mockCache: MockContent | null | undefined;
-
-/** 尝试加载本地演示数据；部署了真实索引仓时返回 null 走适配器 */
-async function getMock(): Promise<MockContent | null> {
-  if (mockCache !== undefined) return mockCache;
-  try {
-    const response = await fetch(MOCK_CONTENT_URL);
-    if (!response.ok) {
-      mockCache = null;
-      return null;
-    }
-    mockCache = (await response.json()) as MockContent;
-  } catch {
-    mockCache = null;
-  }
-  return mockCache;
-}
-
 function repoKey(user: string, repo: string): string {
   return `${user}/${repo}`;
-}
-
-/** 演示数据是否可用（部署真实索引仓后 /mock/content.json 不存在） */
-export async function isMockAvailable(): Promise<boolean> {
-  return (await getMock()) !== null;
 }
 
 function slugKey(user: string, repo: string, slug: string): string {
@@ -184,38 +147,11 @@ function mediaKind(name: string): MediaItem['kind'] {
   return 'other';
 }
 
-/** mock 模式下的图片占位（SVG 数据链接） */
-function imagePlaceholder(name: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%" height="100%" fill="#e2e8f0"/><text x="50%" y="50%" font-family="sans-serif" font-size="24" fill="#64748b" text-anchor="middle" dominant-baseline="middle">${name}</text></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-/** mock 模式下的占位音频（0.1s 静音 WAV） */
-const SILENT_WAV = `data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YUAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`;
-
-function mockMediaUrl(name: string, kind: MediaItem['kind']): string {
-  if (kind === 'image') return imagePlaceholder(name);
-  if (kind === 'audio') return SILENT_WAV;
-  return '';
-}
-
 export async function loadRepoInfo(
   platform: Platform,
   user: string,
   repo: string,
 ): Promise<RepoInfo | null> {
-  const mock = await getMock();
-  if (mock) {
-    const m = mock.repos[repoKey(user, repo)];
-    if (!m) return null;
-    return {
-      name: repo,
-      fullName: repoKey(user, repo),
-      htmlUrl: `https://${platform === 'gitee' ? 'gitee.com' : 'github.com'}/${user}/${repo}`,
-      stars: m.stars,
-      license: m.license,
-    };
-  }
   return (await getAdapterAsync(platform)).getRepo(user, repo);
 }
 
@@ -225,8 +161,6 @@ export async function loadAbout(
   user: string,
   repo: string,
 ): Promise<string | undefined> {
-  const mock = await getMock();
-  if (mock) return mock.abouts?.[repoKey(user, repo)];
   try {
     return await (await getAdapterAsync(platform)).readFile(user, repo, 'ABOUT.md');
   } catch {
@@ -263,12 +197,6 @@ async function loadReadme(
   slug: string,
   baseDir: string,
 ): Promise<string> {
-  const mock = await getMock();
-  if (mock) {
-    const raw = mock.readmes[slugKey(user, repo, slug)];
-    if (!raw) throw new Error(`README not found: ${slugKey(user, repo, slug)}`);
-    return raw;
-  }
   return (await getAdapterAsync(platform)).readFile(user, repo, `${baseDir}/README.md`);
 }
 
@@ -276,13 +204,8 @@ async function loadSlugDir(
   platform: Platform,
   user: string,
   repo: string,
-  slug: string,
   baseDir: string,
 ): Promise<string[]> {
-  const mock = await getMock();
-  if (mock) {
-    return mock.dirs[slugKey(user, repo, slug)] ?? [];
-  }
   const entries = await (await getAdapterAsync(platform)).listDir(user, repo, baseDir);
   return entries.filter((e) => e.type === 'file').map((e) => e.name);
 }
@@ -294,25 +217,18 @@ export async function loadSubmissionContent(
   repo: string,
   slug: string,
 ): Promise<SubmissionContent> {
-  const mock = await getMock();
-  const baseDir = mock ? slug : await resolveBaseDir(platform, user, repo, slug);
+  const baseDir = await resolveBaseDir(platform, user, repo, slug);
   const [raw, dir] = await Promise.all([
     loadReadme(platform, user, repo, slug, baseDir),
-    loadSlugDir(platform, user, repo, slug, baseDir).catch(() => [] as string[]),
+    loadSlugDir(platform, user, repo, baseDir).catch(() => [] as string[]),
   ]);
   const parsed = parseReadme(raw);
   const projectNames = new Set(parsed.files.map((f) => f.name));
 
+  const adapter = await getAdapterAsync(platform);
   const media: MediaItem[] = dir
     .filter((name) => name !== 'README.md' && !projectNames.has(name))
-    .map((name) => {
-      const kind = mediaKind(name);
-      return { name, kind, url: mock ? mockMediaUrl(name, kind) : '' };
-    });
-  if (!mock) {
-    const adapter = await getAdapterAsync(platform);
-    for (const item of media) item.url = adapter.rawUrl(user, repo, `${baseDir}/${item.name}`);
-  }
+    .map((name) => ({ name, kind: mediaKind(name), url: adapter.rawUrl(user, repo, `${baseDir}/${name}`) }));
 
   return { parsed, media, baseDir };
 }
@@ -322,49 +238,21 @@ export async function loadReleases(
   user: string,
   repo: string,
 ): Promise<ReleaseInfo[]> {
-  const mock = await getMock();
-  if (mock) return mock.releases[repoKey(user, repo)] ?? [];
   return (await getAdapterAsync(platform)).listReleases(user, repo);
 }
 
 export async function loadIssues(platform: Platform, user: string, repo: string): Promise<IssueInfo[]> {
-  const mock = await getMock();
-  if (mock) return mock.issues[repoKey(user, repo)] ?? [];
   return (await getAdapterAsync(platform)).listIssues(user, repo);
 }
 
-const engagementCache = new Map<string, EngagementStats>();
-
-/** 当前页稿件的评论数/点赞数（缓存） */
+/** 当前页稿件的评论数/点赞数 */
 export async function loadEngagements(
   platform: Platform,
   user: string,
   repo: string,
   entries: SubmissionEntry[],
 ): Promise<Map<string, EngagementStats>> {
-  const mock = await getMock();
   const results = new Map<string, EngagementStats>();
-
-  if (mock) {
-    const issues = mock.issues[repoKey(user, repo)] ?? [];
-    const releases = mock.releases[repoKey(user, repo)] ?? [];
-    for (const entry of entries) {
-      const key = slugKey(entry.owner, entry.repo, entry.slug);
-      const cached = engagementCache.get(key);
-      if (cached) {
-        results.set(key, cached);
-        continue;
-      }
-      const stats: EngagementStats = {
-        comments: issues.find((i) => i.title === entry.slug)?.comments ?? 0,
-        reactions: releases.find((r) => r.tag === entry.slug)?.reactions ?? 0,
-      };
-      engagementCache.set(key, stats);
-      results.set(key, stats);
-    }
-    return results;
-  }
-
   const fromStats = await fetchEngagementForEntries(await getAdapterAsync(platform), entries);
   for (const entry of entries) {
     results.set(

@@ -39,7 +39,7 @@ stages:
   - step: merge-pr@gitee
     name: a5f25edd
     displayName: 合并 PR
-    token: ${GITEE_MERGE_BOT}
+    token: ${SVP_MERGE_BOT}
     mergeMethod: merge
     pruneSourceBranch: "true"
     closeRelatedIssue: "false"

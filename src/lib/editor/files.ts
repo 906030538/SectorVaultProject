@@ -22,15 +22,15 @@ export function newEditorFileId(): string {
   return crypto.randomUUID();
 }
 
-/** json/xml 探测：扩展名 + 首部非空白字符嗅探 */
+/** json/xml/svp 探测：扩展名 + 首部非空白字符嗅探（svp 为 JSON 格式工程） */
 export async function detectTextLike(file: File): Promise<boolean> {
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-  if (ext !== 'json' && ext !== 'xml') return false;
+  if (ext !== 'json' && ext !== 'xml' && ext !== 'svp') return false;
   try {
     const head = (await file.slice(0, 512).text()).trimStart();
     return head.startsWith('{') || head.startsWith('<');
   } catch {
-    return ext === 'json' || ext === 'xml';
+    return ext === 'json' || ext === 'xml' || ext === 'svp';
   }
 }
 
@@ -101,7 +101,8 @@ export async function processFile(
   if (scheme === 'format') {
     const text = new TextDecoder().decode(bytes);
     const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-    const pretty = ext === 'json' ? prettyJson(text) : prettyXml(text);
+    // svp 与 json 同为 JSON 文本，按 JSON 可读打印；其余（xml）走折行缩进
+    const pretty = ext === 'json' || ext === 'svp' ? prettyJson(text) : prettyXml(text);
     return { content: pretty, encoding: 'utf-8' };
   }
 

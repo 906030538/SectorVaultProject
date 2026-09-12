@@ -1,0 +1,60 @@
+version: "1.0"
+name: validate
+displayName: validate
+stages:
+- name: validate
+  displayName: validate
+  strategy: naturally
+  trigger: auto
+  steps:
+  - step: build@nodejs
+    name: ""
+    displayName: validate
+    nodeVersion: 24.13.0
+    commands:
+    - '# 设置NPM源，提升安装速度'
+    - npm config set registry https://registry.npmmirror.com
+    - ""
+    - '# 执行编译命令'
+    - ""
+    - if ls index/archive/*.json >/dev/null 2>&1; then
+    -   npx --yes ajv-cli validate -s schema/archive.schema.json -r schema/submission.schema.json -r schema/user.schema.json -d "index/archive/*.json" --spec=draft7
+    - fi
+    - ""
+    - npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
+    artifacts: []
+    caches:
+    - "~/.npm"
+    notify: []
+    strategy:
+      retry: "0"
+      resource:
+        cpu: "1"
+        memory: "2"
+- name: merge
+  displayName: 合并
+  strategy: naturally
+  trigger: auto
+  steps:
+  - step: merge-pr@gitee
+    name: a5f25edd
+    displayName: 合并 PR
+    token: ${GITEE_MERGE_BOT}
+    mergeMethod: merge
+    pruneSourceBranch: "true"
+    closeRelatedIssue: "false"
+    strategy:
+      retry: "0"
+triggers:
+  trigger: auto
+  pr:
+    branches:
+      prefix: []
+      precise:
+      - index
+      include: []
+    paths:
+      precise: []
+      include:
+      - index/archive/.*
+notify: []

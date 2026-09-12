@@ -33,6 +33,35 @@ export function wikiPageUrl(owner: string, repo: string, page: string): string {
   return `https://github.com/${owner}/${repo}/wiki/${page.replace(/\s+/g, '-')}`;
 }
 
+/** FAQ 目录条目（wiki 自定义侧栏驱动） */
+export interface FaqTocEntry {
+  page: string;
+  label: string;
+}
+
+/**
+ * 从 wiki 自定义侧栏（_Sidebar.md）解析目录：提取 `[[Page]]` / `[[Page|显示名]]`
+ * 链接，保持出现顺序去重。侧栏不可用时返回 null（调用方回退 deployment.json）。
+ */
+export async function loadFaqSidebar(owner: string, repo: string): Promise<FaqTocEntry[] | null> {
+  try {
+    const response = await fetch(wikiRawUrl(owner, repo, '_Sidebar'));
+    if (!response.ok) return null;
+    const markdown = await response.text();
+    const entries: FaqTocEntry[] = [];
+    const seen = new Set<string>();
+    for (const match of markdown.matchAll(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g)) {
+      const page = (match[1] ?? '').trim();
+      if (!page || seen.has(page)) continue;
+      seen.add(page);
+      entries.push({ page, label: (match[2] ?? '').trim() || page });
+    }
+    return entries.length ? entries : null;
+  } catch {
+    return null;
+  }
+}
+
 /** wiki 链接 `[[Page]]` / `[[Page|显示名]]` 转 markdown 链接 */
 function expandWikiLinks(markdown: string): string {
   return markdown.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_all, target: string, label?: string) =>

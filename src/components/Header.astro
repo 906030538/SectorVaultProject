@@ -172,7 +172,7 @@ function isActive(href: string): boolean {
   import { openAuthDialog } from '@/lib/auth-dialog';
   import { buildAuthLabels } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
-  import { loadSession, loadSessionBy, logout, syncAuthToCookies } from '@/lib/auth';
+  import { loadSession, loadSessionBy, logoutPlatform, syncAuthToCookies } from '@/lib/auth';
   import { getLineSources, getStoredLine } from '@/lib/index/sources';
   import { t } from '@/i18n';
   import { setAvatar } from '@/lib/ui';
@@ -227,7 +227,7 @@ function isActive(href: string): boolean {
         name.textContent = session.name ?? session.login;
         link.appendChild(name);
         area.appendChild(link);
-        // 登出：清除全部平台令牌与会话后刷新
+        // 登出：仅清除当前线路平台的令牌与会话（其他线路登录态保留）后刷新
         const logoutBtn = document.createElement('button');
         logoutBtn.type = 'button';
         logoutBtn.className = 'btn px-2.5';
@@ -235,8 +235,12 @@ function isActive(href: string): boolean {
         logoutBtn.dataset.i18n = 'nav.logout';
         logoutBtn.textContent = t(getClientLocale(), 'nav.logout');
         logoutBtn.addEventListener('click', () => {
-          logout();
-          window.location.reload();
+          void (async () => {
+            for (const platform of [...new Set((await getLineSources()).map((s) => s.platform))]) {
+              logoutPlatform(platform);
+            }
+            window.location.reload();
+          })();
         });
         area.appendChild(logoutBtn);
       }

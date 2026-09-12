@@ -25,6 +25,7 @@ import {
   type SubmissionDraft,
 } from '@/lib/editor/pipeline';
 import { findEntry } from '@/lib/index/loader';
+import { getLineSources } from '@/lib/index/sources';
 import type { ParamStatus, Platform, ReleaseAsset, SubmissionEntry, SubmissionType } from '@/types';
 
 export interface EditorLabels {
@@ -922,9 +923,12 @@ export async function initEditor(
   root: HTMLElement,
 ): Promise<void> {
   root.textContent = '';
-  // 多平台 token 并存：任一平台已登录即进入表单，目标平台缺令牌在提交时提示
+  const isEdit = config.mode === 'edit';
+  // 当前线路的平台集合：新建模式的登录门控与仓库下拉只看这些平台（线路切换后随线路走）
+  const linePlatforms = [...new Set((await getLineSources()).map((source) => source.platform))];
+  // 编辑模式的平台由稿件决定（线路可能不同），保持任一平台令牌即可进入
   const hasAnyToken = SUPPORTED_PLATFORMS.some((platform) => getToken(platform));
-  if (!hasAnyToken) {
+  if (!hasAnyToken || (!isEdit && !linePlatforms.some((platform) => getToken(platform)))) {
     renderAuthGate(root, labels);
     return;
   }
@@ -932,8 +936,6 @@ export async function initEditor(
   const form = el('form', 'flex max-w-3xl flex-col gap-5');
   form.addEventListener('submit', (event) => event.preventDefault());
   root.appendChild(form);
-
-  const isEdit = config.mode === 'edit';
 
   // ---- 状态初始化 ----
   // 作者输入默认留空（占位提示登录用户；发布时 git 提交作者名缺省回退仓库属主）
@@ -1077,8 +1079,8 @@ export async function initEditor(
       repoSelect.disabled = true;
       return;
     }
-    // 合并全部已保存 token 平台的仓库（会话按平台分别读取，缺失时实时校验令牌获取）
-    for (const platform of SUPPORTED_PLATFORMS) {
+    // 合并当前线路平台已登录账号的仓库（会话按平台分别读取，缺失时实时校验令牌获取）
+    for (const platform of linePlatforms) {
       const token = getToken(platform);
       if (!token) continue;
       let login = loadSessionBy(platform)?.login;

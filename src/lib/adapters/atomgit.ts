@@ -424,9 +424,25 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     tag: string,
     body: string,
   ): Promise<number> {
+    // gitee 要求 target_commitish（目标分支）：取仓库默认分支，读不到时回退 master
+    // （内容经 contents API 落在默认分支上）
+    let targetCommitish = 'master';
+    try {
+      const repoInfo = await this.request<{ default_branch?: string }>(
+        `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}`,
+        { token },
+      );
+      if (repoInfo.default_branch) targetCommitish = repoInfo.default_branch;
+    } catch {
+      /* 仓库详情读不到时用回退分支名 */
+    }
     const data = await this.request<{ id?: number }>(
       `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases`,
-      { method: 'POST', token, body: { tag_name: tag, name: tag, body } },
+      {
+        method: 'POST',
+        token,
+        body: { tag_name: tag, name: tag, body, target_commitish: targetCommitish },
+      },
     );
     return data.id ?? 0;
   }

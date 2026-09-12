@@ -42,7 +42,7 @@ const primary = DEFAULT_INDEX_SOURCES[0];
   </div>
 
   <script>
-    import { loadFaqPage } from '@/lib/views/faq';
+    import { loadFaqPage, loadFaqSidebar } from '@/lib/views/faq';
     import { getFaqPages } from '@/lib/index/sources';
     import { getClientLocale } from '@/lib/i18n-client';
     import { t } from '@/i18n';
@@ -72,14 +72,15 @@ const primary = DEFAULT_INDEX_SOURCES[0];
     const TOC_LINK_CLASS =
       'rounded-md px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white';
     const TOC_ACTIVE_CLASS = 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
-    const renderToc = (pages: string[]): void => {
+    const renderToc = (entries: { page: string; label: string }[]): void => {
       if (!toc) return;
       toc.textContent = '';
-      for (const page of pages) {
+      for (const { page, label } of entries) {
         const link = document.createElement('a');
         link.href = withBase(`/faq?page=${encodeURIComponent(page)}`);
         link.className = TOC_LINK_CLASS;
-        link.textContent = page === 'Home' ? homeLabel : page;
+        // Home 用 i18n 文案，其余用侧栏提供的显示名
+        link.textContent = page === 'Home' ? homeLabel : label;
         link.dataset.page = page;
         link.addEventListener('click', (event) => {
           event.preventDefault();
@@ -102,7 +103,13 @@ const primary = DEFAULT_INDEX_SOURCES[0];
       }
     };
 
-    void getFaqPages().then(renderToc);
+    // 目录来源：wiki 自定义侧栏（_Sidebar.md）优先，拉不到时回退 deployment.json 的 faqPages
+    void (async () => {
+      const sidebar = await loadFaqSidebar(init.owner, init.repo);
+      const entries =
+        sidebar ?? (await getFaqPages()).map((page) => ({ page, label: page }));
+      renderToc(entries);
+    })();
     void loadFaqPage({ ...init, page: current });
   </script>
 </BaseLayout>

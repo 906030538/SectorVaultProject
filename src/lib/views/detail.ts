@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { unzipSync } from 'fflate';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
+import { LICENSE_OPTIONS } from '@/config';
 import {
   loadRepoInfo,
   loadReleases,
@@ -124,6 +125,7 @@ export interface DetailLabels {
   viewUser: string;
   sourceRepo: string;
   license: string;
+  licenseCustomName: string;
   stars: string;
 }
 
@@ -1164,7 +1166,7 @@ const PLATFORM_NAMES: Record<Platform, string> = {
 function renderAuthor(
   entry: SubmissionEntry,
   repoInfo: { stars: number; license?: string; htmlUrl?: string } | null,
-  content: { parsed: { attrs: Record<string, string> } },
+  content: SubmissionContent,
   labels: DetailLabels,
   els: DetailElements,
   platform: Platform,
@@ -1208,7 +1210,13 @@ function renderAuthor(
   repoBadge.target = '_blank';
   repoBadge.rel = 'noopener';
   repoBadge.dataset.role = 'repo-badge';
-  repoBadge.innerHTML = badgeSvg(`${entry.owner}/${entry.repo}`, PLATFORM_NAMES[platform], '#334155', PLATFORM_BADGE_BG[platform]);
+  if (platform === 'gitee' || platform === 'atomgit') {
+    // gitee/atomgit：作者区不显示仓库名，平台色单段 badge 即仓库跳转按钮（悬停可见仓库）
+    repoBadge.title = `${entry.owner}/${entry.repo}`;
+    repoBadge.innerHTML = badgeSvg(PLATFORM_NAMES[platform], '', PLATFORM_BADGE_BG[platform]);
+  } else {
+    repoBadge.innerHTML = badgeSvg(`${entry.owner}/${entry.repo}`, PLATFORM_NAMES[platform], '#334155', PLATFORM_BADGE_BG[platform]);
+  }
   info.appendChild(repoBadge);
   const officialBadge = officialStarBadgeUrl(platform, entry.owner, entry.repo);
   if (officialBadge) {
@@ -1229,14 +1237,54 @@ function renderAuthor(
     info.appendChild(starBadge);
   }
 
-  const license = content.parsed.attrs.license || repoInfo?.license;
-  if (license) {
+  // 许可证三态：SPDX 标识显示名称 chip；非 SPDX（自定义）显示 LICENSE 全文折叠卡；
+  // 稿件未指定时显示仓库级许可证名称（repoInfo）
+  const licenseChip = (name: string): void => {
     const span = document.createElement('span');
     span.className =
       'rounded-full bg-slate-100 px-2.5 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300';
     span.dataset.role = 'license';
-    span.textContent = `${labels.license}: ${license}`;
+    span.textContent = `${labels.license}: ${name}`;
     info.appendChild(span);
+  };
+  const licenseAttr = content.parsed.attrs.license?.trim() ?? '';
+  const licenseFile = content.media.find((item) => item.name === 'LICENSE');
+  const isSpdx = !!licenseAttr && LICENSE_OPTIONS.some((option) => option.value === licenseAttr);
+  if (isSpdx) {
+    licenseChip(licenseAttr);
+  } else if (licenseAttr || licenseFile) {
+    // 自定义许可证（README 属性或 slug 目录 LICENSE 文件标识）：全文折叠卡
+    const name = licenseAttr && licenseAttr !== 'custom' ? licenseAttr : labels.licenseCustomName;
+    const details = document.createElement('details');
+    details.className = 'w-full';
+    details.dataset.role = 'license';
+    const summary = el('summary', 'cursor-pointer select-none text-xs font-medium text-emerald-700 dark:text-emerald-300');
+    summary.textContent = `${labels.license}: ${name} ▾`;
+    details.appendChild(summary);
+    const pre = el(
+      'pre',
+      'mt-2 max-h-72 w-full overflow-auto whitespace-pre-wrap rounded-lg bg-slate-100 p-3 text-xs leading-relaxed dark:bg-slate-800',
+    );
+    pre.textContent = '…';
+    details.appendChild(pre);
+    info.appendChild(details);
+    // 首次展开时再拉取全文
+    let loaded = false;
+    details.addEventListener('toggle', () => {
+      if (!details.open || loaded) return;
+      loaded = true;
+      void getAdapterAsync(platform)
+        .then((adapter) => adapter.readFile(entry.owner, entry.repo, `${content.baseDir}/LICENSE`))
+        .then((text) => {
+          pre.textContent = text || labels.loadError;
+        })
+        .catch(() => {
+          pre.textContent = labels.loadError;
+          loaded = false;
+        });
+    });
+  } else if (repoInfo?.license) {
+    licenseChip(repoInfo.license);
   }
 
   els.author.append(avatar, info);

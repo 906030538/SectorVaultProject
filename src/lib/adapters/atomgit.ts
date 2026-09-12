@@ -187,20 +187,30 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       html_url?: string;
       assets?: Array<{ id?: number; name: string; size?: number; browser_download_url?: string }>;
     }>>(`/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases`);
-    return (releases ?? []).map((r) => ({
-      id: r.id ?? 0,
-      tag: r.tag_name ?? '',
-      name: r.name ?? r.tag_name ?? '',
-      body: r.body ?? '',
-      htmlUrl: r.html_url ?? `${this.webBase}/${user}/${repo}/releases/${r.tag_name ?? ''}`,
-      reactions: 0,
-      assets: (r.assets ?? []).map((a) => ({
-        id: a.id,
-        name: a.name,
-        size: a.size ?? 0,
-        downloadUrl: a.browser_download_url ?? '',
-      })),
-    }));
+    return (releases ?? []).map((r) => {
+      // 平台自动附带的源码打包（{tag}.zip/.tar.gz，下载地址走 /archive/refs/tags/）
+      // 不是用户上传的附件，附件列表不展示
+      const isSourceArchive = (name: string, url: string): boolean =>
+        url.includes('/archive/refs/tags/') ||
+        name === `${r.tag_name}.zip` ||
+        name === `${r.tag_name}.tar.gz`;
+      return {
+        id: r.id ?? 0,
+        tag: r.tag_name ?? '',
+        name: r.name ?? r.tag_name ?? '',
+        body: r.body ?? '',
+        htmlUrl: r.html_url ?? `${this.webBase}/${user}/${repo}/releases/${r.tag_name ?? ''}`,
+        reactions: 0,
+        assets: (r.assets ?? [])
+          .filter((a) => !isSourceArchive(a.name, a.browser_download_url ?? ''))
+          .map((a) => ({
+            id: a.id,
+            name: a.name,
+            size: a.size ?? 0,
+            downloadUrl: a.browser_download_url ?? '',
+          })),
+      };
+    });
   }
 
   async listIssues(user: string, repo: string): Promise<IssueInfo[]> {

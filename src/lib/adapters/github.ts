@@ -15,11 +15,23 @@ import type {
 import type { CreateRepoOptions, FileChange, GitPlatformAdapter, PlatformUserProfile, RepoOwnerChoice } from './types';
 import { baseRepoReadme, decodeBase64Utf8, emptyLocalArchive, fetchGetTimeout, spdxLicenseText } from '@/lib/utils';
 import { getToken } from '@/lib/auth';
+import { notifyAuthExpired } from '@/lib/auth-expired';
+
+/** 附带已保存令牌的请求返回 401 时视为登录过期（匿名可用的接口）：清除登录态并弹窗提示 */
+function watchExpiredToken(fetchImpl: typeof fetch, token?: string): typeof fetch {
+  return async (input, init) => {
+    const response = await fetchImpl(input, init);
+    if (response.status === 401 && token && token === getToken('github')) {
+      notifyAuthExpired('github');
+    }
+    return response;
+  };
+}
 
 function client(token?: string): Octokit {
   // 读请求带超时（被墙域名的挂起连接 20s 后中止），写操作透传原生 fetch；
   // 关闭自动重试：超时场景下重试会把等待放大到 4×20s
-  const request = { fetch: fetchGetTimeout, retries: 0 };
+  const request = { fetch: watchExpiredToken(fetchGetTimeout, token), retries: 0 };
   return token ? new Octokit({ auth: token, request }) : new Octokit({ request });
 }
 

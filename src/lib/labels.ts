@@ -87,6 +87,7 @@ export function buildDetailLabels(locale: Locale): DetailLabels {
     viewUser: t(locale, 'detail.viewUser'),
     sourceRepo: t(locale, 'detail.sourceRepo'),
     license: t(locale, 'label.license'),
+    licenseCustomName: t(locale, 'detail.licenseCustomName'),
     stars: t(locale, 'label.stars'),
   };
 }

@@ -56,7 +56,8 @@ export function parseReadme(raw: string): ParsedReadme {
 
   const attrs: Record<string, string> = {};
   for (const line of header.split('\n')) {
-    const trimmed = line.trim();
+    // 兼容旧版管线的 '- key: value' 列表风格属性头
+    const trimmed = line.trim().replace(/^- /, '');
     if (!trimmed || trimmed.includes(POWERED_BY)) continue;
     const idx = trimmed.indexOf(':');
     if (idx > 0) {

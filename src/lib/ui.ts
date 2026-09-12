@@ -57,9 +57,14 @@ export function fileIconUrl(fileName: string): string {
  */
 export function badgeSvg(label: string, value: string, labelBg = '#334155', valueBg = '#059669'): string {
   const labelW = Math.round(label.length * 6.3 + 14);
+  const font = `fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11"`;
+  // value 为空时渲染单段 badge（如仅平台名的仓库跳转按钮）
+  if (!value) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${labelW}" height="20" role="img" aria-label="${escXml(label)}"><title>${escXml(label)}</title><rect width="${labelW}" height="20" rx="3" fill="${labelBg}"/><g ${font}><text x="${labelW / 2}" y="14">${escXml(label)}</text></g></svg>`;
+  }
   const valueW = Math.round(value.length * 6.6 + 16);
   const total = labelW + valueW;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="20" role="img" aria-label="${escXml(label)}: ${escXml(value)}"><title>${escXml(label)} ${escXml(value)}</title><rect width="${labelW}" height="20" rx="3" fill="${labelBg}"/><rect x="${labelW}" width="${valueW}" height="20" rx="3" fill="${valueBg}"/><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11"><text x="${labelW / 2}" y="14">${escXml(label)}</text><text x="${labelW + valueW / 2}" y="14">${escXml(value)}</text></g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="20" role="img" aria-label="${escXml(label)}: ${escXml(value)}"><title>${escXml(label)} ${escXml(value)}</title><rect width="${labelW}" height="20" rx="3" fill="${labelBg}"/><rect x="${labelW}" width="${valueW}" height="20" rx="3" fill="${valueBg}"/><g ${font}><text x="${labelW / 2}" y="14">${escXml(label)}</text><text x="${labelW + valueW / 2}" y="14">${escXml(value)}</text></g></svg>`;
 }
 
 /** 各平台站点根地址 */

@@ -626,27 +626,61 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       });
     }
 
-    // 逐文件提交到工作分支（contents API 带 ref；已存在则 PUT 更新）
+    // 逐文件提交到工作分支。contents GET 的 ref 解析存在滞后/回退：
+    // 文件已存在但 sha 未取到时 POST 被拒（文件名已存在），文件不存在而误走 PUT
+    // 报 sha is missing——PUT 一律要求已取到 sha，两种失败按对方路径重试。
     for (const change of changes) {
       if (change.delete) continue;
       const path = `${base}/contents/${change.path}`;
-      const existing = await this.request<{ sha?: string }>(path, {
-        token,
-        query: { ref: prBranch },
-      }).catch(() => null);
-      await this.request(path, {
-        method: existing ? 'PUT' : 'POST',
-        token,
-        query: { ref: prBranch },
-        body: {
-          // content 一律 base64（AtomGit contents 接口不接受 encoding 字段）
-          content:
-            change.encoding === 'base64' ? change.content : utf8ToBase64(change.content),
-          message: title,
-          branch: prBranch,
-          ...(existing?.sha ? { sha: existing.sha } : {}),
-        },
-      });
+      const fetchSha = async (): Promise<string | undefined> => {
+        try {
+          const data = await this.request<{ sha?: string } | Array<unknown>>(path, {
+            token,
+            query: { ref: prBranch },
+          });
+          return data && !Array.isArray(data) ? data.sha : undefined;
+        } catch {
+          return undefined;
+        }
+      };
+      // content 一律 base64（AtomGit contents 接口不接受 encoding 字段）
+      const content = change.encoding === 'base64' ? change.content : utf8ToBase64(change.content);
+      const submit = (method: 'PUT' | 'POST', sha?: string): Promise<unknown> =>
+        this.request(path, {
+          method,
+          token,
+          query: { ref: prBranch },
+          body: {
+            content,
+            message: title,
+            branch: prBranch,
+            ...(sha ? { sha } : {}),
+          },
+        });
+      const sha = await fetchSha();
+      try {
+        await submit(sha ? 'PUT' : 'POST', sha);
+      } catch (error) {
+        const messageText = error instanceof Error ? error.message : String(error);
+        if (!sha && /文件名已存在|already exist|sha/i.test(messageText)) {
+          // 实为已存在文件（GET 滞后未取到 sha）：带退避重取后 PUT
+          let resolved: string | undefined;
+          for (let attempt = 0; attempt < 3 && !resolved; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+            resolved = await fetchSha();
+          }
+          if (resolved) {
+            await submit('PUT', resolved);
+            continue;
+          }
+        }
+        if (sha && /404|not exist|不存在/i.test(messageText)) {
+          // 误判为已存在（sha 来自其他分支的回退读取）：回退 POST 新建
+          await submit('POST');
+          continue;
+        }
+        throw error;
+      }
     }
 
     // 创建 PR（同仓分支：head 直用分支名）

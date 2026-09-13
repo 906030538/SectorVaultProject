@@ -118,6 +118,8 @@ export async function applyCover(entry: SubmissionEntry, coverLink: HTMLElement)
     }
   }
   const img = document.createElement('img');
+  // gitee raw 有 Referer 防盗链（跨站引用一律 403）：先设策略再赋 src，确保首次请求即不发送 Referer
+  img.referrerPolicy = 'no-referrer';
   img.src = src;
   img.alt = entry.title;
   img.loading = 'lazy';

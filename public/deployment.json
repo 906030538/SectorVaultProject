@@ -20,6 +20,26 @@
     }
   ],
   "repoPrefix": "svp-",
+  "templates": {
+    "github": [
+      {
+        "owner": "906030538",
+        "repo": "svp-skeleton"
+      }
+    ],
+    "gitee": [
+      {
+        "owner": "CLCNTanya",
+        "repo": "svp-skeleton"
+      }
+    ],
+    "atomgit": [
+      {
+        "owner": "CLCNTanya",
+        "repo": "svp-skeleton"
+      }
+    ]
+  },
   "cookieDomain": "svp.lyoko.cn",
   "oauthBases": [
     "https://cf.svp.lyoko.cn"

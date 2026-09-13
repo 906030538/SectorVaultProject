@@ -80,7 +80,8 @@ function mapRepo(user: string, repo: AtomGitRepo, webBase: string): RepoInfo {
 
 export class V5PlatformAdapter implements GitPlatformAdapter {
   readonly platform: Platform;
-  readonly supportsRepoTemplate = false;
+  // v5 系模板经文件复制实现（无平台模板生成 API）
+  readonly supportsRepoTemplate = true;
   protected readonly apiBase: string;
   private readonly webBase: string;
   private readonly rawBase: string;
@@ -565,8 +566,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   }
 
   async createRepo(token: string, options: CreateRepoOptions): Promise<void> {
-    // v5 系暂无模板仓库 API：无论是否选择模板都创建空仓库，由编辑器写入初始内容
-    const { owner, name, license, licenseText } = options;
+    const { owner, name, template, license, licenseText } = options;
     const viewer = await this.request<{ login: string }>('/user', { token });
     const isOrg = owner.toLowerCase() !== viewer.login.toLowerCase();
     const body = { name, private: false, auto_init: false };
@@ -575,16 +575,46 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     } else {
       await this.request('/user/repos', { method: 'POST', token, body });
     }
-    // 必要文件：README + 空本地索引；许可证按选择写入根 LICENSE（空仓库可直接提交）
+    // 模板仓：v5 系无模板生成 API，按文件复制（骨架为纯文本结构）；
+    // 复制失败回退基础结构。许可证按选择写入根 LICENSE（覆盖模板同名文件）
+    let changes = template ? await this.collectTemplateFiles(template) : [];
+    if (!template || changes.length === 0) {
+      changes = [
+        { path: 'README.md', content: baseRepoReadme(name), encoding: 'utf-8' },
+        { path: 'svp-archive.json', content: emptyLocalArchive(), encoding: 'utf-8' },
+      ];
+    }
     const licenseContent = licenseText ?? (license ? await spdxLicenseText(license) : null);
-    const changes: FileChange[] = [
-      { path: 'README.md', content: baseRepoReadme(name), encoding: 'utf-8' },
-      { path: 'svp-archive.json', content: emptyLocalArchive(), encoding: 'utf-8' },
-    ];
     if (licenseContent) {
+      changes = changes.filter((change) => change.path !== 'LICENSE');
       changes.push({ path: 'LICENSE', content: licenseContent, encoding: 'utf-8' });
     }
     await this.commitFiles(token, owner, name, 'Initialize Sector Vault Project repository', changes);
+  }
+
+  /** 递归读取模板仓全部文本文件为提交变更（二进制文件跳过） */
+  private async collectTemplateFiles(template: {
+    owner: string;
+    repo: string;
+  }): Promise<FileChange[]> {
+    const walk = async (dir: string): Promise<FileChange[]> => {
+      const entries = await this.listDir(template.owner, template.repo, dir).catch(() => []);
+      const changes: FileChange[] = [];
+      for (const entry of entries) {
+        if (entry.type === 'dir') {
+          changes.push(...(await walk(entry.path)));
+        } else {
+          const content = await this.readFile(template.owner, template.repo, entry.path).catch(() => null);
+          if (content !== null) changes.push({ path: entry.path, content, encoding: 'utf-8' });
+        }
+      }
+      return changes;
+    };
+    try {
+      return await walk('');
+    } catch {
+      return [];
+    }
   }
 
   async openIndexPr(

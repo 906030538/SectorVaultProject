@@ -177,8 +177,10 @@ function renderMedia(items: MediaItem[], els: DetailElements): void {
   for (const item of items) {
     const figure = document.createElement('figure');
     figure.className = 'card overflow-hidden';
+    // gitee raw 有 Referer 防盗链：策略先于 src 设置，媒体元素不发送 Referer
     if (item.kind === 'image') {
       const img = document.createElement('img');
+      img.referrerPolicy = 'no-referrer';
       img.src = item.url;
       img.alt = item.name;
       img.loading = 'lazy';
@@ -187,12 +189,14 @@ function renderMedia(items: MediaItem[], els: DetailElements): void {
     } else if (item.kind === 'audio') {
       const audio = document.createElement('audio');
       audio.controls = true;
+      audio.referrerPolicy = 'no-referrer';
       audio.src = item.url;
       audio.className = 'w-full';
       figure.appendChild(audio);
     } else if (item.kind === 'video') {
       const video = document.createElement('video');
       video.controls = true;
+      video.referrerPolicy = 'no-referrer';
       video.src = item.url;
       video.className = 'aspect-video w-full';
       figure.appendChild(video);
@@ -239,7 +243,8 @@ async function downloadProjectFile(
   const { user, repo } = init;
   // 物理存储名：压缩/加密文件带 .zip 后缀（显示名保持原名）
   const url = (await getAdapterAsync(platform)).rawUrl(user, repo, `${baseDir}/${storedProjectFileName(file)}`);
-  const response = await fetch(url);
+  // gitee raw 有 Referer 防盗链：下载请求不发送 Referer
+  const response = await fetch(url, { referrerPolicy: 'no-referrer' });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
 

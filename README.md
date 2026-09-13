@@ -104,7 +104,7 @@
 | 检查项         | 说明                                                                                               |
 | -------------- | -------------------------------------------------------------------------------------------------- |
 | 派生数据保护   | 禁止手改 `index/current.json`（由 Action 生成，PR 中出现该文件改动即失败）                         |
-| 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败；`submittedAt` 不得晚于当前时间（预留 5 分钟时钟偏差） |
+| 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败；`submittedAt`/`publishedAt` 不得晚于当前时间（预留 5 分钟时钟偏差） |
 | PR 范围限制    | 删除任何文件、或一次修改多个稿件（新增+改动 > 1 条）的 PR 不自动合并，评论说明原因并请求管理员审核 |
 | JSON 语法      | `index/archive/*.json` 必须是合法 JSON                                                             |
 | Schema 校验    | 使用 ajv（draft-07）按 `schema/` 下各 schema 递归校验                                              |

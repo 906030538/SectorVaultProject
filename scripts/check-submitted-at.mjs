@@ -1,5 +1,5 @@
 // PR 门禁校验：已存在稿件的 submittedAt（投稿日期）不允许被修改，
-// 且任何稿件的投稿日期不允许晚于当前时间（预留 5 分钟时钟偏差）。
+// 且任何稿件的投稿日期、发布日期均不允许晚于当前时间（预留 5 分钟时钟偏差）。
 // 用法：node scripts/check-submitted-at.mjs <baseArchiveDir> <headArchiveDir>
 // 不可变检查只比较两边都存在的条目（按 platform/owner/repo/slug 唯一键）；
 // 未来时间检查覆盖 head 侧全部条目。
@@ -31,16 +31,21 @@ for (const [key, s] of head) {
   }
 }
 
-// 2. 投稿日期不允许晚于当前时间（预留 5 分钟时钟偏差）
+// 2. 投稿/发布日期均不允许晚于当前时间（预留 5 分钟时钟偏差）
 const now = Date.now();
 const TOLERANCE_MS = 5 * 60 * 1000;
-for (const [key, s] of head) {
-  const t = Date.parse(s.submittedAt);
+const checkFuture = (key, field, value) => {
+  if (value == null) return;
+  const t = Date.parse(value);
   if (Number.isFinite(t) && t > now + TOLERANCE_MS) {
-    console.error(`::error::投稿日期不能超过当前时间: ${key} (${s.submittedAt})`);
+    console.error(`::error::${field} 不能超过当前时间: ${key} (${value})`);
     violations++;
   }
+};
+for (const [key, s] of head) {
+  checkFuture(key, "投稿日期", s.submittedAt);
+  checkFuture(key, "发布日期", s.publishedAt);
 }
 
 if (violations) process.exit(1);
-console.log(`ok: submittedAt immutable across ${base.size} existing entries, none in the future`);
+console.log(`ok: submittedAt immutable across ${base.size} existing entries, no dates in the future`);

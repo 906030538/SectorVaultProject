@@ -673,23 +673,10 @@ export async function publishSubmission(
   const entry = progress.entry ?? buildIndexEntry(draft, draft.submittedAt ?? now, draft.cover?.name, draft.publishedAt ?? now);
   progress.entry = entry;
 
-  // 发布先于文件创建：README 一次写入即可携带 release id，
-  // 避免 files→release 两步连续提交同一文件（v5 读后写竞态触发 not a fast forward）
-  await resumeStep('release', progress.releaseId !== undefined, async () => {
-    const site = await findUserSite(user);
-    // createRelease 按 tag 幂等（已存在则复用），重试不会重复建 release
-    releaseId = await (await adapter()).createRelease(
-      token!,
-      user,
-      repo,
-      slug,
-      buildReleaseBody(user, repo, slug, site, draft.summary, repoWebBase(draft.platform)),
-    );
-    progress.releaseId = releaseId;
-  });
-
   await resumeStep('files', progress.filesDone === true, async () => {
-    // 内联媒体（封面 + 工程文件）、README 与本地索引（目录链接 + svp-archive.json）合并为一个提交
+    // 内联媒体（封面 + 工程文件）、README 与本地索引（目录链接 + svp-archive.json）合并为一个提交。
+    // 文件先于 release 创建（空仓库建 release 会失败）；README 只写一次，
+    // 不再为补 release id 二次提交（头部 release 属性无消费方；断点续传时 release 已建则带上）
     const changes: FileChange[] = [];
     if (draft.cover) {
       changes.push(await fileChange(`${POSTS_DIR}/${slug}/${draft.cover.name}`, draft.cover, 'raw'));
@@ -705,7 +692,6 @@ export async function publishSubmission(
     }
     changes.push({
       path: `${POSTS_DIR}/${slug}/README.md`,
-      // release 已先行创建：头部直接携带 release id，不再二次补写提交
       content: buildReadmeText(
         draft,
         issue,
@@ -726,6 +712,19 @@ export async function publishSubmission(
     if (!initialized) changes.push(readmeChange, archiveChange);
     await (await adapter()).commitFiles(token!, user, repo, `Add ${slug}`, changes, commitAuthor(draft));
     progress.filesDone = true;
+  });
+
+  await resumeStep('release', progress.releaseId !== undefined, async () => {
+    const site = await findUserSite(user);
+    // createRelease 按 tag 幂等（已存在则复用），重试不会重复建 release
+    releaseId = await (await adapter()).createRelease(
+      token!,
+      user,
+      repo,
+      slug,
+      buildReleaseBody(user, repo, slug, site, draft.summary, repoWebBase(draft.platform)),
+    );
+    progress.releaseId = releaseId;
   });
 
   if (isSkipped('assets')) {

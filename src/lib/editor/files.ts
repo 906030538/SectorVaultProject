@@ -99,7 +99,8 @@ export async function processFile(
   const bytes = await readFileBytes(file);
 
   if (scheme === 'format') {
-    const text = new TextDecoder().decode(bytes);
+    // 部分工程文件（svp 等）末尾带 NUL 填充字节：解析前去除，否则 JSON.parse 失败
+    const text = new TextDecoder().decode(bytes).replace(/\0+$/, '');
     const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
     // svp 与 json 同为 JSON 文本，按 JSON 可读打印；其余（xml）走折行缩进
     const pretty = ext === 'json' || ext === 'svp' ? prettyJson(text) : prettyXml(text);

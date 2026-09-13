@@ -1676,7 +1676,7 @@ export async function initEditor(
 
     const steps: StepId[] = isEdit
       ? ['cover', 'files', 'readme', 'assets', 'index']
-      : ['issue', 'release', 'files', 'assets', 'index'];
+      : ['issue', 'files', 'release', 'assets', 'index'];
     if (!progressCard) {
       progressCard = renderProgress(labels, steps);
       form.appendChild(progressCard);

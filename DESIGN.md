@@ -123,8 +123,8 @@
 11. 投稿总是创建关联issue（不再提供评论区开关）。
 12. 新建投稿流程：
     1. 创建slug同名issue（正文为稿件参数+slug目录链接），记录issue编号（字符串）。
-    2. 创建slug同名release，正文包含发布简介和原仓库slug目录链接（非本站链接），记录release id（字符串）。release先于文件创建，README一次写入即携带release id。
-    3. 将封面、工程文件、README.md（含作者/邮箱/标签/release id）、LICENSE（如有）写入slug目录，与仓库README链接和本地索引合并为一个提交；空仓库时直接以最终内容（含slug链接的README、含投稿条目的svp-archive.json）初始化建仓，避免初始化后覆盖的连续双写。
+    2. 将封面、工程文件、README.md（含作者/邮箱/标签）、LICENSE（如有）写入slug目录，与仓库README链接和本地索引合并为一个提交；空仓库时直接以最终内容（含slug链接的README、含投稿条目的svp-archive.json）初始化建仓，避免初始化后覆盖的连续双写。文件先于release（空仓库建release会失败）；README只写一次，不再为补release id二次提交（该属性无消费方，断点续传时release已建则首次写入即带上）。
+    3. 创建slug同名release（target_commitish为仓库默认分支），正文包含发布简介和原仓库slug目录链接（非本站链接），记录release id（字符串）。
     4. 上传附件到release（GitHub不支持，提示跳转平台上传）。
     5. 向索引仓提交单文件PR。
     6. 每步记录进度，失败可断点重试或跳过；草稿自动保存到localStorage。

@@ -1,15 +1,29 @@
 version: "1.0"
 name: validate
-displayName: validate
+displayName: 自动合入
+
+triggers:
+  trigger: auto
+  pr:
+    branches:
+      precise:
+      - index
+    paths:
+      include:
+      - index/archive/.*
+
+variables:
+  GITEE_GO_PLUGIN_TOKEN: '${SVP_MERGE_BOT}'
+
 stages:
-- name: validate
-  displayName: validate
+- name: gate
+  displayName: 门禁
   strategy: naturally
   trigger: auto
   steps:
   - step: build@nodejs
-    name: ""
-    displayName: validate
+    name: validate
+    displayName: 校验
     nodeVersion: 24.13.0
     commands:
     - '# 设置NPM源，提升安装速度'
@@ -22,10 +36,8 @@ stages:
     - fi
     - ""
     - npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
-    artifacts: []
     caches:
     - "~/.npm"
-    notify: []
     strategy:
       retry: "0"
       resource:
@@ -39,22 +51,9 @@ stages:
   - step: merge-pr@gitee
     name: a5f25edd
     displayName: 合并 PR
-    token: ${SVP_MERGE_BOT}
+    token: '${SVP_MERGE_BOT}'
     mergeMethod: merge
     pruneSourceBranch: "true"
     closeRelatedIssue: "false"
     strategy:
       retry: "0"
-triggers:
-  trigger: auto
-  pr:
-    branches:
-      prefix: []
-      precise:
-      - index
-      include: []
-    paths:
-      precise: []
-      include:
-      - index/archive/.*
-notify: []

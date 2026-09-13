@@ -178,6 +178,7 @@ function renderMedia(items: MediaItem[], els: DetailElements): void {
     const figure = document.createElement('figure');
     figure.className = 'card overflow-hidden';
     // gitee raw 有 Referer 防盗链：策略先于 src 设置，媒体元素不发送 Referer
+    // （HTMLMediaElement 无 referrerPolicy DOM 属性类型，用内容属性写法）
     if (item.kind === 'image') {
       const img = document.createElement('img');
       img.referrerPolicy = 'no-referrer';
@@ -189,14 +190,14 @@ function renderMedia(items: MediaItem[], els: DetailElements): void {
     } else if (item.kind === 'audio') {
       const audio = document.createElement('audio');
       audio.controls = true;
-      audio.referrerPolicy = 'no-referrer';
+      audio.setAttribute('referrerpolicy', 'no-referrer');
       audio.src = item.url;
       audio.className = 'w-full';
       figure.appendChild(audio);
     } else if (item.kind === 'video') {
       const video = document.createElement('video');
       video.controls = true;
-      video.referrerPolicy = 'no-referrer';
+      video.setAttribute('referrerpolicy', 'no-referrer');
       video.src = item.url;
       video.className = 'aspect-video w-full';
       figure.appendChild(video);
@@ -455,10 +456,14 @@ function renderRelease(
       a.rel = 'noopener';
       a.className = 'text-emerald-600 hover:underline dark:text-emerald-400';
       a.textContent = asset.name;
-      const size = document.createElement('span');
-      size.className = 'ml-2 text-xs text-slate-400';
-      size.textContent = formatBytes(asset.size);
-      li.append(a, size);
+      li.appendChild(a);
+      // 平台未返回大小时（gitee）不显示，避免捏造 0 B
+      if (asset.size && asset.size > 0) {
+        const size = document.createElement('span');
+        size.className = 'ml-2 text-xs text-slate-400';
+        size.textContent = formatBytes(asset.size);
+        li.appendChild(size);
+      }
       ul.appendChild(li);
     }
     box.appendChild(ul);

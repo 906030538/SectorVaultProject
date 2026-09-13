@@ -572,7 +572,8 @@ function renderAttachmentControl(
     for (const asset of getOldAssets()) {
       if (state.removedAssets.some((a) => a.name === asset.name)) continue;
       const row = el('div', 'flex items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-700');
-      row.appendChild(el('span', 'flex-1', `${asset.name} · ${formatBytes(asset.size)}`));
+      // 平台未返回大小时（gitee）只显示文件名
+      row.appendChild(el('span', 'flex-1', asset.size ? `${asset.name} · ${formatBytes(asset.size)}` : asset.name));
       const removeBtn = el('button', 'btn', '×');
       removeBtn.type = 'button';
       removeBtn.addEventListener('click', () => {

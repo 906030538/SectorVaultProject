@@ -207,7 +207,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
           .map((a) => ({
             id: a.id,
             name: a.name,
-            size: a.size ?? 0,
+            size: a.size,
             downloadUrl: a.browser_download_url ?? '',
           })),
       };

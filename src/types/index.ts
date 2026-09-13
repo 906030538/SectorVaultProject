@@ -146,7 +146,8 @@ export interface ReleaseAsset {
   /** 平台侧附件 id */
   id?: number;
   name: string;
-  size: number;
+  /** 附件字节数；平台不返回时缺省（gitee releases 接口无此字段） */
+  size?: number;
   downloadUrl: string;
 }
 

@@ -1,14 +1,13 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import UserRoute from '@/components/routes/UserRoute.astro';
-import { userStaticPaths } from '@/lib/paths';
 
 /**
  * 动态路由 /user/:name。
- * 索引内已知用户构建期预渲染；其余用户由 404 SPA 回退客户端渲染。
+ * 不做构建期预渲染（避免按用户生成具体页面），全部由 404 SPA 回退客户端渲染。
  */
-export async function getStaticPaths() {
-  return await userStaticPaths();
+export function getStaticPaths() {
+  return [];
 }
 ---
 

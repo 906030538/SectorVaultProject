@@ -794,9 +794,23 @@ export async function updateSubmission(
   });
 
   // 发布时间编辑器可改（未改动时沿用原值）；投稿时间不变更。
+  // 关联 issue 缺失（发布时受平台单日建 issue 限额被跳过，README 记 0）：
+  // 趁编辑补建并把编号写入 README 与索引；补建失败（限额未解除）不阻断编辑
+  let issueId = ctx.issue;
+  let issueCreated = false;
+  if (!issueId || issueId === '0') {
+    try {
+      issueId = String(
+        await (await adapter()).createIssue(token!, user, repo, slug, buildIssueBody(draft)),
+      );
+      issueCreated = true;
+    } catch (error) {
+      console.warn('[pipeline] 补建关联 issue 失败:', error);
+    }
+  }
   // README 与索引差异先行计算：文件、README 与本地归档合并为一个提交
   const nextPublishedAt = draft.publishedAt ?? ctx.entry.publishedAt ?? ctx.entry.submittedAt;
-  const readme = buildReadmeText(draft, ctx.issue, currentCover, {
+  const readme = buildReadmeText(draft, issueId, currentCover, {
     submittedAt: ctx.entry.submittedAt,
     publishedAt: nextPublishedAt,
   });
@@ -805,6 +819,7 @@ export async function updateSubmission(
     draft.publishedAt !== undefined &&
     new Date(draft.publishedAt).getTime() !== new Date(entry.publishedAt ?? entry.submittedAt).getTime();
   const indexChanged =
+    issueCreated ||
     draft.title !== entry.title ||
     currentCover !== entry.cover ||
     draft.params !== entry.paramState ||
@@ -815,7 +830,7 @@ export async function updateSubmission(
     !sameList(draft.songLanguages, entry.languages);
   const updatedEntry = indexChanged
     ? buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt, {
-        issue: ctx.issue || undefined,
+        issue: issueId && issueId !== '0' ? issueId : undefined,
         release: ctx.releaseId ?? undefined,
       })
     : null;

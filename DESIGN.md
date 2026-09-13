@@ -3,6 +3,7 @@
 
 ## 主站点
 1. 支持不同git平台部署（GitHub、Atomgit、Gitee）。
+2. `/view`、`/user`、`/edit` 动态路由不做构建期预渲染（getStaticPaths 返回空，不为具体用户/稿件生成静态页）：全部经 404 SPA 回退客户端渲染，索引更新无需重建站点即可访问新稿件。
 2. 支持OAuth（GitHub Device Flow）或PAT（GitHub App）授权认证；跨子域共享登录态（父域cookie镜像）；OAuth代理列表（`oauthBases`）依次探测取首个可达。
 3. 使用octokit实现githubAdapter，V5PlatformAdapter统一Gitee/AtomGit/GitCode。
 4. 与索引数据共仓库，通过不同分支管理。
@@ -131,9 +132,10 @@
 13. 修改投稿流程：
     1. 封面修改：删旧传新。
     2. 文件修改、README重写、本地归档更新合并为单个提交（消除相邻提交的fast-forward竞态窗口）。
-    3. 发布简介有修改时同步更新关联release正文。
-    4. 附件同步到关联release。
-    5. 索引属性有修改时更新本地归档并向索引仓提PR。
+    3. 关联issue缺失时（发布时受平台单日建issue限额被跳过、README记0）趁编辑补建：编号写入README与索引条目（归档+索引PR）；补建失败不阻断编辑，索引不写入占位0。
+    4. 发布简介有修改时同步更新关联release正文。
+    5. 附件同步到关联release。
+    6. 索引属性有修改时更新本地归档并向索引仓提PR。
 14. git提交作者：GitHub传author（name+email），V5系以令牌身份提交。
 
 ### 删除投稿

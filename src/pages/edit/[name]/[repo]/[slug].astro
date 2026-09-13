@@ -1,14 +1,13 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import EditRoute from '@/components/routes/EditRoute.astro';
-import { editStaticPaths } from '@/lib/paths';
 
 /**
  * 动态路由 /edit/:name/:repo/:slug。
- * 索引内已知稿件构建期预渲染；其余稿件由 404 SPA 回退客户端渲染。
+ * 不做构建期预渲染（避免按稿件生成具体页面），全部由 404 SPA 回退客户端渲染。
  */
-export async function getStaticPaths() {
-  return await editStaticPaths();
+export function getStaticPaths() {
+  return [];
 }
 ---
 

@@ -140,6 +140,8 @@
 3. **范围检查**：删除文件或一次修改多个投稿时不自动合入，需拆分提交或走人工 PR；
 4. **自动合入**：全部通过后通过 Merges API 将 `atomgit` 合入 `index`，随之触发 `rebuild.yml` 重建。
 
+`rebuild.yml` 重建完成后会把（含新 `current.json` 的）`index` 分支推回 GitCode 镜像仓 [gitcode.com/CLCNTanya/SectorVaultProject](https://gitcode.com/CLCNTanya/SectorVaultProject) 的 `atomgit` 分支（使用仓库密钥 `GITEE_TOKEN`，GitCode PAT）。正常流转下该推送为快进：GitCode 侧的投稿经平台集成推到 GitHub `atomgit` 分支、门禁合入 `index` 后，`index` 已包含这些提交。推送不用强制——若 GitCode 侧出现了 GitHub 未知的新提交导致非快进，推送失败并报警，由人工处理，避免覆盖投稿。
+
 建议在 GitHub 仓库设置中将 `atomgit` 分支设为受保护分支（仅允许镜像集成身份推送），并启用线性检查以避免本地合并提交混入。
 
 ## 配置

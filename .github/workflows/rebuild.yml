@@ -29,3 +29,9 @@ jobs:
         with:
           commit_message: "chore(index): rebuild current index from archives"
           file_pattern: index/current.json index/archive/**
+      - name: Push rebuilt index to GitCode mirror (atomgit branch)
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          git remote add gitcode "https://oauth2:${GITEE_TOKEN}@gitcode.com/CLCNTanya/SectorVaultProject.git"
+          git push gitcode HEAD:atomgit

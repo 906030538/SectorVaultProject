@@ -268,6 +268,6 @@ export function buildEditorLabels(locale: Locale): EditorLabels {
     tracks: t(locale, 'label.tracks'),
     engines: t(locale, 'label.engines'),
     voicebanks: t(locale, 'label.voicebanks'),
-    songLanguages: t(locale, 'label.songLanguages'),
+    songLanguages: t(locale, 'editor.songLanguages'),
   };
 }

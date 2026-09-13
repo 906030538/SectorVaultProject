@@ -155,5 +155,5 @@ export const LIST_CANDIDATES: Partial<Record<'engines' | 'voicebanks' | 'songLan
     'HALO',
     'AVER',
   ],
-  songLanguages: ['zh', 'ja', 'en', 'ko', 'es', 'yue', 'nan', 'hak'],
+  songLanguages: ['zh', 'ja', 'en', 'ko', 'es', 'zh-yue', 'zh-nan', 'zh-hak'],
 };

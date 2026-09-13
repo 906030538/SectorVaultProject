@@ -1135,7 +1135,7 @@ export async function initEditor(
   projectBtn.addEventListener('click', () => setType('project'));
   articleBtn.addEventListener('click', () => setType('article'));
 
-  const typeChip = el('span', 'chip hidden');
+  const typeChip = el('span', 'hidden text-sm text-slate-500');
   typeChip.setAttribute('data-role', 'type-chip');
 
   const titleBox = el('div', 'flex flex-col gap-1');
@@ -1409,12 +1409,17 @@ export async function initEditor(
       } catch {
         /* LICENSE 文件缺失时无自定义文本 */
       }
-      // SPDX 匹配则选对应项，否则视为自定义
-      const spdxMatch = config.licenseOptions.find((o) => o.value === state.license);
+      // SPDX 匹配则选对应项（大小写不敏感，README 可能存小写形式，命中归一化为规范值），否则视为自定义
+      const spdxMatch = config.licenseOptions.find(
+        (o) => o.value.toLowerCase() === state.license.toLowerCase(),
+      );
       if (!spdxMatch && state.license) {
         licenseSelect.value = 'custom';
         state.license = 'custom';
         if (state.licenseText) licenseTextarea.value = state.licenseText;
+      } else if (spdxMatch) {
+        state.license = spdxMatch.value;
+        licenseSelect.value = spdxMatch.value;
       } else {
         licenseSelect.value = state.license;
       }

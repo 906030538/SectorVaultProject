@@ -1158,19 +1158,12 @@ function renderVideoLink(url: string): HTMLAnchorElement {
   return link;
 }
 
-/** 作者卡/介绍页共用的平台配色（badge 右段） */
+/** 作者卡的仓库/收藏 badge 配色 */
 const PLATFORM_BADGE_BG: Record<Platform, string> = {
   github: '#24292f',
   gitee: '#c71d23',
   atomgit: '#2b6fe0',
   gitcode: '#fe7300',
-};
-
-const PLATFORM_NAMES: Record<Platform, string> = {
-  github: 'GitHub',
-  gitee: 'Gitee',
-  atomgit: 'AtomGit',
-  gitcode: 'GitCode',
 };
 
 function renderAuthor(
@@ -1214,33 +1207,37 @@ function renderAuthor(
   if (displayName !== entry.owner) userLink.title = entry.owner;
   info.appendChild(userLink);
 
-  // 仓库 badge（owner/repo | 平台）+ 收藏 badge：Gitee/AtomGit 用平台官方 star badge 图标
+  // 用户名后的仓库 badge：仅显示仓库名，点击进入集合详情页（站内路由）
+  const repoHome = repoInfo?.htmlUrl?.replace(/\.git$/, '') ?? platformRepoUrl(platform, entry.owner, entry.repo);
   const repoBadge = document.createElement('a');
-  repoBadge.href = repoInfo?.htmlUrl?.replace(/\.git$/, '') ?? platformRepoUrl(platform, entry.owner, entry.repo);
-  repoBadge.target = '_blank';
-  repoBadge.rel = 'noopener';
+  repoBadge.href = withBase(`/view/${entry.owner}/${entry.repo}`);
+  repoBadge.title = `${entry.owner}/${entry.repo}`;
   repoBadge.dataset.role = 'repo-badge';
-  if (platform === 'gitee' || platform === 'atomgit') {
-    // gitee/atomgit：作者区不显示仓库名，平台色单段 badge 即仓库跳转按钮（悬停可见仓库）
-    repoBadge.title = `${entry.owner}/${entry.repo}`;
-    repoBadge.innerHTML = badgeSvg(PLATFORM_NAMES[platform], '', PLATFORM_BADGE_BG[platform]);
-  } else {
-    repoBadge.innerHTML = badgeSvg(`${entry.owner}/${entry.repo}`, PLATFORM_NAMES[platform], '#334155', PLATFORM_BADGE_BG[platform]);
-  }
+  repoBadge.innerHTML = badgeSvg(entry.repo, '', PLATFORM_BADGE_BG[platform]);
   info.appendChild(repoBadge);
+
+  // 收藏 badge：点击跳转仓库主页（Gitee/AtomGit 为平台官方 star badge 图标，其余为★|数量）
   const officialBadge = officialStarBadgeUrl(platform, entry.owner, entry.repo);
   if (officialBadge) {
+    const link = document.createElement('a');
+    link.href = repoHome;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.title = `${labels.stars} · ${entry.owner}/${entry.repo}`;
+    link.dataset.role = 'repo-stars';
     const img = document.createElement('img');
     img.src = officialBadge;
     img.alt = labels.stars;
-    img.title = labels.stars;
     img.className = 'h-5 w-auto';
-    img.dataset.role = 'repo-stars';
     // 加载失败（平台改版等）时直接隐藏，不留破图
     img.addEventListener('error', () => img.remove());
-    info.appendChild(img);
+    link.appendChild(img);
+    info.appendChild(link);
   } else if (repoInfo) {
-    const starBadge = document.createElement('span');
+    const starBadge = document.createElement('a');
+    starBadge.href = repoHome;
+    starBadge.target = '_blank';
+    starBadge.rel = 'noopener';
     starBadge.dataset.role = 'repo-stars';
     starBadge.title = labels.stars;
     starBadge.innerHTML = badgeSvg('★', String(repoInfo.stars), '#059669');
@@ -1259,9 +1256,12 @@ function renderAuthor(
   };
   const licenseAttr = content.parsed.attrs.license?.trim() ?? '';
   const licenseFile = content.media.find((item) => item.name === 'LICENSE');
-  const isSpdx = !!licenseAttr && LICENSE_OPTIONS.some((option) => option.value === licenseAttr);
-  if (isSpdx) {
-    licenseChip(licenseAttr);
+  // SPDX 匹配大小写不敏感（README 可能存小写形式），命中则显示规范标识
+  const spdxOption = licenseAttr
+    ? LICENSE_OPTIONS.find((option) => option.value.toLowerCase() === licenseAttr.toLowerCase())
+    : undefined;
+  if (spdxOption) {
+    licenseChip(spdxOption.value);
   } else if (licenseAttr || licenseFile) {
     // 自定义许可证（README 属性或 slug 目录 LICENSE 文件标识）：全文折叠卡
     const name = licenseAttr && licenseAttr !== 'custom' ? licenseAttr : labels.licenseCustomName;

@@ -30,7 +30,7 @@ jobs:
           git worktree add ../pr pr-head
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Reject manual edits to derived current.json
         run: |
           changed=$(git diff --name-only "origin/${{ github.base_ref }}...pr-head" -- index/current.json)

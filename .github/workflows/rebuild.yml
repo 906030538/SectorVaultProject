@@ -33,5 +33,5 @@ jobs:
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
-          git remote add gitcode "https://oauth2:${GITEE_TOKEN}@gitcode.com/CLCNTanya/SectorVaultProject.git"
+          git remote add gitcode "https://CLCNTanya:${GITEE_TOKEN}@gitcode.com/CLCNTanya/SectorVaultProject.git"
           git push gitcode HEAD:atomgit

@@ -38,6 +38,11 @@ export function buildCollectionLabels(locale: Locale): CollectionLabels {
     loginRequired: t(locale, 'collection.loginRequired'),
     login: t(locale, 'nav.login'),
     license: t(locale, 'label.license'),
+    licenseCustomName: t(locale, 'detail.licenseCustomName'),
+    licenseCustomPh: t(locale, 'collection.licenseCustomPh'),
+    licenseCustomRequired: t(locale, 'collection.licenseCustomRequired'),
+    saving: t(locale, 'collection.saving'),
+    saveFailed: t(locale, 'collection.saveFailed'),
     stars: t(locale, 'label.stars'),
     user: t(locale, 'label.user'),
   };

@@ -76,6 +76,10 @@ const zhHans = {
   'collection.edit': '编辑',
   'collection.delete': '删除',
   'collection.save': '保存',
+  'collection.licenseCustomPh': '粘贴许可证全文…',
+  'collection.licenseCustomRequired': '自定义许可证需填写全文',
+  'collection.saving': '保存中…',
+  'collection.saveFailed': '保存失败',
   'collection.deleteConfirmText': '删除后无法恢复，请输入仓库名确认删除。',
   'collection.deleteSubmissionTitle': '删除稿件',
   'collection.deleteSubmissionHint':

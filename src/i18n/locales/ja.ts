@@ -78,6 +78,10 @@ const ja: Record<MessageKey, string> = {
   'collection.edit': '編集',
   'collection.delete': '削除',
   'collection.save': '保存',
+  'collection.licenseCustomPh': 'ライセンス全文を貼り付けてください…',
+  'collection.licenseCustomRequired': 'カスタムライセンスには全文が必要です',
+  'collection.saving': '保存中…',
+  'collection.saveFailed': '保存に失敗しました',
   'collection.deleteConfirmText': '削除すると元に戻せません。確認のためリポジトリ名を入力してください。',
   'collection.deleteSubmissionTitle': '作品を削除',
   'collection.deleteSubmissionHint':

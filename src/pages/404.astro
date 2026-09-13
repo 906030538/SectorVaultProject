@@ -22,6 +22,27 @@ import { withBase } from '@/lib/base';
     自行判断是否激活（匹配则显示宿主容器并隐藏 404 内容），
     使索引尚未收录（或构建后才新增）的 /view、/user、/edit 路径可直接访问。
   -->
+  <script is:inline define:vars={{ base: import.meta.env.BASE_URL }}>
+    // 命中 SPA 路由前缀时预先隐藏 404 与返回按钮（模块脚本加载前即生效，避免闪现）；
+    // 若超时后仍无路由组件激活（路径不合法等），恢复显示 404
+    (function () {
+      var path = window.location.pathname;
+      if (base && base !== '/' && path.indexOf(base) === 0) path = path.slice(base.length);
+      var first = path.split('/').filter(Boolean)[0];
+      if (!first || ['view', 'user', 'edit', 'discussions', 'login'].indexOf(first) === -1) return;
+      var notice = document.querySelector('[data-role="not-found"]');
+      if (notice) notice.setAttribute('hidden', '');
+      setTimeout(function () {
+        var active = Array.prototype.some.call(
+          document.querySelectorAll('[data-route-host]'),
+          function (host) {
+            return !host.hidden && host.getBoundingClientRect().height > 0;
+          },
+        );
+        if (!active && notice) notice.removeAttribute('hidden');
+      }, 2500);
+    })();
+  </script>
   <div hidden data-route-host="view"><ViewRoute /></div>
   <div hidden data-route-host="user"><UserRoute /></div>
   <div hidden data-route-host="edit"><EditRoute /></div>

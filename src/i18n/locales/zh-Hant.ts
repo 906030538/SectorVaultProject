@@ -78,6 +78,10 @@ const zhHant: Record<MessageKey, string> = {
   'collection.edit': '編輯',
   'collection.delete': '刪除',
   'collection.save': '儲存',
+  'collection.licenseCustomPh': '貼上授權條款全文…',
+  'collection.licenseCustomRequired': '自訂授權條款需填寫全文',
+  'collection.saving': '儲存中…',
+  'collection.saveFailed': '儲存失敗',
   'collection.deleteConfirmText': '刪除後無法復原，請輸入倉庫名確認刪除。',
   'collection.deleteSubmissionTitle': '刪除稿件',
   'collection.deleteSubmissionHint':

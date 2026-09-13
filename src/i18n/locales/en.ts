@@ -78,6 +78,10 @@ const en: Record<MessageKey, string> = {
   'collection.edit': 'Edit',
   'collection.delete': 'Delete',
   'collection.save': 'Save',
+  'collection.licenseCustomPh': 'Paste the full license text…',
+  'collection.licenseCustomRequired': 'Full text is required for a custom license',
+  'collection.saving': 'Saving…',
+  'collection.saveFailed': 'Save failed',
   'collection.deleteConfirmText': 'This cannot be undone. Type the repository name to confirm deletion.',
   'collection.deleteSubmissionTitle': 'Delete submission',
   'collection.deleteSubmissionHint':

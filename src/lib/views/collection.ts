@@ -4,7 +4,8 @@ import { iterateAllSubmissions } from '@/lib/index/loader';
 import { getLineSources } from '@/lib/index/sources';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { withBase } from '@/lib/base';
-import { loadSession, loadSessionBy } from '@/lib/auth';
+import { loadSession, loadSessionBy, getToken } from '@/lib/auth';
+import { spdxLicenseText } from '@/lib/utils';
 import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { renderCard, type CardLabels } from '@/lib/ui';
 import type { IndexFile, Platform, RepoInfo, SubmissionEntry } from '@/types';
@@ -25,6 +26,11 @@ export interface CollectionLabels extends CardLabels {
   loginRequired: string;
   login: string;
   license: string;
+  licenseCustomName: string;
+  licenseCustomPh: string;
+  licenseCustomRequired: string;
+  saving: string;
+  saveFailed: string;
   stars: string;
   user: string;
   save: string;
@@ -110,9 +116,12 @@ function dialogShell(title: string): { overlay: HTMLElement; body: HTMLElement }
   return { overlay, body };
 }
 
-/** 仓库编辑框：许可证选择 + 保存 */
+/** 仓库编辑框：许可证选择（含自定义全文）+ 保存（写入仓库根目录 LICENSE 文件） */
 function openEditDialog(
   labels: CollectionLabels,
+  platform: Platform,
+  user: string,
+  repo: string,
   current: RepoInfo | null,
   onSaved: (license: string) => void,
 ): void {
@@ -120,6 +129,7 @@ function openEditDialog(
 
   const select = document.createElement('select');
   select.className = 'input w-full';
+  select.setAttribute('data-field', 'repo-license');
   for (const option of LICENSE_OPTIONS) {
     if (!option.value) continue;
     const el = document.createElement('option');
@@ -127,8 +137,34 @@ function openEditDialog(
     el.textContent = ('label' in option ? option.label : undefined) ?? option.value;
     select.appendChild(el);
   }
-  select.value = current?.license ?? 'CC-BY-4.0';
-  if (select.value !== (current?.license ?? 'CC-BY-4.0')) select.selectedIndex = 0;
+  const customOption = document.createElement('option');
+  customOption.value = 'custom';
+  customOption.textContent = labels.licenseCustomName;
+  select.appendChild(customOption);
+
+  // 当前许可证：已知 SPDX 选中对应项；未知（含平台识别不了的全文许可证）视为自定义
+  const currentLicense = current?.license ?? '';
+  const selectCurrent = (): void => {
+    // 注意：select 未挂载文档时 WebKit 对 .value/.index 均不可靠，须在挂载后赋值
+    const known = LICENSE_OPTIONS.some((option) => option.value === currentLicense);
+    if (known && currentLicense) select.value = currentLicense;
+    else if (currentLicense) select.value = 'custom';
+    else select.selectedIndex = 0;
+  };
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'input mt-2 min-h-28 w-full font-mono text-xs';
+  textarea.placeholder = labels.licenseCustomPh;
+  textarea.setAttribute('data-field', 'repo-license-text');
+  textarea.hidden = true;
+  const syncTextarea = (): void => {
+    textarea.hidden = select.value !== 'custom';
+  };
+  select.addEventListener('change', syncTextarea);
+
+  const error = document.createElement('p');
+  error.className = 'mt-2 hidden text-xs text-rose-600';
+  error.dataset.role = 'license-error';
 
   const buttons = document.createElement('div');
   buttons.className = 'mt-4 flex justify-end gap-2';
@@ -143,12 +179,53 @@ function openEditDialog(
   save.dataset.action = 'save-repo';
   save.textContent = labels.save;
   save.addEventListener('click', () => {
-    onSaved(select.value);
-    overlay.remove();
+    void (async () => {
+      error.classList.add('hidden');
+      const isCustom = select.value === 'custom';
+      const customText = textarea.value.trim();
+      if (isCustom && !customText) {
+        error.textContent = labels.licenseCustomRequired;
+        error.classList.remove('hidden');
+        return;
+      }
+      // 许可证未变更时直接关闭，不产生提交
+      if (!isCustom && select.value === currentLicense) {
+        overlay.remove();
+        return;
+      }
+      const token = getToken(platform);
+      if (!token) {
+        error.textContent = labels.saveFailed;
+        error.classList.remove('hidden');
+        return;
+      }
+      save.disabled = true;
+      save.textContent = labels.saving;
+      try {
+        // 许可证全文写入仓库根目录 LICENSE（自定义用输入全文，SPDX 取标准全文）
+        const content = isCustom ? customText : await spdxLicenseText(select.value);
+        const adapter = await getAdapterAsync(platform);
+        await adapter.commitFiles(token, user, repo, 'Update license', [
+          { path: 'LICENSE', content, encoding: 'utf-8' },
+        ]);
+        onSaved(isCustom ? labels.licenseCustomName : select.value);
+        overlay.remove();
+      } catch (saveError) {
+        save.disabled = false;
+        save.textContent = labels.save;
+        error.textContent = `${labels.saveFailed}${
+          saveError instanceof Error && saveError.message ? `：${saveError.message.slice(0, 120)}` : ''
+        }`;
+        error.classList.remove('hidden');
+      }
+    })();
   });
   buttons.append(cancel, save);
-  body.append(select, buttons);
+  body.append(select, textarea, error, buttons);
   document.body.appendChild(overlay);
+  // 挂载后再定位当前选项并同步文本框显隐（WebKit 未挂载 select 赋值不可靠）
+  selectCurrent();
+  syncTextarea();
 }
 
 /** 删除确认：要求输入仓库名二次确认 */
@@ -223,7 +300,7 @@ export async function initCollection(init: CollectionInit): Promise<void> {
     edit.dataset.action = 'edit-repo';
     edit.textContent = labels.edit;
     edit.addEventListener('click', () =>
-      openEditDialog(labels, repoInfo, (license) => {
+      openEditDialog(labels, platform, user, repo, repoInfo, (license) => {
         if (repoInfo) repoInfo = { ...repoInfo, license };
         else repoInfo = { name: repo, fullName: `${user}/${repo}`, htmlUrl: '', stars: 0, license };
         renderHeader();

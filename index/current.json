@@ -18,6 +18,78 @@
       "release": "1140227"
     },
     {
+      "slug": "240502-饯别之鸟",
+      "owner": "CLCNTanya",
+      "repo": "svp-default",
+      "platform": "gitee",
+      "type": "project",
+      "title": "饯别之鸟",
+      "submittedAt": "2024-05-02T14:46:00.000Z",
+      "publishedAt": "2026-09-13T15:48:27.784Z",
+      "cover": "cover.png",
+      "email": "906030538@qq.com",
+      "tags": [
+        "夢ノ結唱",
+        "D/Zeal",
+        "偶像大师",
+        "百万现场",
+        "MLTD",
+        "3DMV",
+        "爱美",
+        "田所梓"
+      ],
+      "paramState": "with-params",
+      "songs": [
+        "餞の鳥"
+      ],
+      "engines": [
+        "Synthesizer V"
+      ],
+      "voicebanks": [
+        "POPY",
+        "ROSE"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "issue": "IKFE1P",
+      "release": "1141936"
+    },
+    {
+      "slug": "240225-POPPY",
+      "owner": "CLCNTanya",
+      "repo": "svp-default",
+      "platform": "gitee",
+      "type": "project",
+      "title": "POPPY",
+      "submittedAt": "2024-02-25T03:30:00.000Z",
+      "publishedAt": "2026-09-13T15:18:20.924Z",
+      "cover": "82c093430f5c14d3efb8551fcc715a473be2d932.jpg",
+      "email": "906030538@qq.com",
+      "tags": [
+        "夢ノ結唱",
+        "VRM",
+        "MMD",
+        "3DMV",
+        "STAYC"
+      ],
+      "paramState": "no-params",
+      "songs": [
+        "POPPY"
+      ],
+      "engines": [
+        "Synthesizer V"
+      ],
+      "voicebanks": [
+        "POPY"
+      ],
+      "languages": [
+        "ja"
+      ],
+      "issue": "IKFDZH",
+      "release": "1141890"
+    },
+    {
       "slug": "240213-饯别之鸟",
       "owner": "y2361547758",
       "repo": "svp-default",
@@ -287,6 +359,13 @@
     },
     {
       "file": "2024-02.json",
+      "byType": {
+        "project": 2,
+        "article": 0
+      }
+    },
+    {
+      "file": "2024-05.json",
       "byType": {
         "project": 1,
         "article": 0

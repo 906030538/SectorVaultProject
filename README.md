@@ -51,6 +51,7 @@
       "publishedAt": "2026-08-31T12:00:00Z",   // 发布日期（可与投稿日期不同，允许更新）
       "issue": "42",                           // 关联 issue 编号（投稿时创建的标题同名 issue），数字/字母组成的字符串
       "release": "250831",                     // 关联 release 标签名（与 slug 同名），无则为 null
+      "license": "CC-BY-4.0",                  // 许可证：SPDX 标识符；非 SPDX 许可证统一记录为 custom；null 表示未指定（跟随仓库级许可）
       "type": "project",              // project | article
       "paramState": "with-param",     // with-param | tuned | no-param
       "songs": [], "engines": [], "voicebanks": [], "languages": [],

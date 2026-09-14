@@ -94,6 +94,7 @@ const en: Record<MessageKey, string> = {
   'collection.loginRequired': 'Please log in to the platform hosting this submission first.',
 
   'detail.media': 'Repository media',
+  'detail.mediaLoadPlay': 'Load & play',
   'detail.files': 'Project files',
   'detail.release': 'Attachments',
   'detail.comments': 'Comments',

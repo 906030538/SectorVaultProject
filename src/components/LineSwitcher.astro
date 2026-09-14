@@ -10,16 +10,26 @@ interface Props {
 const { locale = DEFAULT_LOCALE } = Astro.props;
 ---
 
-<!-- 线路选择：带文本标签；github 为全球主要线路，gitee/atomgit 为国内镜像（各平台索引仓由 deployment.json 配置） -->
-<div class="flex items-center gap-1.5">
-  <span class="text-xs text-slate-500 dark:text-slate-400" data-i18n="nav.line">{t(locale, 'nav.line')}</span>
-  <select
+<!-- 线路选择：收起时仅显示平台名（省空间），展开后标注线路性质（全球主要线路 / 国内镜像） -->
+<div class="relative" data-role="line-switcher">
+  <button
+    type="button"
     id="line-switcher"
-    data-role="line-switcher"
-    class="input h-8 px-2 text-xs"
+    class="input flex h-8 items-center gap-1 px-2 text-xs"
+    aria-haspopup="listbox"
+    aria-expanded="false"
     aria-label={t(locale, 'nav.line')}
+    data-i18n-aria="nav.line"
   >
-  </select>
+    <span data-role="line-label"></span>
+    <svg viewBox="0 0 24 24" width="0.75em" height="0.75em" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+  </button>
+  <div
+    class="absolute right-0 z-40 mt-1 hidden w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
+    data-role="line-menu"
+    role="listbox"
+    aria-label={t(locale, 'nav.line')}
+  ></div>
 </div>
 
 <script>
@@ -38,23 +48,62 @@ const { locale = DEFAULT_LOCALE } = Astro.props;
 
   // 平台选项来自部署配置的索引源；切换后整页重载以刷新各线路数据
   const locale = getClientLocale();
-  const select = document.getElementById('line-switcher') as HTMLSelectElement | null;
-  if (select) {
+  const root = document.querySelector('[data-role="line-switcher"]');
+  const button = root?.querySelector<HTMLButtonElement>('#line-switcher') ?? null;
+  const label = root?.querySelector<HTMLElement>('[data-role="line-label"]') ?? null;
+  const menu = root?.querySelector<HTMLElement>('[data-role="line-menu"]') ?? null;
+
+  if (root && button && label && menu) {
+    const close = (): void => {
+      menu.classList.add('hidden');
+      button.setAttribute('aria-expanded', 'false');
+    };
+    button.addEventListener('click', () => {
+      const open = menu.classList.toggle('hidden');
+      button.setAttribute('aria-expanded', String(!open));
+    });
+    // 点击组件外部关闭下拉
+    document.addEventListener('click', (event) => {
+      if (!root.contains(event.target as Node)) close();
+    });
+
     void getAvailablePlatforms().then((platforms) => {
-      for (const platform of platforms) {
-        const option = document.createElement('option');
-        option.value = platform;
-        option.textContent = LINE_LABEL_KEY[platform] ? t(locale, LINE_LABEL_KEY[platform]) : platform;
-        select.appendChild(option);
-      }
       // 无线路偏好时默认选首个平台
       const stored = getStoredLine();
-      select.value = platforms.includes(stored as never) ? (stored ?? '') : (platforms[0] ?? '');
+      const current = platforms.includes(stored as never) ? (stored ?? '') : (platforms[0] ?? '');
       if (!stored) setStoredLine((platforms[0] ?? null) as never);
-    });
-    select.addEventListener('change', () => {
-      setStoredLine(select.value === '' ? null : (select.value as 'github' | 'gitee' | 'atomgit'));
-      location.reload();
+      // 收起态仅显示平台名
+      const plainName = (platform: string): string =>
+        LINE_LABEL_KEY[platform] ? t(locale, LINE_LABEL_KEY[platform]).split(' · ')[0] ?? platform : platform;
+      label.textContent = plainName(current);
+
+      for (const platform of platforms) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className =
+          'flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800';
+        item.setAttribute('role', 'option');
+        item.dataset.line = platform;
+        // 平台名 + 线路性质提示（展开时可见）
+        const name = document.createElement('span');
+        name.className = 'font-medium';
+        name.textContent = plainName(platform);
+        const hint = document.createElement('span');
+        hint.className = 'text-xs text-slate-400 dark:text-slate-500';
+        hint.textContent = LINE_LABEL_KEY[platform]
+          ? (t(locale, LINE_LABEL_KEY[platform]).split(' · ')[1] ?? '')
+          : '';
+        item.append(name, hint);
+        if (platform === current) {
+          item.classList.add('bg-emerald-50', 'dark:bg-emerald-950/40');
+          item.setAttribute('aria-selected', 'true');
+        }
+        item.addEventListener('click', () => {
+          setStoredLine(platform === '' ? null : (platform as 'github' | 'gitee' | 'atomgit'));
+          location.reload();
+        });
+        menu.appendChild(item);
+      }
     });
   }
 </script>

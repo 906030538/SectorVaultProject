@@ -60,6 +60,7 @@ export function buildDetailLabels(locale: Locale): DetailLabels {
     songLanguages: t(locale, 'label.songLanguages'),
     videos: t(locale, 'label.videos'),
     media: t(locale, 'detail.media'),
+    mediaLoadPlay: t(locale, 'detail.mediaLoadPlay'),
     files: t(locale, 'detail.files'),
     release: t(locale, 'detail.release'),
     comments: t(locale, 'detail.comments'),

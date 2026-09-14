@@ -94,6 +94,7 @@ const ja: Record<MessageKey, string> = {
   'collection.loginRequired': '先に対象プラットフォームにログインしてください。',
 
   'detail.media': 'リポジトリメディア',
+  'detail.mediaLoadPlay': '読み込んで再生',
   'detail.files': 'プロジェクトファイル',
   'detail.release': '添付ファイル',
   'detail.comments': 'コメント',

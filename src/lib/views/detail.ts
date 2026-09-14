@@ -93,6 +93,7 @@ export interface DetailLabels {
   songLanguages: string;
   videos: string;
   media: string;
+  mediaLoadPlay: string;
   files: string;
   release: string;
   comments: string;
@@ -171,7 +172,7 @@ function renderTags(tags: string[], els: DetailElements): void {
   }
 }
 
-function renderMedia(items: MediaItem[], els: DetailElements): void {
+function renderMedia(items: MediaItem[], els: DetailElements, labels: DetailLabels): void {
   const grid = document.createElement('div');
   grid.className = 'grid grid-cols-2 gap-3 sm:grid-cols-3';
   for (const item of items) {
@@ -188,12 +189,59 @@ function renderMedia(items: MediaItem[], els: DetailElements): void {
       img.className = 'aspect-video w-full object-cover';
       figure.appendChild(img);
     } else if (item.kind === 'audio') {
-      const audio = document.createElement('audio');
-      audio.controls = true;
-      audio.setAttribute('referrerpolicy', 'no-referrer');
-      audio.src = item.url;
-      audio.className = 'w-full';
-      figure.appendChild(audio);
+      // 部分平台 raw 响应缺 MIME 类型，直接渲染 audio 无法播放：
+      // 默认只显示播放按钮，点击后先下载到内存、按扩展名补全 MIME 再以 blob url 播放
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.className =
+        'flex aspect-video w-full flex-col items-center justify-center gap-1 text-sm text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400';
+      play.dataset.role = 'audio-load';
+      const icon = document.createElement('span');
+      icon.className = 'text-2xl leading-none';
+      icon.textContent = '▶';
+      const text = document.createElement('span');
+      text.textContent = labels.mediaLoadPlay;
+      play.append(icon, text);
+      play.addEventListener('click', () => {
+        void (async () => {
+          play.disabled = true;
+          text.textContent = '…';
+          const AUDIO_MIME: Record<string, string> = {
+            wav: 'audio/wav',
+            mp3: 'audio/mpeg',
+            ogg: 'audio/ogg',
+            flac: 'audio/flac',
+            m4a: 'audio/mp4',
+            aiff: 'audio/aiff',
+          };
+          try {
+            const response = await fetch(item.url, { referrerPolicy: 'no-referrer' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const raw = await response.blob();
+            const ext = item.name.split('.').pop()?.toLowerCase() ?? '';
+            const typed = AUDIO_MIME[ext]
+              ? new Blob([raw], { type: AUDIO_MIME[ext] })
+              : raw;
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            audio.src = URL.createObjectURL(typed);
+            audio.className = 'w-full';
+            play.replaceWith(audio);
+            void audio.play().catch(() => {
+              /* 自动播放被拦截时用户手动点击播放 */
+            });
+          } catch {
+            // 下载失败（如平台 raw 无 CORS 头）：回退直链播放（部分平台可直接播放）
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            audio.setAttribute('referrerpolicy', 'no-referrer');
+            audio.src = item.url;
+            audio.className = 'w-full';
+            play.replaceWith(audio);
+          }
+        })();
+      });
+      figure.appendChild(play);
     } else if (item.kind === 'video') {
       const video = document.createElement('video');
       video.controls = true;
@@ -1045,7 +1093,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
     (item) => item.kind !== 'other' && item.name !== coverName,
   );
   if (displayable.length) {
-    renderMedia(displayable, els);
+    renderMedia(displayable, els, labels);
   } else {
     // 无可展示媒体时隐藏整个区块（含标题）
     document.querySelector('[data-role="media-section"]')?.setAttribute('hidden', '');

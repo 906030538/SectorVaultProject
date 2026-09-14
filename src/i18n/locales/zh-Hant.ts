@@ -94,6 +94,7 @@ const zhHant: Record<MessageKey, string> = {
   'collection.loginRequired': '請先登入稿件所在平台後再刪除。',
 
   'detail.media': '倉庫媒體',
+  'detail.mediaLoadPlay': '載入播放',
   'detail.files': '工程檔案',
   'detail.release': '附件',
   'detail.comments': '留言',

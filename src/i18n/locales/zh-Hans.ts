@@ -92,6 +92,7 @@ const zhHans = {
   'collection.loginRequired': '请先登录稿件所在平台后再删除。',
 
   'detail.media': '仓库媒体',
+  'detail.mediaLoadPlay': '加载播放',
   'detail.files': '工程文件',
   'detail.release': '附件',
   'detail.comments': '留言',

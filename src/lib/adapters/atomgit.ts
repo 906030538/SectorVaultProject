@@ -13,6 +13,7 @@ import type {
   RepoInfo,
 } from '@/types';
 import { getToken } from '@/lib/auth';
+import { notifyAuthExpired } from '@/lib/auth-expired';
 import { baseRepoReadme, decodeBase64Utf8, emptyLocalArchive, fetchGetTimeout, spdxLicenseText } from '@/lib/utils';
 import type { CreateRepoOptions, FileChange, GitPlatformAdapter, PlatformUserProfile, RepoOwnerChoice } from './types';
 
@@ -107,6 +108,11 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       },
       ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
     });
+    // 附带已保存令牌返回 401：授权过期——清除该平台登录态并提示重新登陆
+    // （匿名可用的读接口清令牌后自愈；登录流程中的候选令牌不等于已保存值，不触发）
+    if (response.status === 401 && token && token === getToken(this.platform)) {
+      notifyAuthExpired(this.platform);
+    }
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       throw new Error(`${this.platform} API ${response.status}: ${text.slice(0, 200)}`);
@@ -265,33 +271,149 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   }
 
   discussionsUrl(owner: string, repo: string): string {
-    return `${this.webBase}/${owner}/${repo}`;
+    return `${this.webBase}/${owner}/${repo}/discussions`;
   }
 
-  // AtomGit 仓库级 Discussions API 形态未定，暂不支持
-  async listDiscussions(): Promise<DiscussionInfo[]> {
-    return [];
+  // ---- Discussions（atomgit/gitcode 的 /discuss 端点族；gitee 无此端点，404 降级为空）----
+
+  /** 讨论原始条目（/discuss 列表与详情共用形状） */
+  private async discussList(
+    user: string,
+    repo: string,
+    detail?: number,
+  ): Promise<Array<Record<string, unknown>>> {
+    const base = `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/discuss`;
+    const path = detail !== undefined ? `${base}/${detail}` : base;
+    const query: Record<string, string> = detail !== undefined ? {} : { per_page: '100' };
+    try {
+      return await this.request<Array<Record<string, unknown>>>(path, { query });
+    } catch {
+      // gitee 等无 /discuss 端点的平台返回空（讨论数据源由线路选择指向支持的平台）
+      return [];
+    }
   }
 
-  async listDiscussionCategories(): Promise<DiscussionCategoryInfo[]> {
-    // v5 系平台无讨论区
-    return [];
+  async listDiscussions(user: string, repo: string): Promise<DiscussionInfo[]> {
+    const list = await this.discussList(user, repo);
+    return list.map((raw) => {
+      const d = raw as {
+        number: number; title: string; created_at?: string; updated_at?: string;
+        comment_total?: number; is_closed?: number;
+        author?: { login?: string } | null; category?: { name?: string } | null;
+      };
+      return {
+        number: d.number,
+        title: d.title,
+        htmlUrl: `${this.webBase}/${user}/${repo}/discussions/${d.number}`,
+        createdAt: d.created_at ?? '',
+        updatedAt: d.updated_at,
+        comments: d.comment_total ?? 0,
+        author: d.author?.login,
+        authorUrl: d.author?.login ? `${this.webBase}/${d.author.login}` : undefined,
+        category: d.category?.name,
+        state: d.is_closed ? 'closed' : 'open',
+      };
+    });
   }
 
-  async createDiscussion(): Promise<string | null> {
-    throw new Error('AtomGit/GitCode do not support discussions yet');
+  async listDiscussionCategories(user: string, repo: string): Promise<DiscussionCategoryInfo[]> {
+    // 无独立分类端点：从讨论列表的 category 字段去重推导（与 GitHub REST 同款手法）。
+    // id 用分类名（创建讨论的 category_name 参数按名提交）
+    const list = await this.discussList(user, repo);
+    const seen = new Map<string, DiscussionCategoryInfo>();
+    for (const raw of list) {
+      const category = (raw as { category?: { id?: string; name?: string } | null }).category;
+      if (category?.name && !seen.has(category.name)) {
+        seen.set(category.name, { id: category.name, name: category.name });
+      }
+    }
+    return [...seen.values()];
   }
 
-  async getDiscussion(): Promise<DiscussionInfo> {
-    throw new Error('AtomGit discussions API is not supported yet');
+  async createDiscussion(
+    token: string,
+    user: string,
+    repo: string,
+    title: string,
+    body: string,
+    categoryId: number | string,
+  ): Promise<string | null> {
+    const data = await this.request<{ number?: number }>(
+      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/discuss`,
+      {
+        method: 'POST',
+        token,
+        // 平台要求按名提交分类（category_name，缺省报 PARAMETER_ERROR）
+        body: { title, md_content: body, category_name: String(categoryId) },
+      },
+    );
+    return data.number !== undefined
+      ? `${this.webBase}/${user}/${repo}/discussions/${data.number}`
+      : null;
   }
 
-  async listDiscussionComments(): Promise<DiscussionComment[]> {
-    return [];
+  async getDiscussion(user: string, repo: string, number: number): Promise<DiscussionInfo> {
+    const [detail] = await this.discussList(user, repo, number);
+    if (!detail) throw new Error(`Discussion not found: ${user}/${repo}#${number}`);
+    const d = detail as {
+      number: number; title: string; md_content?: string; created_at?: string; updated_at?: string;
+      comment_total?: number; is_closed?: number;
+      author?: { login?: string } | null; category?: { name?: string } | null;
+    };
+    return {
+      number: d.number,
+      title: d.title,
+      htmlUrl: `${this.webBase}/${user}/${repo}/discussions/${d.number}`,
+      createdAt: d.created_at ?? '',
+      updatedAt: d.updated_at,
+      comments: d.comment_total ?? 0,
+      author: d.author?.login,
+      authorUrl: d.author?.login ? `${this.webBase}/${d.author.login}` : undefined,
+      category: d.category?.name,
+      state: d.is_closed ? 'closed' : 'open',
+      body: d.md_content ?? '',
+    };
   }
 
-  async createDiscussionComment(): Promise<void> {
-    throw new Error('AtomGit discussions API is not supported yet');
+  async listDiscussionComments(
+    user: string,
+    repo: string,
+    number: number,
+  ): Promise<DiscussionComment[]> {
+    try {
+      const list = await this.request<Array<{
+        id?: string | number; number?: number;
+        author?: { login?: string } | null; user?: { login?: string } | null;
+        content?: string; body?: string; md_content?: string;
+        created_at?: string;
+      }>>(
+        `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/discuss/${number}/comment`,
+      );
+      return (list ?? []).map((c, index) => ({
+        id: c.id ?? c.number ?? index,
+        author: (c.author ?? c.user)?.login,
+        authorUrl: (c.author ?? c.user)?.login
+          ? `${this.webBase}/${(c.author ?? c.user)!.login}`
+          : undefined,
+        body: c.content ?? c.body ?? c.md_content ?? '',
+        createdAt: c.created_at ?? '',
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async createDiscussionComment(
+    token: string,
+    user: string,
+    repo: string,
+    number: number,
+    body: string,
+  ): Promise<void> {
+    await this.request(
+      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/discuss/${number}/comment`,
+      { method: 'POST', token, body: { content: body } },
+    );
   }
 
   wikiUrl(owner: string, repo: string): string {

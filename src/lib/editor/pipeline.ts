@@ -1,4 +1,4 @@
-import { INDEX_PATHS, POSTS_DIR } from '@/config';
+import { INDEX_PATHS, LICENSE_OPTIONS, POSTS_DIR } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import type { FileChange, GitPlatformAdapter } from '@/lib/adapters/types';
 import { generateReadme, type ProjectFile } from '@/lib/content';
@@ -270,6 +270,12 @@ export function buildIndexEntry(
   // 作者信息（git 提交作者；显示层缺省回退仓库用户）
   if (draft.author?.trim()) base.author = draft.author.trim();
   if (draft.email?.trim()) base.email = draft.email.trim();
+  // 许可证名称：SPDX 标识原样记录，非 SPDX（自定义）统一为 custom
+  if (draft.license) {
+    base.license = LICENSE_OPTIONS.some((option) => option.value === draft.license)
+      ? draft.license
+      : 'custom';
+  }
   // 标签与稿件类型无关，均随索引提交
   const tags = draft.tags.filter(Boolean);
   if (tags.length) base.tags = tags;

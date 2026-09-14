@@ -53,6 +53,8 @@ export interface SubmissionEntry {
   publishedAt?: string;
   /** 有无参数 */
   paramState?: ParamStatus;
+  /** 稿件许可证名称（SPDX 标识；非 SPDX 统一记录为 custom；未指定时缺省） */
+  license?: string;
   /** 关联评论区 issue 编号（字符串：gitee 标识为字母数字串；未创建时缺省） */
   issue?: string;
   /** 关联 release id（字符串存储：gitee 等平台 id 超出 JS 安全整数范围；未创建时缺省） */

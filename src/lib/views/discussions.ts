@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
-import { getIndexSources } from '@/lib/index/sources';
+import { getIndexSources, getStoredLine } from '@/lib/index/sources';
 import { getToken, loadSession } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
@@ -82,6 +82,19 @@ export interface DiscussionListElements {
  * 「新建讨论」按钮：讨论区为 GitHub 专属，目标取第一个 github 源；
  * 无该平台登录信息时先弹登录框（预选该平台），已登录直接打开新建弹窗。
  */
+/** 线路对应的讨论数据源：gitee 线无讨论端点，与 atomgit 线统一读 atomgit 索引仓；github 线读 github 社区 */
+async function discussionSources(): Promise<IndexSource[]> {
+  const sources = await getIndexSources();
+  const line = getStoredLine();
+  const wanted =
+    line === 'gitee' || line === 'atomgit' ? 'atomgit' : line === 'github' ? 'github' : null;
+  if (wanted) {
+    const scoped = sources.filter((source) => source.platform === wanted);
+    if (scoped.length) return scoped;
+  }
+  return sources;
+}
+
 export function wireNewDiscussionButton(
   locale: string,
   labels: DiscussionsLabels,
@@ -89,8 +102,8 @@ export function wireNewDiscussionButton(
 ): void {
   button.addEventListener('click', () => {
     void (async () => {
-      const sources = await getIndexSources();
-      // 讨论仅 GitHub 支持（v5 系返回空/抛错），目标取首个 github 源，无则回退主源
+      const sources = await discussionSources();
+      // 目标取首个 github 源（v5 系数据源线路下已被限定为 atomgit），无则回退主源
       const target = sources.find((s) => s.platform === 'github') ?? sources[0]!;
       if (!getToken(target.platform)) {
         void openAuthDialog(buildAuthLabels(locale as Locale), target.platform);
@@ -223,13 +236,13 @@ async function openNewDiscussionDialog(
   document.body.appendChild(overlay);
 }
 
-/** 讨论列表：遍历全部索引源，聚合各仓库的讨论（按更新时间倒序） */
+/** 讨论列表：按线路选择数据源（国内线路取 atomgit 索引仓，其余聚合全部源），按更新时间倒序 */
 export async function initDiscussionList(
   locale: string,
   labels: DiscussionsLabels,
   els: DiscussionListElements,
 ): Promise<void> {
-  const sources = await getIndexSources();
+  const sources = await discussionSources();
   const items: { source: IndexSource; discussion: DiscussionInfo }[] = [];
   for (const source of sources) {
     try {

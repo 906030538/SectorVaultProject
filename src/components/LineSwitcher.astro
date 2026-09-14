@@ -99,7 +99,7 @@ const { locale = DEFAULT_LOCALE } = Astro.props;
           item.setAttribute('aria-selected', 'true');
         }
         item.addEventListener('click', () => {
-          setStoredLine(platform === '' ? null : (platform as 'github' | 'gitee' | 'atomgit'));
+          setStoredLine(platform as 'github' | 'gitee' | 'atomgit');
           location.reload();
         });
         menu.appendChild(item);

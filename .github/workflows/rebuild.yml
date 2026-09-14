@@ -34,4 +34,5 @@ jobs:
           ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}
         run: |
           git remote add atomgit "https://CLCNTanya:${ATOMGIT_TOKEN}@atomgit.com/CLCNTanya/SectorVaultProject.git"
+          git fetch atomgit
           git push atomgit HEAD:atomgit

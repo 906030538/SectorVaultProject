@@ -29,7 +29,7 @@ stages:
     - git clone https://gitee.com/${GITEE_REPO} -b index --depth 1 ../HEAD
     - ""
     - diff -q index/current.json ../HEAD/index/current.json
-    - if [[ $(diff -r -q . ../HEAD | wc -l) -gt 1 ]]; then exit 1; fi
+    - if [[ $(diff -r -q --exclude=".git" . ../HEAD | wc -l) -gt 1 ]]; then exit 1; fi
     - ""
     - node scripts/check-submitted-at.mjs ../HEAD/index/archive index/archive
     caches:

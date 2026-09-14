@@ -106,14 +106,18 @@ export function coverPlaceholder(): HTMLDivElement {
 }
 
 /** 封面图：解析索引 cover（完整 URL 或相对文件名）为 raw 地址后插入；无封面或加载失败时保留 logo 占位 */
-export async function applyCover(entry: SubmissionEntry, coverLink: HTMLElement): Promise<void> {
-  if (!entry.cover) return;
+export async function applyCover(entry: SubmissionEntry, coverLink: HTMLElement, placeholder: HTMLDivElement): Promise<void> {
+  if (!entry.cover) {
+    if (placeholder) coverLink.appendChild(placeholder);
+    return;
+  }
   let src: string | null = entry.cover.startsWith('http') ? entry.cover : null;
   if (!src) {
     try {
       const adapter = await getAdapterAsync(entry.platform);
       src = adapter.rawUrl(entry.owner, entry.repo, `${POSTS_DIR}/${entry.slug}/${entry.cover}`);
     } catch {
+      if (placeholder) coverLink.appendChild(placeholder);
       return;
     }
   }
@@ -124,12 +128,12 @@ export async function applyCover(entry: SubmissionEntry, coverLink: HTMLElement)
   img.alt = entry.title;
   img.loading = 'lazy';
   img.className = 'aspect-video w-full rounded-lg object-cover';
-  const placeholder = coverLink.querySelector('div');
   // 封面成功加载后移除 ♪ 占位；加载失败则移除图片保留占位
-  img.addEventListener('load', () => placeholder?.remove());
-  img.addEventListener('error', () => img.remove());
-  if (placeholder) coverLink.insertBefore(img, placeholder);
-  else coverLink.appendChild(img);
+  img.addEventListener('error', () => {
+    img.src = logoSmallUrl;
+    img.className = 'aspect-video w-full rounded-lg';
+  });
+  coverLink.appendChild(img);
 }
 
 /** 接口配额超限判定（403/429 且报文含 rate limit） */
@@ -206,9 +210,8 @@ export function renderCard(
   const coverLink = document.createElement('a');
   coverLink.href = withBase(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   coverLink.className = 'block w-32 shrink-0';
-  coverLink.appendChild(coverPlaceholder());
   // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
-  void applyCover(entry, coverLink);
+  void applyCover(entry, coverLink, coverPlaceholder());
 
   const body = document.createElement('div');
   body.className = 'min-w-0 flex-1';

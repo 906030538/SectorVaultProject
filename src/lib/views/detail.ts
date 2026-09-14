@@ -1051,11 +1051,10 @@ export async function initDetail(init: DetailInit): Promise<void> {
   coverHolder.className =
     'flex aspect-video w-full max-w-xl items-center justify-center rounded-xl bg-slate-100 text-4xl text-slate-300 dark:bg-slate-800 dark:text-slate-600';
   coverHolder.textContent = '♪';
-  figure.appendChild(coverHolder);
   els.meta.before(figure);
   if (entry.cover) {
     figure.classList.remove('hidden');
-    void applyCover(entry, figure).then(() => {
+    void applyCover(entry, figure, coverHolder).then(() => {
       const img = figure.querySelector('img');
       if (img) img.className = 'aspect-video w-full max-w-xl rounded-xl object-cover';
     });

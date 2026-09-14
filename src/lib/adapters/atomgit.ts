@@ -276,86 +276,31 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
 
   // ---- Discussions（atomgit/gitcode 的 /discuss 端点族；gitee 无此端点，404 降级为空）----
 
-  /** 讨论原始条目（/discuss 列表与详情共用形状） */
-  private async discussList(
-    user: string,
-    repo: string,
-    detail?: number,
-  ): Promise<Array<Record<string, unknown>>> {
-    const base = `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/discuss`;
-    const path = detail !== undefined ? `${base}/${detail}` : base;
-    const query: Record<string, string> = detail !== undefined ? {} : { per_page: '100' };
+  private discussBase(user: string, repo: string): string {
+    return `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/discuss`;
+  }
+
+  async listDiscussions(user: string, repo: string): Promise<DiscussionInfo[]> {
+    let list: Array<Record<string, unknown>>;
     try {
-      return await this.request<Array<Record<string, unknown>>>(path, { query });
+      list = await this.request<Array<Record<string, unknown>>>(this.discussBase(user, repo), {
+        query: { per_page: '100' },
+      });
     } catch {
       // gitee 等无 /discuss 端点的平台返回空（讨论数据源由线路选择指向支持的平台）
       return [];
     }
+    return (Array.isArray(list) ? list : []).map((raw) => this.mapDiscussion(user, repo, raw));
   }
 
-  async listDiscussions(user: string, repo: string): Promise<DiscussionInfo[]> {
-    const list = await this.discussList(user, repo);
-    return list.map((raw) => {
-      const d = raw as {
-        number: number; title: string; created_at?: string; updated_at?: string;
-        comment_total?: number; is_closed?: number;
-        author?: { login?: string } | null; category?: { name?: string } | null;
-      };
-      return {
-        number: d.number,
-        title: d.title,
-        htmlUrl: `${this.webBase}/${user}/${repo}/discussions/${d.number}`,
-        createdAt: d.created_at ?? '',
-        updatedAt: d.updated_at,
-        comments: d.comment_total ?? 0,
-        author: d.author?.login,
-        authorUrl: d.author?.login ? `${this.webBase}/${d.author.login}` : undefined,
-        category: d.category?.name,
-        state: d.is_closed ? 'closed' : 'open',
-      };
-    });
-  }
-
-  async listDiscussionCategories(user: string, repo: string): Promise<DiscussionCategoryInfo[]> {
-    // 无独立分类端点：从讨论列表的 category 字段去重推导（与 GitHub REST 同款手法）。
-    // id 用分类名（创建讨论的 category_name 参数按名提交）
-    const list = await this.discussList(user, repo);
-    const seen = new Map<string, DiscussionCategoryInfo>();
-    for (const raw of list) {
-      const category = (raw as { category?: { id?: string; name?: string } | null }).category;
-      if (category?.name && !seen.has(category.name)) {
-        seen.set(category.name, { id: category.name, name: category.name });
-      }
-    }
-    return [...seen.values()];
-  }
-
-  async createDiscussion(
-    token: string,
+  /** /discuss 条目 → DiscussionInfo（列表与详情共用形状；body 仅详情返回 md_content） */
+  private mapDiscussion(
     user: string,
     repo: string,
-    title: string,
-    body: string,
-    categoryId: number | string,
-  ): Promise<string | null> {
-    const data = await this.request<{ number?: number }>(
-      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/discuss`,
-      {
-        method: 'POST',
-        token,
-        // 平台要求按名提交分类（category_name，缺省报 PARAMETER_ERROR）
-        body: { title, md_content: body, category_name: String(categoryId) },
-      },
-    );
-    return data.number !== undefined
-      ? `${this.webBase}/${user}/${repo}/discussions/${data.number}`
-      : null;
-  }
-
-  async getDiscussion(user: string, repo: string, number: number): Promise<DiscussionInfo> {
-    const [detail] = await this.discussList(user, repo, number);
-    if (!detail) throw new Error(`Discussion not found: ${user}/${repo}#${number}`);
-    const d = detail as {
+    raw: Record<string, unknown>,
+    withBody = false,
+  ): DiscussionInfo {
+    const d = raw as {
       number: number; title: string; md_content?: string; created_at?: string; updated_at?: string;
       comment_total?: number; is_closed?: number;
       author?: { login?: string } | null; category?: { name?: string } | null;
@@ -371,8 +316,53 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       authorUrl: d.author?.login ? `${this.webBase}/${d.author.login}` : undefined,
       category: d.category?.name,
       state: d.is_closed ? 'closed' : 'open',
-      body: d.md_content ?? '',
+      ...(withBody ? { body: d.md_content ?? '' } : {}),
     };
+  }
+
+  async listDiscussionCategories(user: string, repo: string): Promise<DiscussionCategoryInfo[]> {
+    // 无独立分类端点：从讨论列表的 category 字段去重推导（与 GitHub REST 同款手法）。
+    // id 用分类名（创建讨论的 category_name 参数按名提交）
+    const list = await this.listDiscussions(user, repo);
+    const seen = new Map<string, DiscussionCategoryInfo>();
+    for (const discussion of list) {
+      if (discussion.category && !seen.has(discussion.category)) {
+        seen.set(discussion.category, { id: discussion.category, name: discussion.category });
+      }
+    }
+    return [...seen.values()];
+  }
+
+  async createDiscussion(
+    token: string,
+    user: string,
+    repo: string,
+    title: string,
+    body: string,
+    categoryId: number | string,
+  ): Promise<string | null> {
+    const data = await this.request<{ number?: number }>(this.discussBase(user, repo), {
+      method: 'POST',
+      token,
+      // 平台要求按名提交分类（category_name，缺省报 PARAMETER_ERROR）
+      body: { title, md_content: body, category_name: String(categoryId) },
+    });
+    return data.number !== undefined
+      ? `${this.webBase}/${user}/${repo}/discussions/${data.number}`
+      : null;
+  }
+
+  async getDiscussion(user: string, repo: string, number: number): Promise<DiscussionInfo> {
+    // 详情端点返回单个对象（非数组）
+    let detail: Record<string, unknown>;
+    try {
+      detail = await this.request<Record<string, unknown>>(
+        `${this.discussBase(user, repo)}/${number}`,
+      );
+    } catch {
+      throw new Error(`Discussion not found: ${user}/${repo}#${number}`);
+    }
+    return this.mapDiscussion(user, repo, detail, true);
   }
 
   async listDiscussionComments(

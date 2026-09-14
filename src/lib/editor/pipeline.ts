@@ -263,8 +263,14 @@ export function buildIndexEntry(
     publishedAt: publishedAt ?? date,
   };
   if (cover) base.cover = cover;
-  if (ids?.issue !== undefined && ids?.issue !== null && ids.issue !== '')
+  // 占位/无效值（空、0、字面量 undefined/null）不写入索引
+  if (
+    ids?.issue !== undefined &&
+    ids?.issue !== null &&
+    !['', '0', 'undefined', 'null'].includes(String(ids.issue))
+  ) {
     base.issue = String(ids.issue);
+  }
   // 索引与本地归档中 release id 一律字符串（部分平台 id 超出 JS 安全整数）
   if (ids?.release) base.release = String(ids.release);
   // 作者信息（git 提交作者；显示层缺省回退仓库用户）
@@ -800,11 +806,14 @@ export async function updateSubmission(
   });
 
   // 发布时间编辑器可改（未改动时沿用原值）；投稿时间不变更。
-  // 关联 issue 缺失（发布时受平台单日建 issue 限额被跳过，README 记 0）：
+  // 关联 issue 缺失（发布时受平台单日建 issue 限额被跳过，README 记 0；
+  // 早期版本可能写入字面量 'undefined'/'null'）：
   // 趁编辑补建并把编号写入 README 与索引；补建失败（限额未解除）不阻断编辑
+  const issueMissing = (value: string | undefined): boolean =>
+    !value || value === '0' || value === 'undefined' || value === 'null';
   let issueId = ctx.issue;
   let issueCreated = false;
-  if (!issueId || issueId === '0') {
+  if (issueMissing(issueId)) {
     try {
       issueId = String(
         await (await adapter()).createIssue(token!, user, repo, slug, buildIssueBody(draft)),
@@ -812,6 +821,7 @@ export async function updateSubmission(
       issueCreated = true;
     } catch (error) {
       console.warn('[pipeline] 补建关联 issue 失败:', error);
+      issueId = '';
     }
   }
   // README 与索引差异先行计算：文件、README 与本地归档合并为一个提交
@@ -836,7 +846,7 @@ export async function updateSubmission(
     !sameList(draft.songLanguages, entry.languages);
   const updatedEntry = indexChanged
     ? buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt, {
-        issue: issueId && issueId !== '0' ? issueId : undefined,
+        issue: issueMissing(issueId) ? undefined : issueId,
         release: ctx.releaseId ?? undefined,
       })
     : null;

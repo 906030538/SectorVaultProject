@@ -93,9 +93,8 @@ function miniCard(entry: SubmissionEntry, locale: string): HTMLElement {
   link.href = withBase(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   link.dataset.role = 'mini-card';
 
-  link.appendChild(coverPlaceholder());
   // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
-  void applyCover(entry, link);
+  void applyCover(entry, link, coverPlaceholder());
 
   const body = el('div', 'flex flex-col gap-0.5 p-2.5');
   body.appendChild(el('p', 'truncate text-sm font-medium', entry.title));

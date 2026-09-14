@@ -14,6 +14,7 @@ stages:
     commands:
     - '# 设置NPM源，提升安装速度'
     - npm config set registry https://registry.npmmirror.com
+    - set -e
     - ""
     - '# 执行编译命令'
     - ""
@@ -23,6 +24,14 @@ stages:
     - fi
     - ""
     - npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
+    - ""
+    - rm -rf ../HEAD/
+    - git clone https://gitee.com/${GITEE_REPO} -b index --depth 1 ../HEAD
+    - ""
+    - diff -q index/current.json ../HEAD/index/current.json
+    - if [[ $(diff -r -q . ../HEAD | wc -l) -gt 1 ]]; then exit 1; fi
+    - ""
+    - node scripts/check-submitted-at.mjs ../HEAD/index/archive index/archive
     caches:
     - "~/.npm"
     strategy:

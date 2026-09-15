@@ -83,7 +83,7 @@ export interface DiscussionListElements {
  * 无该平台登录信息时先弹登录框（预选该平台），已登录直接打开新建弹窗。
  */
 /** 线路对应的讨论数据源：gitee 线无讨论端点，与 atomgit 线统一读 atomgit 索引仓；github 线读 github 社区 */
-async function discussionSources(): Promise<IndexSource[]> {
+export async function discussionSources(): Promise<IndexSource[]> {
   const sources = await getIndexSources();
   const line = getStoredLine();
   const wanted =

@@ -16,7 +16,7 @@ const discussionsUrl = `https://github.com/${primary.owner}/${primary.repo}/disc
       <button type="button" class="btn btn-primary" data-role="new-discussion" data-i18n="discussions.newDiscussion">
         {t(locale, 'discussions.newDiscussion')}
       </button>
-      <a href={discussionsUrl} target="_blank" rel="noopener noreferrer" class="btn">
+      <a href={discussionsUrl} target="_blank" rel="noopener noreferrer" class="btn" data-role="open-discussions">
         <span data-i18n="discussions.open">{t(locale, 'discussions.open')}</span> →
       </a>
     </div>
@@ -35,26 +35,50 @@ const discussionsUrl = `https://github.com/${primary.owner}/${primary.repo}/disc
   <LoadingBlock locale={locale} />
 
   <script>
-    import { initDiscussionList, wireNewDiscussionButton } from '@/lib/views/discussions';
+    import { discussionSources, initDiscussionList, wireNewDiscussionButton } from '@/lib/views/discussions';
     import { buildDiscussionsLabels } from '@/lib/labels';
     import { getClientLocale } from '@/lib/i18n-client';
+    import { getIndexSources, getStoredLine, setStoredLine } from '@/lib/index/sources';
+    import { getAdapterAsync } from '@/lib/adapters/lazy';
 
     const locale = getClientLocale();
     const labels = buildDiscussionsLabels(locale);
-    const newButton = document.querySelector<HTMLButtonElement>('[data-role="new-discussion"]');
-    if (newButton) wireNewDiscussionButton(locale, labels, newButton);
-    try {
-      await initDiscussionList(locale, labels, {
-        list: document.querySelector('[data-component="discussion-list"]')!,
-        empty: document.querySelector<HTMLElement>('[data-role="empty"]')!,
-        error: document.querySelector<HTMLElement>('[data-role="error"]')!,
-        loading: document.querySelector<HTMLElement>('[data-component="loading"]')!,
-      });
-    } catch {
-      const loading = document.querySelector<HTMLElement>('[data-component="loading"]');
-      if (loading) loading.hidden = true;
-      const error = document.querySelector<HTMLElement>('[data-role="error"]');
-      if (error) error.hidden = false;
+
+    // gitee 线无讨论数据源：进入讨论页自动切换到 atomgit 线（讨论本就读 atomgit 索引仓）
+    let switched = false;
+    if (getStoredLine() === 'gitee') {
+      const all = await getIndexSources();
+      if (all.some((source) => source.platform === 'atomgit')) {
+        setStoredLine('atomgit');
+        switched = true;
+        location.reload();
+      }
+    }
+
+    if (!switched) {
+      // 「前往讨论区」跳转目标随线路：github 线为 github 仓讨论页，gitee/atomgit 线为 atomgit 仓讨论页
+      const [target] = await discussionSources();
+      const openBtn = document.querySelector<HTMLAnchorElement>('[data-role="open-discussions"]');
+      if (target && openBtn) {
+        const adapter = await getAdapterAsync(target.platform);
+        openBtn.href = adapter.discussionsUrl(target.owner, target.repo);
+      }
+
+      const newButton = document.querySelector<HTMLButtonElement>('[data-role="new-discussion"]');
+      if (newButton) wireNewDiscussionButton(locale, labels, newButton);
+      try {
+        await initDiscussionList(locale, labels, {
+          list: document.querySelector('[data-component="discussion-list"]')!,
+          empty: document.querySelector<HTMLElement>('[data-role="empty"]')!,
+          error: document.querySelector<HTMLElement>('[data-role="error"]')!,
+          loading: document.querySelector<HTMLElement>('[data-component="loading"]')!,
+        });
+      } catch {
+        const loading = document.querySelector<HTMLElement>('[data-component="loading"]');
+        if (loading) loading.hidden = true;
+        const error = document.querySelector<HTMLElement>('[data-role="error"]');
+        if (error) error.hidden = false;
+      }
     }
   </script>
 </BaseLayout>

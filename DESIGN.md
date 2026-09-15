@@ -64,7 +64,7 @@
 1. 与投稿详情共用组件，不显示工程文件和附件区块。
 
 ### 讨论
-0. 数据源按线路：gitee/atomgit线读atomgit索引仓讨论，github线读github索引仓讨论（各读各的社区）；atomgit/gitcode讨论走/discuss端点族（列表/详情/评论/创建，创建按category_name提交分类，分类从列表去重推导），gitee无讨论端点返回空。
+0. 数据源按线路：gitee/atomgit线读atomgit索引仓讨论，github线读github索引仓讨论（各读各的社区）；gitee线进入讨论页自动切换到atomgit线（讨论数据源所在线路）；「前往讨论区」按钮随线路指向对应平台索引仓讨论页；atomgit/gitcode讨论走/discuss端点族（列表/详情/评论/创建，创建按category_name提交分类，分类从列表去重推导），gitee无讨论端点返回空。
 1. 显示主站点仓库的discussions页面作为讨论区。
 2. 提供"新建讨论"按钮：未登录先弹登录框（预选平台）；弹窗含标题输入框、分类选择按钮（从讨论列表推导）、内容编辑框。
 3. 讨论详情页支持同平台回复。

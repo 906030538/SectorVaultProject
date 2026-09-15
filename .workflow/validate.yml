@@ -44,7 +44,7 @@ stages:
     - ""
     - cd ../HEAD/
     - git fetch origin ${GITEE_BRANCH}
-    - git checkout ${GITEE_BRANCH}
+    - git checkout -B ${GITEE_BRANCH}
     - git fetch origin ${GITEE_SOURCE_COMMIT}
     - if [[ ${GITEE_COMMIT} != $(git rev-parse ${GITEE_SOURCE_COMMIT}^1) ]]; then exit 1; fi
     - ""

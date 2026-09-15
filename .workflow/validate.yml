@@ -48,8 +48,8 @@ stages:
     - git fetch origin ${GITEE_SOURCE_COMMIT}
     - if [[ ${GITEE_COMMIT} != $(git rev-parse ${GITEE_SOURCE_COMMIT}^1) ]]; then exit 1; fi
     - ""
-    - '# cherry-pick合入提交'
-    - git cherry-pick ${GITEE_SOURCE_COMMIT}
+    - '# 合入提交'
+    - git merge --ff-only ${GITEE_SOURCE_COMMIT}
     - git push
     caches:
     - "~/.npm"

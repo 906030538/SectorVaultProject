@@ -16,28 +16,41 @@ stages:
     - npm config set registry https://registry.npmmirror.com
     - set -e
     - ""
-    - '# 执行编译命令'
+    - '# 校验模版正确'
     - ""
     - if ls index/archive/*.json >/dev/null 2>&1; then
     - npx --yes ajv-cli validate -s schema/archive.schema.json -r schema/submission.schema.json
       -r schema/user.schema.json -d "index/archive/*.json" --spec=draft7
     - fi
     - ""
-    - npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
-    - ""
+    - '# 拉取源提交'
     - rm -rf ../HEAD/
     - mkdir ../HEAD/
     - pushd ../HEAD/
     - git init
-    - git remote add origin https://gitee.com/${GITEE_REPO}
+    - git remote add origin https://${GITEE_PIPELINE_TRIGGER_USER}:${SVP_MERGE_BOT}@gitee.com/${GITEE_REPO}
     - git fetch origin ${GITEE_COMMIT}
     - git reset --hard ${GITEE_COMMIT}
     - popd
     - ""
+    - '# 检查修改生成文件和是否修改多于1个文件'
     - diff -q index/current.json ../HEAD/index/current.json
     - if [[ $(diff -r -q --exclude=".git" . ../HEAD | wc -l) -gt 1 ]]; then exit 1; fi
     - ""
+    - '# 检查不允许修改的字段'
     - node scripts/check-submitted-at.mjs ../HEAD/index/archive index/archive
+    - ""
+    - '# 校验是否是单个commit'
+    - ""
+    - cd ../HEAD/
+    - git fetch origin ${GITEE_BRANCH}
+    - git checkout ${GITEE_BRANCH}
+    - git fetch origin ${GITEE_SOURCE_COMMIT}
+    - if [[ ${GITEE_COMMIT} != $(git rev-parse ${GITEE_SOURCE_COMMIT}^1) ]]; then exit 1; fi
+    - ""
+    - '# cherry-pick合入提交'
+    - git cherry-pick ${GITEE_SOURCE_COMMIT}
+    - git push
     caches:
     - "~/.npm"
     strategy:
@@ -45,16 +58,16 @@ stages:
       resource:
         cpu: "1"
         memory: "2"
-  - step: merge-pr@gitee
-    name: merge
-    displayName: 合并 PR
-    token: $SVP_MERGE_BOT
-    mergeMethod: merge
-    pruneSourceBranch: "true"
-    closeRelatedIssue: "false"
-    strategy:
-      retry: "0"
-    dependsOn: validate
+  # - step: merge-pr@gitee
+  #   name: merge
+  #   displayName: 合并 PR
+  #   token: $SVP_MERGE_BOT
+  #   mergeMethod: merge
+  #   pruneSourceBranch: "true"
+  #   closeRelatedIssue: "false"
+  #   strategy:
+  #     retry: "0"
+  #   dependsOn: validate
 triggers:
   trigger: auto
   pr:

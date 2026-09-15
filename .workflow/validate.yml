@@ -26,7 +26,13 @@ stages:
     - npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
     - ""
     - rm -rf ../HEAD/
-    - git clone https://gitee.com/${GITEE_REPO} -b index --depth 1 ../HEAD
+    - mkdir ../HEAD/
+    - pushd ../HEAD/
+    - git init
+    - git remote add origin https://gitee.com/${GITEE_REPO}
+    - git fetch origin ${GITEE_COMMIT}
+    - git reset --hard ${GITEE_COMMIT}
+    - popd
     - ""
     - diff -q index/current.json ../HEAD/index/current.json
     - if [[ $(diff -r -q --exclude=".git" . ../HEAD | wc -l) -gt 1 ]]; then exit 1; fi

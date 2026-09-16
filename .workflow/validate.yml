@@ -50,7 +50,7 @@ stages:
     - ""
     - '# 合入提交'
     - git merge --ff-only ${GITEE_SOURCE_COMMIT}
-    - git push -u origin
+    - git push --set-upstream origin ${GITEE_BRANCH}
     caches:
     - "~/.npm"
     strategy:

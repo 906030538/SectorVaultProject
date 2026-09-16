@@ -15,7 +15,7 @@ import type {
   SubmissionType,
 } from '@/types';
 import { processFile, type EditorFile } from './files';
-import { baseRepoReadme, emptyLocalArchive, spdxLicenseText } from '@/lib/utils';
+import { baseRepoReadme, emptyLocalArchive, spdxLicenseText, stableStringify } from '@/lib/utils';
 
 export type StepState = 'pending' | 'running' | 'done' | 'warning' | 'error';
 export type StepId = 'issue' | 'files' | 'readme' | 'release' | 'assets' | 'index' | 'cover';
@@ -212,7 +212,7 @@ export async function buildIndexChange(entry: SubmissionEntry): Promise<FileChan
   }
   return {
     path: `${INDEX_PATHS.archiveDir}/${month}.json`,
-    content: `${JSON.stringify(next, null, 2)}\n`,
+    content: `${stableStringify(next)}\n`,
     encoding: 'utf-8',
   };
 }
@@ -333,7 +333,7 @@ export async function buildIndexRemoveChange(entry: SubmissionEntry): Promise<Fi
   );
   return {
     path: `${INDEX_PATHS.archiveDir}/${month}.json`,
-    content: `${JSON.stringify(next, null, 2)}\n`,
+    content: `${stableStringify(next)}\n`,
     encoding: 'utf-8',
   };
 }
@@ -824,21 +824,26 @@ export async function updateSubmission(
       issueId = '';
     }
   }
-  // README 与索引差异先行计算：文件、README 与本地归档合并为一个提交
-  const nextPublishedAt = draft.publishedAt ?? ctx.entry.publishedAt ?? ctx.entry.submittedAt;
+  // README 与索引差异先行计算：文件、README 与本地归档合并为一个提交。
+  // 发布时间输入为分钟精度（datetime-local）：与原值同一分钟视为未改动，保留原值的秒级精度
+  const originalPublishedAt = ctx.entry.publishedAt ?? ctx.entry.submittedAt;
+  const toMinute = (iso: string): number => Math.floor(new Date(iso).getTime() / 60000);
+  let nextPublishedAt = draft.publishedAt ?? originalPublishedAt;
+  if (draft.publishedAt && toMinute(draft.publishedAt) === toMinute(originalPublishedAt)) {
+    nextPublishedAt = originalPublishedAt;
+  }
   const readme = buildReadmeText(draft, issueId, currentCover, {
     submittedAt: ctx.entry.submittedAt,
     publishedAt: nextPublishedAt,
   });
   const entry = ctx.entry;
-  const publishedAtChanged =
-    draft.publishedAt !== undefined &&
-    new Date(draft.publishedAt).getTime() !== new Date(entry.publishedAt ?? entry.submittedAt).getTime();
+  const publishedAtChanged = nextPublishedAt !== originalPublishedAt;
   const indexChanged =
     issueCreated ||
     draft.title !== entry.title ||
     currentCover !== entry.cover ||
     draft.params !== entry.paramState ||
+    (draft.license || '') !== (entry.license ?? '') ||
     publishedAtChanged ||
     !sameList(draft.tracks, entry.songs) ||
     !sameList(draft.engines, entry.engines) ||

@@ -40,6 +40,23 @@ export function decodeBase64Utf8(base64: string): string {
   return new TextDecoder('utf-8').decode(bytes);
 }
 
+/** 递归按 key 排序后序列化（索引归档需要字段顺序稳定，避免编辑产生无谓 diff） */
+export function stableStringify(value: unknown): string {
+  const sortValue = (input: unknown): unknown => {
+    if (Array.isArray(input)) return input.map(sortValue);
+    if (input && typeof input === 'object') {
+      const record = input as Record<string, unknown>;
+      return Object.fromEntries(
+        Object.keys(record)
+          .sort()
+          .map((key) => [key, sortValue(record[key])]),
+      );
+    }
+    return input;
+  };
+  return JSON.stringify(sortValue(value), null, 2);
+}
+
 /** 内容仓 README.md 缺失时的基础结构 */
 export function baseRepoReadme(repo: string): string {
   return `# ${repo}\n\n*${POWERED_BY}*\n`;

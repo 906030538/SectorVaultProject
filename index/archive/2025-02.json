@@ -1,16 +1,27 @@
 {
   "submissions": [
     {
-      "slug": "250201-走你",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "致刚刚开始奔跑的你",
-      "submittedAt": "2025-02-01T02:30:00.000Z",
-      "publishedAt": "2026-09-13T19:01:22.141Z",
       "cover": "Cover.png",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
+      ],
+      "issue": "IKFEL4",
+      "languages": [
+        "zh"
+      ],
+      "license": "CC-BY-SA-4.0",
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T19:01:22.141Z",
+      "release": "1142135",
+      "repo": "svp-default",
+      "slug": "250201-走你",
+      "songs": [
+        "走り始めたばかりのキミに"
+      ],
+      "submittedAt": "2025-02-01T02:30:00.000Z",
       "tags": [
         "夢ノ結唱",
         "中文填词",
@@ -23,28 +34,18 @@
         "Poppin'Party",
         "月色君"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "走り始めたばかりのキミに"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "致刚刚开始奔跑的你",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
-      ],
-      "languages": [
-        "zh"
-      ],
-      "issue": "IKFEL4",
-      "release": "1142135"
+      ]
     }
   ],
   "users": [
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

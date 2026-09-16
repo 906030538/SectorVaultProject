@@ -582,10 +582,23 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     releaseId: number | string,
     body: string,
   ): Promise<void> {
-    // v5 系 PATCH /releases/{id} 更新正文（gitee 支持；atomgit 未联调）
+    // v5 系 PATCH /releases/{id} 要求携带 tag_name 与 name（仅发 body 报参数缺失）：
+    // 先按 id 读取现有 release 取这两个字段，再连同新正文一并提交
+    const existing = await this.request<{ tag_name?: string; name?: string }>(
+      `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases/${releaseId}`,
+      { token },
+    );
     await this.request(
       `/repos/${encodeURIComponent(user)}/${encodeURIComponent(repo)}/releases/${releaseId}`,
-      { method: 'PATCH', token, body: { body } },
+      {
+        method: 'PATCH',
+        token,
+        body: {
+          tag_name: existing.tag_name ?? '',
+          name: existing.name ?? existing.tag_name ?? '',
+          body,
+        },
+      },
     );
   }
 

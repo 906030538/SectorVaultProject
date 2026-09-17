@@ -15,6 +15,7 @@ const ja: Record<MessageKey, string> = {
   'nav.menu': 'メニュー',
   'nav.more': 'その他',
   'nav.line': 'ライン',
+  'nav.language': '言語',
   'line.github': 'GitHub · global メイン',
   'line.gitee': 'Gitee · 中国ミラー',
   'line.atomgit': 'AtomGit · 中国ミラー',

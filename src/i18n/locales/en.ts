@@ -15,6 +15,7 @@ const en: Record<MessageKey, string> = {
   'nav.menu': 'Menu',
   'nav.more': 'More',
   'nav.line': 'Data line',
+  'nav.language': 'Language',
   'line.github': 'GitHub · global primary',
   'line.gitee': 'Gitee · CN mirror',
   'line.atomgit': 'AtomGit · CN mirror',

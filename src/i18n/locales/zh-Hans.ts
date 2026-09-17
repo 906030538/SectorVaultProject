@@ -13,6 +13,7 @@ const zhHans = {
   'nav.menu': '菜单',
   'nav.more': '更多',
   'nav.line': '线路',
+  'nav.language': '语言',
   'line.github': 'GitHub · global 主要线路',
   'line.gitee': 'Gitee · 国内镜像',
   'line.atomgit': 'AtomGit · 国内镜像',

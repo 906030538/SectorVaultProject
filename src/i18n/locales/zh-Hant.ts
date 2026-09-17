@@ -15,6 +15,7 @@ const zhHant: Record<MessageKey, string> = {
   'nav.menu': '選單',
   'nav.more': '更多',
   'nav.line': '線路',
+  'nav.language': '語言',
   'line.github': 'GitHub · global 主要線路',
   'line.gitee': 'Gitee · 國內鏡像',
   'line.atomgit': 'AtomGit · 國內鏡像',

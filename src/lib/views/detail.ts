@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { unzipSync } from 'fflate';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
-import { LICENSE_OPTIONS } from '@/config';
+import { LICENSE_OPTIONS, licenseLinks, licenseSummary } from '@/config';
 import {
   loadRepoInfo,
   loadReleases,
@@ -15,6 +15,7 @@ import {
 } from '@/lib/content';
 import { findEntry, forgetSubmissionFromCache } from '@/lib/index/loader';
 import { getLineSources } from '@/lib/index/sources';
+import { identifyLicenseText } from '@/lib/utils';
 import { storedProjectFileName } from '@/lib/editor/pipeline';
 import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { getToken, loadSessionBy } from '@/lib/auth';
@@ -1099,7 +1100,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   }
 
   // 作者卡 + 许可证（稿件级优先，缺省仓库级）
-  renderAuthor(entry, repoInfo, content, labels, els, platform);
+  renderAuthor(entry, repoInfo, content, labels, els, platform, locale);
 
   renderFiles(init, platform, content.baseDir, filesOnly, els);
 
@@ -1220,6 +1221,7 @@ function renderAuthor(
   labels: DetailLabels,
   els: DetailElements,
   platform: Platform,
+  locale: string,
 ): void {
   els.author.textContent = '';
 
@@ -1291,8 +1293,9 @@ function renderAuthor(
     info.appendChild(starBadge);
   }
 
-  // 许可证三态：SPDX 标识显示名称 chip；非 SPDX（自定义）显示 LICENSE 全文折叠卡；
-  // 稿件未指定时显示仓库级许可证名称（repoInfo）
+  // 许可证：优先级为 索引 license 字段 > README 属性 > LICENSE 文件内容识别（指纹哈希/首行）> 仓库级名称。
+  // 识别为 SPDX 时显示摘要折叠卡（deed 风格摘要 + spdx.org/CC 当前语言外链）；
+  // 自定义显示 LICENSE 全文折叠卡（内容命中指纹时升级为 SPDX 摘要卡）
   const licenseChip = (name: string): void => {
     const span = document.createElement('span');
     span.className =
@@ -1301,22 +1304,46 @@ function renderAuthor(
     span.textContent = `${labels.license}: ${name}`;
     info.appendChild(span);
   };
-  const licenseAttr = content.parsed.attrs.license?.trim() ?? '';
-  const licenseFile = content.media.find((item) => item.name === 'LICENSE');
-  // SPDX 匹配大小写不敏感（README 可能存小写形式），命中则显示规范标识
-  const spdxOption = licenseAttr
-    ? LICENSE_OPTIONS.find((option) => option.value.toLowerCase() === licenseAttr.toLowerCase())
-    : undefined;
-  if (spdxOption) {
-    licenseChip(spdxOption.value);
-  } else if (licenseAttr || licenseFile) {
-    // 自定义许可证（README 属性或 slug 目录 LICENSE 文件标识）：全文折叠卡
-    const name = licenseAttr && licenseAttr !== 'custom' ? licenseAttr : labels.licenseCustomName;
+  /** SPDX 摘要折叠卡元素（deed 风格摘要 + spdx.org/CC 当前语言外链） */
+  const spdxCardElement = (spdxId: string): HTMLDetailsElement => {
+    const details = document.createElement('details');
+    details.className = 'w-full';
+    details.dataset.role = 'license';
+    details.dataset.license = spdxId;
+    const summary = el('summary', 'cursor-pointer select-none text-xs font-medium text-emerald-700 dark:text-emerald-300');
+    summary.textContent = `${labels.license}: ${spdxId} ▾`;
+    details.appendChild(summary);
+    const box = el('div', 'mt-2 w-full rounded-lg bg-slate-100 p-3 text-xs leading-relaxed dark:bg-slate-800');
+    const text = licenseSummary(spdxId, locale);
+    if (text) box.appendChild(el('p', 'whitespace-pre-wrap', text));
+    const links = licenseLinks(spdxId, locale);
+    const linkRow = el('p', 'mt-2 flex flex-wrap gap-3');
+    const spdxLink = el('a', 'text-emerald-600 hover:underline dark:text-emerald-400', 'spdx.org ↗');
+    spdxLink.href = links.spdx;
+    spdxLink.target = '_blank';
+    spdxLink.rel = 'noopener';
+    linkRow.appendChild(spdxLink);
+    if (links.deed) {
+      const deedLink = el('a', 'text-emerald-600 hover:underline dark:text-emerald-400', 'creativecommons.org ↗');
+      deedLink.href = links.deed;
+      deedLink.target = '_blank';
+      deedLink.rel = 'noopener';
+      linkRow.appendChild(deedLink);
+    }
+    box.appendChild(linkRow);
+    details.appendChild(box);
+    return details;
+  };
+  const spdxCard = (spdxId: string): void => {
+    info.appendChild(spdxCardElement(spdxId));
+  };
+  /** 自定义全文折叠卡（内容命中指纹时升级为 SPDX 摘要卡） */
+  const customCard = (displayName: string): void => {
     const details = document.createElement('details');
     details.className = 'w-full';
     details.dataset.role = 'license';
     const summary = el('summary', 'cursor-pointer select-none text-xs font-medium text-emerald-700 dark:text-emerald-300');
-    summary.textContent = `${labels.license}: ${name} ▾`;
+    summary.textContent = `${labels.license}: ${displayName} ▾`;
     details.appendChild(summary);
     const pre = el(
       'pre',
@@ -1325,21 +1352,47 @@ function renderAuthor(
     pre.textContent = '…';
     details.appendChild(pre);
     info.appendChild(details);
-    // 首次展开时再拉取全文
+    // 首次展开时再拉取全文；命中指纹表则转为 SPDX 摘要展示
     let loaded = false;
     details.addEventListener('toggle', () => {
       if (!details.open || loaded) return;
       loaded = true;
       void getAdapterAsync(platform)
         .then((adapter) => adapter.readFile(entry.owner, entry.repo, `${content.baseDir}/LICENSE`))
-        .then((text) => {
-          pre.textContent = text || labels.loadError;
+        .then(async (text) => {
+          const identified = text ? await identifyLicenseText(text) : null;
+          if (identified) {
+            // 命中指纹表：升级为 SPDX 摘要卡（保持展开状态）
+            const upgraded = spdxCardElement(identified);
+            upgraded.open = true;
+            details.replaceWith(upgraded);
+          } else {
+            pre.textContent = text || labels.loadError;
+          }
         })
         .catch(() => {
           pre.textContent = labels.loadError;
           loaded = false;
         });
     });
+  };
+  const matchSpdx = (value: string): string | null => {
+    const option = LICENSE_OPTIONS.find((item) => item.value.toLowerCase() === value.toLowerCase());
+    return option?.value ?? null;
+  };
+  // 1) 索引 license 字段直接使用（发布管线写入，权威来源）
+  const indexLicense = entry.license?.trim() ?? '';
+  const licenseAttr = content.parsed.attrs.license?.trim() ?? '';
+  const licenseFile = content.media.find((item) => item.name === 'LICENSE');
+  const source = indexLicense || licenseAttr;
+  const spdxId = source ? matchSpdx(source) : null;
+  if (spdxId) {
+    spdxCard(spdxId);
+  } else if (source && source !== 'custom') {
+    // 非 SPDX 标识名称（未知值）：自定义卡并显示该名称
+    customCard(source);
+  } else if (source === 'custom' || licenseFile) {
+    customCard(labels.licenseCustomName);
   } else if (repoInfo?.license) {
     licenseChip(repoInfo.license);
   }

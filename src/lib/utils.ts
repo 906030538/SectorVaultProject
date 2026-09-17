@@ -1,4 +1,4 @@
-import { POWERED_BY } from '@/config';
+import { LICENSE_FINGERPRINTS, POWERED_BY } from '@/config';
 
 /** GET 读请求超时：被墙/失联域名的连接会长期 pending（iOS 无代理时尤甚），
  *  不设超时页面会永久停在加载态。仅限读取；写操作（上传/提交）不受限。 */
@@ -55,6 +55,35 @@ export function stableStringify(value: unknown): string {
     return input;
   };
   return JSON.stringify(sortValue(value), null, 2);
+}
+
+/** 许可证正文归一化（\r\n 归一、行尾去空白、单个末尾换行）——指纹计算与此规则一致 */
+export function normalizeLicenseText(text: string): string {
+  const lines = text
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+$/, ''));
+  while (lines.length && !lines[lines.length - 1]) lines.pop();
+  return `${lines.join('\n')}\n`;
+}
+
+/** 文本 SHA-256 十六进制摘要（许可证指纹识别用） */
+export async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** LICENSE 文件正文识别为已收录的 SPDX 标识：优先哈希精确匹配，次级比对首行；未识别返回 null */
+export async function identifyLicenseText(text: string): Promise<string | null> {
+  const normalized = normalizeLicenseText(text);
+  const firstLine = (normalized.split('\n').find((line) => line.trim()) ?? '').trim().toLowerCase();
+  const hash = await sha256Hex(normalized);
+  const byHash = LICENSE_FINGERPRINTS.find((item) => item.sha256 === hash);
+  if (byHash) return byHash.id;
+  const byLine = LICENSE_FINGERPRINTS.find(
+    (item) => item.firstLine.trim().toLowerCase() === firstLine,
+  );
+  return byLine?.id ?? null;
 }
 
 /** 内容仓 README.md 缺失时的基础结构 */

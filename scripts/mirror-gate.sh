@@ -24,5 +24,8 @@ else
   echo "no previous commit, skip immutability check"
 fi
 
-# 3. 校验通过，向主索引仓提交 PR
+# 3. 黑名单校验：git 提交与索引条目的作者/邮箱（首推无基线则只查索引）
+node scripts/check-blacklist.mjs "${prev:--}" HEAD
+
+# 4. 校验通过，向主索引仓提交 PR
 node scripts/sync-to-github.mjs

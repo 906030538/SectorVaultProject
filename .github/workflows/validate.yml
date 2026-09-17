@@ -10,6 +10,7 @@ on:
     paths:
       - "index/**"
       - "config.json"
+      - "blacklist.json"
 
 permissions:
   contents: read
@@ -53,6 +54,13 @@ jobs:
           fi
       - name: Validate config.json
         run: npx --yes ajv-cli validate -s schema/config.schema.json -d ../pr/config.json --spec=draft7
+      - name: Validate blacklist.json and check blacklist
+        run: |
+          npx --yes ajv-cli validate -s schema/blacklist.schema.json -d ../pr/blacklist.json --spec=draft7 || {
+            echo "::error::../pr/blacklist.json 不符合 schema（若 PR 未改动则为基础分支配置损坏）"; exit 1; }
+          # 黑名单以 PR 版本为准执行：PR 若试图删改黑名单，由下方范围检查强制人工审核
+          cp ../pr/blacklist.json blacklist.json
+          node scripts/check-blacklist.mjs "origin/${{ github.base_ref }}" pr-head
       - name: Check PR scope (auto merge eligibility)
         id: scope
         run: |
@@ -61,6 +69,12 @@ jobs:
               index/archive ../pr/index/archive \
               "origin/${{ github.base_ref }}" pr-head
           } >> "$GITHUB_OUTPUT"
+          # 任何归档之外的文件改动（含 blacklist.json/schema/workflow）都不自动合并，防绕过
+          non_archive=$(git diff --name-only "origin/${{ github.base_ref }}...pr-head" | grep -v '^index/archive/[0-9]\{4\}-[0-9]\{2\}\.json$' || true)
+          if [ -n "$non_archive" ]; then
+            echo "改动归档以外的文件，转人工审核: $non_archive"
+            echo "decision=review" >> "$GITHUB_OUTPUT"
+          fi
       - name: Auto merge single-submission PRs
         # fork 来的 PR 中内置 GITHUB_TOKEN 被降级为只读，自动合并必须用 PAT/App token
         if: success() && steps.scope.outputs.decision == 'auto'

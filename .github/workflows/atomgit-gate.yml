@@ -67,6 +67,9 @@ jobs:
             echo "::error::删除文件或一次修改多个投稿，不能自动合入；请拆分为单投稿提交或走人工 PR"
             exit 1
           fi
+      - name: Check blacklist
+        if: env.skip != 'true'
+        run: node scripts/check-blacklist.mjs origin/index HEAD
       - name: Merge atomgit into index
         if: env.skip != 'true'
         run: |

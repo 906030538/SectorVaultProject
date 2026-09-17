@@ -107,6 +107,7 @@
 | 派生数据保护   | 禁止手改 `index/current.json`（由 Action 生成，PR 中出现该文件改动即失败）                         |
 | 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败；`submittedAt`/`publishedAt` 不得晚于当前时间（预留 5 分钟时钟偏差） |
 | PR 范围限制    | 删除任何文件、或一次修改多个稿件（新增+改动 > 1 条）的 PR 不自动合并，评论说明原因并请求管理员审核 |
+| 黑名单        | `blacklist.json` 的规则（name/email 正则，同一规则内 AND）校验 git 提交与索引条目的作者/邮箱，命中即失败 |
 | JSON 语法      | `index/archive/*.json` 必须是合法 JSON                                                             |
 | Schema 校验    | 使用 ajv（draft-07）按 `schema/` 下各 schema 递归校验                                              |
 | 枚举与格式     | `platform`、`type`、`paramState` 枚举值，`submittedAt`/`publishedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
@@ -144,6 +145,21 @@
 `rebuild.yml` 重建完成后会把（含新 `current.json` 的）`index` 分支推回 GitCode 镜像仓 [gitcode.com/CLCNTanya/SectorVaultProject](https://gitcode.com/CLCNTanya/SectorVaultProject) 的 `atomgit` 分支（使用仓库密钥 `GITEE_TOKEN`，GitCode PAT）。正常流转下该推送为快进：GitCode 侧的投稿经平台集成推到 GitHub `atomgit` 分支、门禁合入 `index` 后，`index` 已包含这些提交。推送不用强制——若 GitCode 侧出现了 GitHub 未知的新提交导致非快进，推送失败并报警，由人工处理，避免覆盖投稿。
 
 建议在 GitHub 仓库设置中将 `atomgit` 分支设为受保护分支（仅允许镜像集成身份推送），并启用线性检查以避免本地合并提交混入。
+
+### 黑名单 `blacklist.json`
+
+每条规则包含 `name` / `email` 两个正则（至少其一，同一规则内为 AND 关系——提供的正则须全部命中），检查对象为 PR/推送中 git 提交的作者名与邮箱、以及索引稿件条目的 `author`/`email` 字段，命中即拒绝：
+
+```jsonc
+{
+  "rules": [
+    { "name": "^spambot$", "email": "@spam\\.com$" },  // 精确封锁身份对
+    { "email": "^bad@evil\\.org$" }                    // 只按邮箱封锁
+  ]
+}
+```
+
+正则为 JavaScript RegExp（`u` 标志、非锚定，用 `^ $` 精确匹配）；配置文件损坏（JSON/正则非法）时门禁失败（fail closed）。黑名单改动会触发 PR 门禁，且因属于归档以外的文件改动而强制管理员审核——不能借投稿 PR 增删黑名单规则。
 
 ## 配置
 

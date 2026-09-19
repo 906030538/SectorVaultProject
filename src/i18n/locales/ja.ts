@@ -64,6 +64,7 @@ const ja: Record<MessageKey, string> = {
   'filter.engine': '合成エンジン',
   'filter.voicebank': '音声ライブラリ',
   'filter.songLanguage': '楽曲言語',
+  'filter.license': 'ライセンス',
 
   'label.date': '投稿日',
   'label.user': '投稿者',

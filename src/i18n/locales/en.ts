@@ -64,6 +64,7 @@ const en: Record<MessageKey, string> = {
   'filter.engine': 'Synth engine',
   'filter.voicebank': 'Voicebank',
   'filter.songLanguage': 'Song language',
+  'filter.license': 'License',
 
   'label.date': 'Submitted',
   'label.user': 'Author',

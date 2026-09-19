@@ -386,6 +386,8 @@ export function applyFilters(
     if (filters.voicebank && !(entry.voicebanks ?? []).includes(filters.voicebank)) return false;
     if (filters.songLanguage && !(entry.languages ?? []).includes(filters.songLanguage))
       return false;
+    // 许可证按标识精确匹配（SPDX 值区分大小写，与索引记录一致）
+    if (filters.license && entry.license !== filters.license) return false;
     return true;
   });
 }

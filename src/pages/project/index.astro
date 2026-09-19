@@ -100,6 +100,8 @@ const locale = DEFAULT_LOCALE;
       candidates.engine = collect((e) => e.engines);
       candidates.voicebank = collect((e) => e.voicebanks);
       candidates.songLanguage = collect((e) => e.languages);
+      // 许可证为单值字段：有值的条目收集（SPDX 标识与 custom）
+      candidates.license = collect((e) => (e.license ? [e.license] : undefined));
     }
 
     function hidePanels(except?: HTMLElement): void {
@@ -160,7 +162,7 @@ const locale = DEFAULT_LOCALE;
       if (keyword) {
         const kw = keyword.toLowerCase();
         filtered = filtered.filter((e) =>
-          [e.title, e.owner, ...(e.songs ?? [])]
+          [e.title, e.owner, ...(e.songs ?? []), ...(e.tags ?? [])]
             .join(' ')
             .toLowerCase()
             .includes(kw),

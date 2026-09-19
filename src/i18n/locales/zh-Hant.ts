@@ -64,6 +64,7 @@ const zhHant: Record<MessageKey, string> = {
   'filter.engine': '合成引擎',
   'filter.voicebank': '使用聲庫',
   'filter.songLanguage': '歌曲語言',
+  'filter.license': '授權條款',
 
   'label.date': '投稿時間',
   'label.user': '投稿使用者',

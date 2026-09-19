@@ -94,6 +94,8 @@ export interface FilterState {
   engine?: string;
   voicebank?: string;
   songLanguage?: string;
+  /** 许可证（SPDX 标识或 custom，精确匹配） */
+  license?: string;
 }
 
 /** 稿件互动统计（评论数 / 点赞数） */

@@ -62,6 +62,7 @@ const zhHans = {
   'filter.engine': '合成引擎',
   'filter.voicebank': '使用声库',
   'filter.songLanguage': '歌曲语言',
+  'filter.license': '许可证',
 
   'label.date': '投稿时间',
   'label.user': '投稿用户',

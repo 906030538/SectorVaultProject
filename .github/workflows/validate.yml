@@ -61,6 +61,18 @@ jobs:
           # 黑名单以 PR 版本为准执行：PR 若试图删改黑名单，由下方范围检查强制人工审核
           cp ../pr/blacklist.json blacklist.json
           node scripts/check-blacklist.mjs "origin/${{ github.base_ref }}" pr-head
+      - name: Validate mirrors.json and check mirror consistency
+        run: |
+          if [ ! -f ../pr/index/mirrors.json ]; then
+            echo "::error::index/mirrors.json 不允许删除"
+            exit 1
+          fi
+          npx --yes ajv-cli validate -s schema/mirrors.schema.json -d ../pr/index/mirrors.json --spec=draft7
+          if git diff --quiet "origin/${{ github.base_ref }}...pr-head" -- index/mirrors.json; then
+            echo "mirrors.json unchanged, skip consistency check"
+          else
+            node scripts/check-mirrors.mjs index/mirrors.json ../pr/index/mirrors.json
+          fi
       - name: Check PR scope (auto merge eligibility)
         id: scope
         run: |
@@ -69,8 +81,9 @@ jobs:
               index/archive ../pr/index/archive \
               "origin/${{ github.base_ref }}" pr-head
           } >> "$GITHUB_OUTPUT"
-          # 任何归档之外的文件改动（含 blacklist.json/schema/workflow）都不自动合并，防绕过
-          non_archive=$(git diff --name-only "origin/${{ github.base_ref }}...pr-head" | grep -v '^index/archive/[0-9]\{4\}-[0-9]\{2\}\.json$' || true)
+          # 归档与镜像索引之外的文件改动（含 blacklist.json/schema/workflow）不自动合并，防绕过
+          non_archive=$(git diff --name-only "origin/${{ github.base_ref }}...pr-head" \
+            | grep -v -e '^index/archive/[0-9]\{4\}-[0-9]\{2\}\.json$' -e '^index/mirrors\.json$' || true)
           if [ -n "$non_archive" ]; then
             echo "改动归档以外的文件，转人工审核: $non_archive"
             echo "decision=review" >> "$GITHUB_OUTPUT"

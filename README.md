@@ -108,6 +108,7 @@
 | 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败；`submittedAt`/`publishedAt` 不得晚于当前时间（预留 5 分钟时钟偏差） |
 | PR 范围限制    | 删除任何文件、或一次修改多个稿件（新增+改动 > 1 条）的 PR 不自动合并，评论说明原因并请求管理员审核 |
 | 黑名单        | `blacklist.json` 的规则（name/email 正则，同一规则内 AND）校验 git 提交与索引条目的作者/邮箱，命中即失败 |
+| 镜像索引      | `index/mirrors.json` 单次 PR 只允许修改一个顶层 key；修改时抓取源仓库与全部镜像仓根目录的 `svp-archive.json`，其 `mirrors` 字段必须与源仓库完全一致（顺序不敏感；不可达即失败） |
 | JSON 语法      | `index/archive/*.json` 必须是合法 JSON                                                             |
 | Schema 校验    | 使用 ajv（draft-07）按 `schema/` 下各 schema 递归校验                                              |
 | 枚举与格式     | `platform`、`type`、`paramState` 枚举值，`submittedAt`/`publishedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
@@ -160,6 +161,23 @@
 ```
 
 正则为 JavaScript RegExp（`u` 标志、非锚定，用 `^ $` 精确匹配）；配置文件损坏（JSON/正则非法）时门禁失败（fail closed）。黑名单改动会触发 PR 门禁，且因属于归档以外的文件改动而强制管理员审核——不能借投稿 PR 增删黑名单规则。
+
+### 镜像索引 `index/mirrors.json`
+
+顶层 key 是源仓库地址，值是该源仓库全部镜像地址的字符串数组：
+
+```json
+{
+  "https://github.com/906030538/SectorVaultProject": [
+    "https://gitcode.com/CLCNTanya/SectorVaultProject"
+  ]
+}
+```
+
+修改该文件的 PR 受两条规则约束（`scripts/check-mirrors.mjs`）：
+
+1. **单 key 限制**：与基线相比一次只能改一个顶层 key（新增/删除/改动均算）；
+2. **一致性**：抓取被改条目中源仓库与每个镜像仓**根目录**的 `svp-archive.json`（按平台自动选择 raw 地址：GitHub 用 raw.githubusercontent.com，其他平台依次尝试 `/raw/HEAD|main|master/` 与根路径直连，10 秒超时），所有文件的 `mirrors` 字段必须与源仓库完全一致（忽略顺序）。仓库不可达同样视为失败——镜像未就绪就不允许登记。
 
 ## 配置
 

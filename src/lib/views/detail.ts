@@ -16,6 +16,7 @@ import {
 import { findEntry, forgetSubmissionFromCache } from '@/lib/index/loader';
 import { getLineSources } from '@/lib/index/sources';
 import { identifyLicenseText } from '@/lib/utils';
+import { bumpRepoEngagementLike, readRepoEngagement } from '@/lib/index/stats';
 import { storedProjectFileName } from '@/lib/editor/pipeline';
 import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { getToken, loadSessionBy } from '@/lib/auth';
@@ -783,10 +784,12 @@ async function renderIssueSection(
           myReactionId = null;
           likeCount = Math.max(0, likeCount - 1);
           likeBtn.textContent = `👍 ${labels.like}`;
+          bumpRepoEngagementLike(platform, user, repo, issue.number, -1);
         } else {
           myReactionId = await adapter.createIssueReaction(token, user, repo, issue.number);
           likeCount += 1;
           likeBtn.textContent = `👍 ${labels.liked}`;
+          bumpRepoEngagementLike(platform, user, repo, issue.number, 1);
         }
         renderLikeCount();
         likeStatus.textContent = '';
@@ -1023,6 +1026,9 @@ export async function initDetail(init: DetailInit): Promise<void> {
     els.actions.appendChild(del);
   }
   // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
+  // issue 优先读互动缓存（列表/集合页列出 issues 时写入）——命中时不再列出全部
+  const cachedEngagement = readRepoEngagement(platform, user, repo);
+  const cachedIssue = cachedEngagement?.[slug];
   const loaded = await Promise.all([
     preloaded ??
     loadSubmissionContent(platform, user, repo, slug).catch((error) => {
@@ -1031,7 +1037,19 @@ export async function initDetail(init: DetailInit): Promise<void> {
     }),
     loadRepoInfo(platform, user, repo).catch(() => null),
     loadReleases(platform, user, repo).catch(() => []),
-    loadIssues(platform, user, repo).catch(() => []),
+    cachedIssue
+      ? Promise.resolve([
+          {
+            number: cachedIssue.number,
+            title: slug,
+            htmlUrl: `${platformRepoUrl(platform, user, repo)}/issues/${cachedIssue.number}`,
+            comments: cachedIssue.comments,
+            createdAt: '',
+            state: 'open' as const,
+            likes: cachedIssue.likes,
+          },
+        ])
+      : loadIssues(platform, user, repo).catch(() => [] as IssueInfo[]),
   ]).catch((error: unknown) => {
     // 源稿件 404：视为已删除——清除索引缓存并展示引导界面
     if (isSubmissionMissingError(error)) {

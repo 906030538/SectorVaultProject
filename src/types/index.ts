@@ -165,6 +165,8 @@ export interface IssueInfo {
   createdAt: string;
   /** 开闭状态：closed 时留言区不加载回复，仅显示已关闭提示 */
   state: 'open' | 'closed';
+  /** 点赞数（👍）：列出 issues 载荷自带时填充（GitHub）；缺失表示平台不提供 */
+  likes?: number;
 }
 
 /** Issue 评论 */

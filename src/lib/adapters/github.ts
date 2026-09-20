@@ -197,6 +197,8 @@ export class GitHubAdapter implements GitPlatformAdapter {
         comments: i.comments,
         createdAt: i.created_at,
         state: i.state === 'closed' ? ('closed' as const) : ('open' as const),
+        // 列出载荷自带 👍 数（reactions['+1']）：互动统计可直接使用并缓存
+        likes: (i.reactions as { '+1'?: number } | null | undefined)?.['+1'] ?? 0,
       }));
   }
 

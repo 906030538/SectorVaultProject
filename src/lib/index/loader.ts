@@ -12,7 +12,10 @@ import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
 const indexCache = new Map<string, IndexFile>();
 
 function cacheKey(source: IndexSource, path: string): string {
-  return `${source.platform}:${source.owner}/${source.repo}@${source.branch}:${path}`;
+  // 缓存键不带线路/平台信息：各线路索引仓互为镜像、内容一致，
+  // 按文件路径共享缓存，切换线路时 TTL 内免重复请求
+  void source;
+  return path;
 }
 
 /** localStorage 索引缓存前缀 */

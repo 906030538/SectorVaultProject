@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import ViewRoute from '@/components/routes/ViewRoute.astro';
+import SubmissionRoute from '@/components/routes/SubmissionRoute.astro';
+import CollectionRoute from '@/components/routes/CollectionRoute.astro';
 import UserRoute from '@/components/routes/UserRoute.astro';
 import EditRoute from '@/components/routes/EditRoute.astro';
 import DiscussionRoute from '@/components/routes/DiscussionRoute.astro';
@@ -43,7 +44,8 @@ import { withBase } from '@/lib/base';
       }, 2500);
     })();
   </script>
-  <div hidden data-route-host="view"><ViewRoute /></div>
+  <div hidden data-route-host="submission"><SubmissionRoute /></div>
+  <div hidden data-route-host="collection"><CollectionRoute /></div>
   <div hidden data-route-host="user"><UserRoute /></div>
   <div hidden data-route-host="edit"><EditRoute /></div>
   <div hidden data-route-host="discussion"><DiscussionRoute /></div>

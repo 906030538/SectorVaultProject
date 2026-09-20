@@ -23,8 +23,8 @@
 /faq -- 常见问题
 /about -- 站点介绍
 /user/:name -- 用户空间
-/view/:name/:repo -- 集合详情
-/view/:name/:repo/:slug -- 详情页
+/view/:name/:repo -- 集合详情（CollectionRoute组件）
+/view/:name/:repo/:slug -- 详情页（SubmissionRoute组件，与集合详情拆分为两个独立路由组件，按路径段数各自激活）
 /edit/:name/:repo/:slug -- 编辑稿件
 /new -- 新建投稿
 /login/:platform -- OAuth 回调

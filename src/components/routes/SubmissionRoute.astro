@@ -1,0 +1,161 @@
+---
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+/**
+ * 投稿详情路由 /view/:user/:repo/:slug（SPA 回退渲染）。
+ * 集合详情见 CollectionRoute；两组件同页挂载时按路径段数各自激活。
+ */
+const locale = DEFAULT_LOCALE;
+---
+
+<article
+  class="mx-auto w-full max-w-3xl lg:max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8"
+  data-route-component="submission"
+  data-view-skeleton="detail"
+  hidden
+>
+  <div class="min-w-0 lg:row-start-1">
+    <header>
+      <div class="flex flex-wrap items-center gap-3">
+        <h1 class="text-3xl font-bold" data-role="title"></h1>
+        <span class="ml-auto flex gap-2" data-role="detail-actions"></span>
+      </div>
+      <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400" data-role="date-row">
+        <span data-role="date">–</span>
+        <span data-role="engagement"></span>
+      </div>
+      <div class="mt-4" data-role="meta"></div>
+    </header>
+
+    <section class="prose-svp mt-8" data-role="body"></section>
+
+    <div class="mt-6 flex flex-wrap gap-2" data-role="tags"></div>
+
+    <section class="mt-8" data-role="media-section">
+      <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.media">
+        {t(locale, 'detail.media')}
+      </h2>
+      <div data-role="media"></div>
+    </section>
+  </div>
+
+  <!-- 右侧栏（宽屏）：作者 / 工程文件 / 关联 release；窄屏时依次排在主列之后 -->
+  <aside class="flex flex-col gap-6 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1">
+    <section class="card flex items-center gap-3 p-4" data-role="author">
+      <span class="text-sm text-slate-400" data-role="author-path"></span>
+    </section>
+
+    <section class="mt-8 lg:mt-0">
+      <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.files">
+        {t(locale, 'detail.files')}
+      </h2>
+      <div data-role="files"></div>
+    </section>
+
+    <section class="mt-8 lg:mt-0">
+      <div class="mb-3 flex items-center gap-2">
+        <h2 class="text-lg font-semibold" data-i18n="detail.release">
+          {t(locale, 'detail.release')}
+        </h2>
+        <a class="btn ml-auto hidden px-2.5 py-1 text-xs" data-role="release-goto" target="_blank" rel="noopener"></a>
+      </div>
+      <div data-role="release"></div>
+    </section>
+  </aside>
+
+  <!-- 留言区：宽屏回到左列（第二行），窄屏位于最底 -->
+  <section class="mt-8 lg:col-start-1 lg:row-start-2">
+    <div class="mb-3 flex items-center gap-2">
+      <h2 class="text-lg font-semibold" data-i18n="detail.comments">
+        {t(locale, 'detail.comments')}
+      </h2>
+      <a class="btn ml-auto hidden px-2.5 py-1 text-xs" data-role="issue-goto" target="_blank" rel="noopener"></a>
+    </div>
+    <div data-role="issues"></div>
+  </section>
+</article>
+
+<script>
+  import { stripBase } from '@/lib/base';
+  import { initDetail } from '@/lib/views/detail';
+  import { buildDetailLabels } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { SITE_NAME } from '@/config';
+  import { findEntry } from '@/lib/index/loader';
+  import { getStoredLine, setStoredLine } from '@/lib/index/sources';
+  import type { Platform } from '@/types';
+
+void (async () => {
+  // 路由匹配：/view/:user/:repo/:slug...（3 段起为投稿详情）；pathname 中文为百分号编码，逐段解码
+  const segments = stripBase(window.location.pathname)
+    .split('/')
+    .filter(Boolean)
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    });
+  const user = segments[1];
+  const repo = segments[2];
+  const slug = segments.slice(3).join('/');
+  if (segments[0] !== 'view' || !user || !repo || !slug) return;
+
+  const root = document.querySelector<HTMLElement>('[data-route-component="submission"]')!;
+  // SPA 回退：显示宿主容器并隐藏 404 内容（静态预渲染页无宿主容器）
+  const host = root.closest<HTMLElement>('[data-route-host]');
+  if (host) host.hidden = false;
+  document.querySelector<HTMLElement>('[data-role="not-found"]')?.setAttribute('hidden', '');
+
+  const locale = getClientLocale();
+  const pick = <T extends HTMLElement>(role: string) =>
+    root.querySelector<T>(`[data-role="${role}"]`)!;
+
+  // 线路自动切换：当前线路平台没有该仓库时，切到索引记录的平台线路并重载
+  const line = getStoredLine();
+  if (line) {
+    try {
+      const located = (await findEntry(user, repo, slug))?.platform ?? null;
+      if (located && located !== line) {
+        setStoredLine(located as Platform);
+        window.location.reload();
+        return;
+      }
+    } catch {
+      /* 定位失败时按当前线路渲染 */
+    }
+  }
+
+  try {
+    document.title = `${slug} · ${repo} - ${SITE_NAME}`;
+    root.removeAttribute('hidden');
+    pick('author-path').textContent = `${user}/${repo}`;
+    await initDetail({
+      user,
+      repo,
+      slug,
+      locale,
+      labels: buildDetailLabels(locale),
+      els: {
+        title: pick('title'),
+        actions: pick('detail-actions'),
+        date: pick('date'),
+        engagement: pick('engagement'),
+        meta: pick('meta'),
+        body: pick('body'),
+        tags: pick('tags'),
+        media: pick('media'),
+        author: pick('author'),
+        files: pick('files'),
+        release: pick('release'),
+        releaseGoto: root.querySelector<HTMLAnchorElement>('[data-role="release-goto"]')!,
+        issues: pick('issues'),
+        issueGoto: root.querySelector<HTMLAnchorElement>('[data-role="issue-goto"]')!,
+      },
+    });
+  } catch (error) {
+    console.error('[submission] init failed:', error);
+  }
+})();
+</script>

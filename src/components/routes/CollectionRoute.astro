@@ -1,0 +1,115 @@
+---
+import Pagination from '@/components/Pagination.astro';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+/**
+ * 集合详情路由 /view/:user/:repo（SPA 回退渲染）。
+ * 投稿详情见 SubmissionRoute；两组件同页挂载时按路径段数各自激活。
+ */
+const locale = DEFAULT_LOCALE;
+---
+
+<div data-route-component="collection" data-view-skeleton="collection" hidden>
+  <header class="mb-6">
+    <div class="flex flex-wrap items-center gap-3">
+      <h1 class="text-2xl font-bold" data-role="repo-name"></h1>
+      <div class="ml-auto flex gap-2" data-role="actions"></div>
+    </div>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400" data-role="repo-meta"></p>
+  </header>
+
+  <div class="mb-4 flex gap-2" data-role="tabs">
+    <button type="button" class="btn btn-primary" data-tab="project" data-i18n="type.project">
+      {t(locale, 'type.project')}
+    </button>
+    <button type="button" class="btn" data-tab="article" data-i18n="type.article">
+      {t(locale, 'type.article')}
+    </button>
+  </div>
+
+  <div class="flex flex-col gap-3" data-component="list"></div>
+  <p
+    class="py-8 text-center text-slate-400"
+    data-role="empty"
+    data-i18n="common.noResults"
+    hidden
+  >
+    {t(locale, 'common.noResults')}
+  </p>
+  <Pagination locale={locale} />
+</div>
+
+<script>
+  import { stripBase } from '@/lib/base';
+  import { initCollection } from '@/lib/views/collection';
+  import { buildCollectionLabels } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { SITE_NAME } from '@/config';
+  import { findPlatformForRepo } from '@/lib/index/loader';
+  import { getStoredLine, setStoredLine } from '@/lib/index/sources';
+  import type { Platform } from '@/types';
+
+void (async () => {
+  // 路由匹配：/view/:user/:repo（恰好 2 段为集合详情，3 段起归投稿详情）；pathname 中文为百分号编码，逐段解码
+  const segments = stripBase(window.location.pathname)
+    .split('/')
+    .filter(Boolean)
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    });
+  const user = segments[1];
+  const repo = segments[2];
+  if (segments[0] !== 'view' || !user || !repo || segments.length > 3) return;
+
+  const root = document.querySelector<HTMLElement>('[data-route-component="collection"]')!;
+  // SPA 回退：显示宿主容器并隐藏 404 内容（静态预渲染页无宿主容器）
+  const host = root.closest<HTMLElement>('[data-route-host]');
+  if (host) host.hidden = false;
+  document.querySelector<HTMLElement>('[data-role="not-found"]')?.setAttribute('hidden', '');
+
+  const locale = getClientLocale();
+
+  // 线路自动切换：当前线路平台没有该仓库时，切到索引记录的平台线路并重载
+  const line = getStoredLine();
+  if (line) {
+    try {
+      const located = await findPlatformForRepo(user, repo);
+      if (located && located !== line) {
+        setStoredLine(located as Platform);
+        window.location.reload();
+        return;
+      }
+    } catch {
+      /* 定位失败时按当前线路渲染 */
+    }
+  }
+
+  try {
+    document.title = `${repo} - ${SITE_NAME}`;
+    root.removeAttribute('hidden');
+    await initCollection({
+      user,
+      repo,
+      locale,
+      labels: buildCollectionLabels(locale),
+      els: {
+        repoName: root.querySelector<HTMLElement>('[data-role="repo-name"]')!,
+        meta: root.querySelector<HTMLElement>('[data-role="repo-meta"]')!,
+        actions: root.querySelector<HTMLElement>('[data-role="actions"]')!,
+        tabs: root.querySelector<HTMLElement>('[data-role="tabs"]')!,
+        list: root.querySelector<HTMLElement>('[data-component="list"]')!,
+        empty: root.querySelector<HTMLElement>('[data-role="empty"]')!,
+        pageInfo: root.querySelector<HTMLElement>('[data-role="page-info"]')!,
+        prev: root.querySelector<HTMLButtonElement>('[data-action="prev"]')!,
+        next: root.querySelector<HTMLButtonElement>('[data-action="next"]')!,
+      },
+    });
+  } catch (error) {
+    console.error('[collection] init failed:', error);
+  }
+})();
+</script>

@@ -6,6 +6,7 @@ import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { withBase } from '@/lib/base';
 import { loadSession, loadSessionBy, getToken } from '@/lib/auth';
 import { spdxLicenseText } from '@/lib/utils';
+import { getIndexSources } from '@/lib/index/sources';
 import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { renderCard, type CardLabels } from '@/lib/ui';
 import type { IndexFile, Platform, RepoInfo, SubmissionEntry } from '@/types';
@@ -29,6 +30,10 @@ export interface CollectionLabels extends CardLabels {
   licenseCustomName: string;
   licenseCustomPh: string;
   licenseCustomRequired: string;
+  mirrorsLabel: string;
+  mirrorsPh: string;
+  mirrorsInvalid: string;
+  mirrorsAdd: string;
   saving: string;
   saveFailed: string;
   stars: string;
@@ -116,7 +121,52 @@ function dialogShell(title: string): { overlay: HTMLElement; body: HTMLElement }
   return { overlay, body };
 }
 
-/** 仓库编辑框：许可证选择（含自定义全文）+ 保存（写入仓库根目录 LICENSE 文件） */
+/** 镜像仓库地址模式：当前支持的 git 平台（域名/属主/仓库） */
+const MIRROR_ADDR_PATTERN =
+  /^(github|gitee|atomgit|gitcode)\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+
+const PLATFORM_HOST: Record<Platform, string> = {
+  github: 'github.com',
+  gitee: 'gitee.com',
+  atomgit: 'atomgit.com',
+  gitcode: 'gitcode.com',
+};
+
+/** 仓库地址（域名/属主/仓库，mirrors 键与值的统一形式） */
+function repoAddress(platform: Platform, user: string, repo: string): string {
+  return `${PLATFORM_HOST[platform]}/${user}/${repo}`;
+}
+
+/**
+ * 镜像列表写入索引仓：index/mirrors.json 以源仓库地址为键、镜像仓库列表为值，
+ * 单文件 PR 提交（源选择与稿件同平台优先，无则回退主源）。
+ */
+async function submitMirrorsIndexPr(
+  token: string,
+  platform: Platform,
+  sourceAddr: string,
+  mirrors: string[],
+): Promise<void> {
+  const sources = await getIndexSources();
+  const source = sources.find((s) => s.platform === platform) ?? sources[0]!;
+  const adapter = await getAdapterAsync(source.platform);
+  let map: Record<string, string[]> = {};
+  try {
+    const raw = await adapter.readFile(source.owner, source.repo, 'index/mirrors.json', source.branch);
+    map = JSON.parse(raw) as Record<string, string[]>;
+  } catch {
+    /* 文件不存在时新建 */
+  }
+  map[sourceAddr] = mirrors;
+  await adapter.openIndexPr(
+    token,
+    { owner: source.owner, repo: source.repo, branch: source.branch },
+    `mirrors: ${sourceAddr}`,
+    [{ path: 'index/mirrors.json', content: `${JSON.stringify(map, null, 2)}\n`, encoding: 'utf-8' }],
+  );
+}
+
+/** 仓库编辑框：许可证选择（含自定义全文）+ 镜像仓库列表 + 保存 */
 function openEditDialog(
   labels: CollectionLabels,
   platform: Platform,
@@ -162,6 +212,76 @@ function openEditDialog(
   };
   select.addEventListener('change', syncTextarea);
 
+  // ---- 镜像仓库列表：与新建投稿页的列表输入同款样式（行式输入+增删按钮），
+  // 回填自 svp-archive.json 的 mirrors，失焦校验地址模式 ----
+  const currentAddr = repoAddress(platform, user, repo);
+  let initialMirrors: string[] = [currentAddr];
+  let mirrorsLoaded = false; // 回填完成前不判定"已变更"
+  const mirrorsBox = document.createElement('div');
+  mirrorsBox.className = 'mt-4 flex flex-col gap-1';
+  mirrorsBox.setAttribute('data-role', 'mirrors-box');
+  const mirrorsLabel = document.createElement('label');
+  mirrorsLabel.className = 'text-xs text-slate-500';
+  mirrorsLabel.textContent = labels.mirrorsLabel;
+  const mirrorRows = document.createElement('div');
+  mirrorRows.className = 'flex flex-col gap-1';
+  const mirrorError = document.createElement('p');
+  mirrorError.className = 'hidden text-xs text-rose-600';
+  mirrorsBox.append(mirrorsLabel, mirrorRows, mirrorError);
+
+  /** 收集行输入的镜像地址（去空、去重、排除源仓库自身） */
+  const collectMirrors = (): string[] => {
+    const values: string[] = [];
+    for (const input of Array.from(mirrorRows.querySelectorAll<HTMLInputElement>('input'))) {
+      const value = input.value.trim().toLowerCase();
+      if (!value) continue;
+      if (value === currentAddr || values.includes(value)) continue;
+      values.push(value);
+    }
+    return values;
+  };
+
+  const mirrorAdd = document.createElement('button');
+  mirrorAdd.type = 'button';
+  mirrorAdd.className = 'btn px-2.5';
+  mirrorAdd.textContent = '+';
+  mirrorAdd.title = labels.mirrorsAdd;
+  mirrorAdd.setAttribute('aria-label', labels.mirrorsAdd);
+  mirrorAdd.setAttribute('data-action', 'add-mirror');
+  const addMirrorRow = (value = ''): void => {
+    const row = document.createElement('div');
+    row.className = 'flex gap-2';
+    const input = document.createElement('input');
+    input.className = 'input flex-1';
+    input.value = value;
+    input.placeholder = labels.mirrorsPh;
+    input.setAttribute('data-field', 'repo-mirror');
+    // 失焦校验：非法地址红框提示（保存时统一拦截）
+    input.addEventListener('change', () => {
+      const value = input.value.trim().toLowerCase();
+      input.classList.toggle('border-rose-500', !!value && !MIRROR_ADDR_PATTERN.test(value));
+      if (!value || MIRROR_ADDR_PATTERN.test(value)) mirrorError.classList.add('hidden');
+    });
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn px-2.5';
+    removeBtn.textContent = '×';
+    removeBtn.setAttribute('data-action', 'remove-mirror');
+    removeBtn.addEventListener('click', () => {
+      row.remove();
+      if (mirrorRows.children.length === 0) addMirrorRow();
+    });
+    row.append(input, removeBtn);
+    mirrorRows.appendChild(row);
+    row.appendChild(mirrorAdd);
+  };
+  mirrorAdd.addEventListener('click', () => {
+    addMirrorRow();
+    const inputs = mirrorRows.querySelectorAll('input');
+    inputs[inputs.length - 1]?.focus();
+  });
+  addMirrorRow();
+
   const error = document.createElement('p');
   error.className = 'mt-2 hidden text-xs text-rose-600';
   error.dataset.role = 'license-error';
@@ -181,6 +301,7 @@ function openEditDialog(
   save.addEventListener('click', () => {
     void (async () => {
       error.classList.add('hidden');
+      mirrorError.classList.add('hidden');
       const isCustom = select.value === 'custom';
       const customText = textarea.value.trim();
       if (isCustom && !customText) {
@@ -188,8 +309,19 @@ function openEditDialog(
         error.classList.remove('hidden');
         return;
       }
-      // 许可证未变更时直接关闭，不产生提交
-      if (!isCustom && select.value === currentLicense) {
+      const licenseChanged = isCustom || select.value !== currentLicense;
+      const mirrors = collectMirrors();
+      // 非法地址（红框）或空行有内容时拦截保存
+      const invalidMirror = mirrors.some((addr) => !MIRROR_ADDR_PATTERN.test(addr));
+      if (invalidMirror) {
+        mirrorError.textContent = labels.mirrorsInvalid;
+        mirrorError.classList.remove('hidden');
+        return;
+      }
+      const mirrorsChanged =
+        mirrorsLoaded && JSON.stringify([currentAddr, ...mirrors]) !== JSON.stringify(initialMirrors);
+      // 均未变更时直接关闭，不产生提交
+      if (!licenseChanged && !mirrorsChanged) {
         overlay.remove();
         return;
       }
@@ -202,12 +334,30 @@ function openEditDialog(
       save.disabled = true;
       save.textContent = labels.saving;
       try {
-        // 许可证全文写入仓库根目录 LICENSE（自定义用输入全文，SPDX 取标准全文）
-        const content = isCustom ? customText : await spdxLicenseText(select.value);
         const adapter = await getAdapterAsync(platform);
-        await adapter.commitFiles(token, user, repo, 'Update license', [
-          { path: 'LICENSE', content, encoding: 'utf-8' },
-        ]);
+        if (licenseChanged) {
+          // 许可证全文写入仓库根目录 LICENSE（自定义用输入全文，SPDX 取标准全文）
+          const content = isCustom ? customText : await spdxLicenseText(select.value);
+          await adapter.commitFiles(token, user, repo, 'Update license', [
+            { path: 'LICENSE', content, encoding: 'utf-8' },
+          ]);
+        }
+        if (mirrorsChanged) {
+          // mirrors 列表：当前仓库地址在前，镜像地址按输入顺序
+          const list = [currentAddr, ...mirrors];
+          let archive: { submissions?: unknown; mirrors?: string[] } = { submissions: [] };
+          try {
+            archive = JSON.parse(await adapter.readFile(user, repo, 'svp-archive.json')) as typeof archive;
+          } catch {
+            /* 归档缺失时新建 */
+          }
+          archive.mirrors = list;
+          await adapter.commitFiles(token, user, repo, 'Update mirrors', [
+            { path: 'svp-archive.json', content: `${JSON.stringify(archive, null, 2)}\n`, encoding: 'utf-8' },
+          ]);
+          // 索引仓 mirrors.json：源仓库地址为键，列表为值（单文件 PR）
+          await submitMirrorsIndexPr(token, platform, currentAddr, list);
+        }
         onSaved(isCustom ? labels.licenseCustomName : select.value);
         overlay.remove();
       } catch (saveError) {
@@ -221,11 +371,32 @@ function openEditDialog(
     })();
   });
   buttons.append(cancel, save);
-  body.append(select, textarea, error, buttons);
+  body.append(select, textarea, error, mirrorsBox, buttons);
   document.body.appendChild(overlay);
   // 挂载后再定位当前选项并同步文本框显隐（WebKit 未挂载 select 赋值不可靠）
   selectCurrent();
   syncTextarea();
+
+  // 回填现有镜像（svp-archive.json 的 mirrors 去掉源仓库自身）
+  void (async () => {
+    try {
+      const adapter = await getAdapterAsync(platform);
+      const raw = await adapter.readFile(user, repo, 'svp-archive.json');
+      const archive = JSON.parse(raw) as { mirrors?: string[] };
+      const existing = (archive.mirrors ?? []).filter(
+        (addr) => addr !== currentAddr && MIRROR_ADDR_PATTERN.test(addr),
+      );
+      // 逐行填入已有镜像（首行预置为空行时替换）
+      if (existing.length) {
+        mirrorRows.textContent = '';
+        for (const addr of existing) addMirrorRow(addr);
+      }
+      initialMirrors = [currentAddr, ...existing];
+    } catch {
+      /* 归档缺失时列表为空 */
+    }
+    mirrorsLoaded = true;
+  })();
 }
 
 /** 删除确认：要求输入仓库名二次确认 */

@@ -6,7 +6,8 @@ import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { withBase } from '@/lib/base';
 import { loadSession, loadSessionBy, getToken } from '@/lib/auth';
 import { spdxLicenseText } from '@/lib/utils';
-import { getIndexSources } from '@/lib/index/sources';
+import { getIndexSources, setStoredLine } from '@/lib/index/sources';
+import { loadMirrorTargets } from '@/lib/index/mirrors';
 import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { renderCard, type CardLabels } from '@/lib/ui';
 import type { IndexFile, Platform, RepoInfo, SubmissionEntry } from '@/types';
@@ -441,10 +442,36 @@ export async function initCollection(init: CollectionInit): Promise<void> {
   const session = loadSession();
   const isOwner = session?.login === user;
 
-  const entries = await loadRepoEntries(user, repo);
-  const platform: Platform = entries[0]?.platform ?? 'github';
+  let entries = await loadRepoEntries(user, repo);
+  let platform: Platform = entries[0]?.platform ?? 'github';
+  /** 数据读取目标（镜像回退成功后为镜像仓库） */
+  let dataOwner = user;
+  let dataRepo = repo;
+  if (!entries.length) {
+    // 内容仓数据不可得（索引未收录且本地索引读取失败）：按索引 mirrors 依次尝试镜像仓的 svp-archive.json
+    for (const target of await loadMirrorTargets(user, repo)) {
+      try {
+        const adapter = await getAdapterAsync(target.platform);
+        const raw = await adapter.readFile(target.owner, target.repo, 'svp-archive.json');
+        const archive = JSON.parse(raw) as IndexFile;
+        const list = (Array.isArray(archive.submissions) ? archive.submissions : []).filter(
+          (e) => e.owner === user && e.repo === repo,
+        );
+        if (!list.length) continue;
+        entries = list;
+        platform = target.platform;
+        dataOwner = target.owner;
+        dataRepo = target.repo;
+        // 线路切换为镜像平台（不重载，避免索引平台自动切回）
+        setStoredLine(platform);
+        break;
+      } catch {
+        /* 该镜像不可用，尝试下一个 */
+      }
+    }
+  }
   // 部分平台仓库详情接口匿名受限：拉取失败时降级为无 stars/许可证展示
-  let repoInfo = await loadRepoInfo(platform, user, repo).catch(() => null);
+  let repoInfo = await loadRepoInfo(platform, dataOwner, dataRepo).catch(() => null);
 
   function renderHeader(): void {
     els.repoName.textContent = repo;

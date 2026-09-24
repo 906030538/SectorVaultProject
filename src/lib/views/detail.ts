@@ -14,9 +14,10 @@ import {
   type SubmissionContent,
 } from '@/lib/content';
 import { findEntry, forgetSubmissionFromCache } from '@/lib/index/loader';
-import { getLineSources } from '@/lib/index/sources';
+import { getLineSources, setStoredLine } from '@/lib/index/sources';
 import { identifyLicenseText } from '@/lib/utils';
 import { bumpRepoEngagementLike, readRepoEngagement } from '@/lib/index/stats';
+import { loadMirrorTargets, type MirrorTarget } from '@/lib/index/mirrors';
 import { storedProjectFileName } from '@/lib/editor/pipeline';
 import { openDeleteSubmissionDialog } from '@/lib/views/delete-submission';
 import { getToken, loadSessionBy } from '@/lib/auth';
@@ -25,7 +26,7 @@ import { buildAuthLabels } from '@/lib/labels';
 import { normalizeLocale, type Locale } from '@/i18n';
 import { applyCover, badgeSvg, fileIconUrl, isRateLimitError, officialStarBadgeUrl, platformRepoUrl, setAvatar, showApiLimitNotice } from '@/lib/ui';
 import { withBase } from '@/lib/base';
-import type { IssueCommentInfo, IssueInfo, IssueReactionInfo, Platform, ReleaseInfo, SubmissionEntry, SubmissionType } from '@/types';
+import type { IssueCommentInfo, IssueInfo, IssueReactionInfo, Platform, ReleaseInfo, RepoInfo, SubmissionEntry, SubmissionType } from '@/types';
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -975,19 +976,43 @@ async function findEntryFromRepo(
 }
 
 export async function initDetail(init: DetailInit): Promise<void> {
-  const { user, repo, slug, locale, labels, els } = init;
+  const { slug, locale, labels, els } = init;
+  let { user, repo } = init;
 
   let entry = await findEntry(user, repo, slug);
   let preloaded: SubmissionContent | null = null;
+  /** 索引/线路兜底均失败时直接命中的镜像目标（跳过源仓库装载） */
+  let entryFromMirror: MirrorTarget | null = null;
   if (!entry) {
     // 索引未收录：从当前线路的内容仓兜底（正文 + 本地索引 + formatter）
-    const fallback = await findEntryFromRepo(user, repo, slug);
-    if (!fallback) {
+    const fallback = await findEntryFromRepo(user, repo, slug).catch(() => null);
+    if (fallback) {
+      entry = fallback.entry;
+      preloaded = fallback.content;
+    } else {
+      // 镜像兜底：镜像仓的 svp-archive.json 构造条目，正文从镜像仓读取
+      for (const target of await loadMirrorTargets(user, repo)) {
+        try {
+          const adapter = await getAdapterAsync(target.platform);
+          const raw = await adapter.readFile(target.owner, target.repo, 'svp-archive.json');
+          const archive = JSON.parse(raw) as { submissions?: SubmissionEntry[] };
+          const archived = (archive.submissions ?? []).find(
+            (e) => e.owner === user && e.repo === repo && e.slug === slug,
+          );
+          if (!archived) continue;
+          preloaded = await loadSubmissionContent(target.platform, target.owner, target.repo, slug);
+          entry = archived;
+          entryFromMirror = target;
+          break;
+        } catch {
+          /* 该镜像不可用，尝试下一个 */
+        }
+      }
+    }
+    if (!entry) {
       els.body.textContent = labels.loadError;
       return;
     }
-    entry = fallback.entry;
-    preloaded = fallback.content;
   }
 
   els.title.textContent = entry.title;
@@ -999,7 +1024,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
     })
     : '';
 
-  const platform: Platform = entry.platform;
+  let platform: Platform = entry.platform;
 
   // 投稿用户本人（同平台登录）：标题行显示编辑与删除入口
   if (loadSessionBy(platform)?.login === user) {
@@ -1025,41 +1050,85 @@ export async function initDetail(init: DetailInit): Promise<void> {
     });
     els.actions.appendChild(del);
   }
-  // 仓库信息 / release / issue 拉取失败不阻断正文渲染（部分平台匿名受限）
-  // issue 优先读互动缓存（列表/集合页列出 issues 时写入）——命中时不再列出全部
-  const cachedEngagement = readRepoEngagement(platform, user, repo);
-  const cachedIssue = cachedEngagement?.[slug];
-  const loaded = await Promise.all([
-    preloaded ??
-    loadSubmissionContent(platform, user, repo, slug).catch((error) => {
-      if (isRateLimitError(error)) showApiLimitNotice(platform);
-      throw error;
-    }),
-    loadRepoInfo(platform, user, repo).catch(() => null),
-    loadReleases(platform, user, repo).catch(() => []),
-    cachedIssue
-      ? Promise.resolve([
-          {
-            number: cachedIssue.number,
-            title: slug,
-            htmlUrl: `${platformRepoUrl(platform, user, repo)}/issues/${cachedIssue.number}`,
-            comments: cachedIssue.comments,
-            createdAt: '',
-            state: 'open' as const,
-            likes: cachedIssue.likes,
-          },
-        ])
-      : loadIssues(platform, user, repo).catch(() => [] as IssueInfo[]),
-  ]).catch((error: unknown) => {
-    // 源稿件 404：视为已删除——清除索引缓存并展示引导界面
-    if (isSubmissionMissingError(error)) {
-      forgetSubmissionFromCache(entry);
-      renderDeleted(entry, labels, els);
-      return null;
+
+  /** 按指定平台/仓库装载全部数据（issue 优先读互动缓存）；内容失败即整体失败 */
+  const loadAll = (
+    p: Platform,
+    u: string,
+    r: string,
+    reusePreloaded: boolean,
+  ): Promise<[SubmissionContent, RepoInfo | null, ReleaseInfo[], IssueInfo[]]> => {
+    const cachedEngagement = readRepoEngagement(p, u, r);
+    const cachedIssue = cachedEngagement?.[slug];
+    return Promise.all([
+      reusePreloaded && preloaded
+        ? Promise.resolve(preloaded)
+        : loadSubmissionContent(p, u, r, slug).catch((error) => {
+            if (isRateLimitError(error)) showApiLimitNotice(p);
+            throw error;
+          }),
+      loadRepoInfo(p, u, r).catch(() => null),
+      loadReleases(p, u, r).catch(() => []),
+      cachedIssue
+        ? Promise.resolve([
+            {
+              number: cachedIssue.number,
+              title: slug,
+              htmlUrl: `${platformRepoUrl(p, u, r)}/issues/${cachedIssue.number}`,
+              comments: cachedIssue.comments,
+              createdAt: '',
+              state: 'open' as const,
+              likes: cachedIssue.likes,
+            },
+          ])
+        : loadIssues(p, u, r).catch(() => [] as IssueInfo[]),
+    ]);
+  };
+
+  // 内容仓数据失败（任意原因）：按索引 mirrors 记录依次尝试镜像仓；
+  // 镜像成功后线路切换为镜像平台，issue/release 按标题/标签匹配镜像仓数据
+  // （索引记录的 id 属源仓库，不适用于镜像）
+  let loaded: Awaited<ReturnType<typeof loadAll>> | null = null;
+  if (entryFromMirror) {
+    // 索引与线路兜底都已失败，条目直接来自镜像：跳过源仓库装载
+    platform = entryFromMirror.platform;
+    user = entryFromMirror.owner;
+    repo = entryFromMirror.repo;
+    init.user = user;
+    init.repo = repo;
+    setStoredLine(platform);
+    loaded = await loadAll(platform, user, repo, true);
+  } else {
+    try {
+      loaded = await loadAll(platform, user, repo, true);
+    } catch (primaryError) {
+      preloaded = null; // 源仓库的兜底内容不适用于镜像重试
+      for (const target of await loadMirrorTargets(user, repo)) {
+        try {
+          loaded = await loadAll(target.platform, target.owner, target.repo, false);
+          platform = target.platform;
+          user = target.owner;
+          repo = target.repo;
+          init.user = user;
+          init.repo = repo;
+          // 线路切换为镜像平台（不重载：索引记录的平台仍是源，重载会被自动切线切回）
+          setStoredLine(platform);
+          break;
+        } catch {
+          /* 该镜像不可用，尝试下一个 */
+        }
+      }
+      if (!loaded) {
+        // 全部镜像失败：按原始错误处理（404 视为已删除）
+        if (isSubmissionMissingError(primaryError)) {
+          forgetSubmissionFromCache(entry);
+          renderDeleted(entry, labels, els);
+          return;
+        }
+        throw primaryError;
+      }
     }
-    throw error;
-  });
-  if (!loaded) return;
+  }
   const [content, repoInfo, releases, issues] = loaded;
 
   // 封面（有则先于参数显示；相对文件名经 applyCover 解析为 raw 地址）

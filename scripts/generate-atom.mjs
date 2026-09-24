@@ -16,9 +16,25 @@ const esc = (s) =>
 const entryDate = (s) => s.publishedAt ?? s.submittedAt;
 const viewUrl = (s) => `${SITE}/view/${s.owner}/${s.repo}/${s.slug}`;
 
+// 封面 raw 链接：cover 为稿件目录内的文件名，按平台拼内容仓 raw 地址；
+// 已是完整 URL 则原样使用
+const encodePath = (...parts) => parts.map(encodeURIComponent).join("/");
+const rawBase = {
+  github: (s) => `https://raw.githubusercontent.com/${s.owner}/${s.repo}/HEAD`,
+  gitee: (s) => `https://gitee.com/${s.owner}/${s.repo}/raw/main`,
+  atomgit: (s) => `https://atomgit.com/${s.owner}/${s.repo}/raw/main`,
+};
+const coverUrl = (s) => {
+  if (!s.cover) return null;
+  if (/^https?:\/\//.test(s.cover)) return s.cover;
+  const base = rawBase[s.platform]?.(s) ?? rawBase.github(s);
+  return `${base}/${encodePath("posts", s.slug, s.cover)}`;
+};
+
 const entries = [...submissions]
   .sort((a, b) => (entryDate(a) < entryDate(b) ? 1 : -1))
-  .slice(0, ATOM_LIMIT);
+  .slice(0, ATOM_LIMIT)
+  .map((s) => ({ ...s, coverUrl: coverUrl(s) }));
 
 const feedUpdated = entries.length ? entries[0].publishedAt ?? entries[0].submittedAt : new Date().toISOString();
 
@@ -35,7 +51,7 @@ ${entries
     <id>${esc(viewUrl(s))}</id>
     <title>${esc(s.title)}</title>
     <link rel="alternate" type="text/html" href="${esc(viewUrl(s))}"/>
-    <published>${s.submittedAt}</published>
+${s.coverUrl ? `    <summary type="html">${esc(`<img src="${s.coverUrl}" alt="${s.title}"/>`)}</summary>\n` : ""}    <published>${s.submittedAt}</published>
     <updated>${entryDate(s)}</updated>
     <author>
       <name>${esc(s.author ?? s.owner)}</name>

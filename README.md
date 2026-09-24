@@ -85,7 +85,7 @@
 
 1. 主站编辑器完成投稿后，向本仓库的 `main` 分支发送一个**轻量 PR**，直接修改投稿月份对应的 `index/archive/YYYY-MM.json`，写入当前稿件的必要索引内容与用户记录（归档长度不设限，只追加不删改他人条目）。
 2. PR 触发 `validate.yml` 门禁；校验通过后自动合入（squash）。
-3. 合入触发 `rebuild.yml`：合并全部归档、去重、按投稿时间倒序截取最近 `currentLimit` 条生成 `current.json`，重算 `archives` 元数据，并由 `current.json` 生成 RSS 兼容的 Atom feed `index/atom.xml`（最近 50 条，条目链接 `https://svp.lyoko.cn/view/{user}/{repo}/{slug}`，可用环境变量 `SITE_URL`/`ATOM_LIMIT` 覆盖）。
+3. 合入触发 `rebuild.yml`：合并全部归档、去重、按投稿时间倒序截取最近 `currentLimit` 条生成 `current.json`，重算 `archives` 元数据，并由 `current.json` 生成 RSS 兼容的 Atom feed `index/atom.xml`（最近 50 条，条目链接 `https://svp.lyoko.cn/view/{user}/{repo}/{slug}`，封面以 `<img>` 插入 `summary`——raw 链接按平台拼接 `posts/{slug}/{cover}`，可用环境变量 `SITE_URL`/`ATOM_LIMIT` 覆盖）。
 
 ### 修改投稿
 

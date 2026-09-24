@@ -44,6 +44,7 @@ stages:
     - '# 检查修改生成文件和是否修改多于1个文件'
     - ""
     - diff -q index/current.json ../HEAD/index/current.json
+    - if [ -f index/atom.xml ]; then diff -q index/atom.xml ../HEAD/index/atom.xml; fi
     - if [[ $(diff -r -q --exclude=".git" . ../HEAD | wc -l) -gt 1 ]]; then exit 1; fi
     - ""
     - '# 归档以外的文件仅允许 mirrors.json（黑名单/配置/门禁改动请走 GitHub PR）'

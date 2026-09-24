@@ -13,6 +13,7 @@
 .
 ├── index/
 │   ├── current.json        # 派生数据：最近投稿（长度由 config.json 的 currentLimit 配置）+ 用户记录 + 归档元数据（CI 生成，禁止手改）
+│   ├── atom.xml            # 派生数据：RSS 兼容的 Atom feed，最近投稿与详情页链接（CI 生成，禁止手改）
 │   └── archive/
 │       └── YYYY-MM.json    # 按月份的归档索引，事实来源，投稿 PR 直接修改（不限长度）
 ├── schema/
@@ -25,7 +26,10 @@
 │   ├── check-submitted-at.mjs  # 投稿日期不可变校验（PR 门禁与镜像门禁共用）
 │   ├── check-pr-scope.mjs      # PR 范围检查（多投稿/删文件转人工审核）
 │   ├── mirror-gate.sh          # 镜像门禁入口：校验归档后调用同步
-│   └── sync-to-github.mjs      # 用 GitHub token 将镜像改动以 PR 提交到主索引仓
+│   ├── sync-to-github.mjs      # 用 GitHub token 将镜像改动以 PR 提交到主索引仓
+│   ├── check-mirrors.mjs       # 镜像索引单 key + svp-archive.json 一致性校验
+│   ├── check-blacklist.mjs     # 黑名单校验（git 提交与索引条目的作者/邮箱）
+│   └── generate-atom.mjs       # 从 current.json 生成 Atom feed（index/atom.xml）
 ├── config.json             # 索引仓配置：currentLimit（current.json 稿件数上限，默认 1024）
 ├── .github/workflows/
 │   ├── validate.yml        # PR 格式校验门禁 + 自动合入
@@ -81,7 +85,7 @@
 
 1. 主站编辑器完成投稿后，向本仓库的 `main` 分支发送一个**轻量 PR**，直接修改投稿月份对应的 `index/archive/YYYY-MM.json`，写入当前稿件的必要索引内容与用户记录（归档长度不设限，只追加不删改他人条目）。
 2. PR 触发 `validate.yml` 门禁；校验通过后自动合入（squash）。
-3. 合入触发 `rebuild.yml`：合并全部归档、去重、按投稿时间倒序截取最近 `currentLimit` 条生成 `current.json`，并重算 `archives` 元数据。
+3. 合入触发 `rebuild.yml`：合并全部归档、去重、按投稿时间倒序截取最近 `currentLimit` 条生成 `current.json`，重算 `archives` 元数据，并由 `current.json` 生成 RSS 兼容的 Atom feed `index/atom.xml`（最近 50 条，条目链接 `https://svp.lyoko.cn/view/{user}/{repo}/{slug}`，可用环境变量 `SITE_URL`/`ATOM_LIMIT` 覆盖）。
 
 ### 修改投稿
 

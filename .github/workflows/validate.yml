@@ -32,11 +32,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Reject manual edits to derived current.json
+      - name: Reject manual edits to derived files
         run: |
-          changed=$(git diff --name-only "origin/${{ github.base_ref }}...pr-head" -- index/current.json)
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}...pr-head" -- index/current.json index/atom.xml)
           if [ -n "$changed" ]; then
-            echo "::error::index/current.json 是由 Action 生成的派生数据，请修改 index/archive/ 下的归档索引"
+            echo "::error::${changed} 是由 Action 生成的派生数据，请修改 index/archive/ 下的归档索引"
             exit 1
           fi
       - name: Check submission date immutability

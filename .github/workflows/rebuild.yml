@@ -25,10 +25,12 @@ jobs:
         run: node scripts/rebuild.mjs
         env:
           GITHUB_TOKEN: ${{ github.token }}
+      - name: Generate atom feed
+        run: node scripts/generate-atom.mjs
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(index): rebuild current index from archives"
-          file_pattern: index/current.json index/archive/**
+          commit_message: "chore(index): rebuild current index and atom feed"
+          file_pattern: index/current.json index/archive/** index/atom.xml
       - name: Push rebuilt index to AtomGit mirror (atomgit branch)
         env:
           ATOMGIT_TOKEN: ${{ secrets.ATOMGIT_TOKEN }}

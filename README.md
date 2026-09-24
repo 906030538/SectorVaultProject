@@ -131,8 +131,10 @@
 
 | 平台    | 流水线配置                          | 密钥配置                                                  |
 | ------- | ----------------------------------- | --------------------------------------------------------- |
-| Gitee   | `.workflow/mirror-gate.yml`（Go）   | 流水线参数中配置密钥 `SVP_GITHUB_TOKEN`                   |
+| Gitee   | `.workflow/mirror-gate.yml`（推送）；`.workflow/validate.yml`（PR 门禁） | 推送密钥 `SVP_GITHUB_TOKEN`；合入密钥 `SVP_MERGE_BOT` |
 | Atomgit | `.gitcode/workflows/mirror-gate.yml`| 仓库密钥 `SVP_GITHUB_TOKEN`                               |
+
+Gitee 侧的 PR 门禁 `.workflow/validate.yml`（`triggers.pr`，目标分支 `index`）能力对齐 GitHub 侧：schema 校验（归档/config/黑名单/镜像索引）、投稿日期不可变且不得晚于当前时间、黑名单（PR 提交与索引条目的作者/邮箱）、镜像索引单 key 与 `svp-archive.json` 一致性、派生数据保护（`current.json` 禁改）、单文件限制（仅允许一个归档文件或 `index/mirrors.json`）。校验全部通过后以 ff-only 方式合入目标分支（使用密钥 `SVP_MERGE_BOT`）；任何校验失败即流水线失败，不合入。
 
 ### 无流水线平台：atomgit 分支直推
 

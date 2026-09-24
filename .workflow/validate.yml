@@ -1,6 +1,6 @@
 version: "1.0"
 name: validate
-displayName: 自动合入
+displayName: "PR 门禁：校验归档索引"
 stages:
 - name: 门禁
   displayName: 门禁
@@ -15,15 +15,22 @@ stages:
     - '# 设置NPM源，提升安装速度'
     - npm config set registry https://registry.npmmirror.com
     - set -e
+    - WORKDIR=$(pwd)
     - ""
-    - '# 校验模版正确'
+    - '# 校验 schema：归档 / config / 黑名单 / 镜像索引'
     - ""
     - if ls index/archive/*.json >/dev/null 2>&1; then
     - npx --yes ajv-cli validate -s schema/archive.schema.json -r schema/submission.schema.json
       -r schema/user.schema.json -d "index/archive/*.json" --spec=draft7
     - fi
+    - npx --yes ajv-cli validate -s schema/config.schema.json -d config.json --spec=draft7
+    - npx --yes ajv-cli validate -s schema/blacklist.schema.json -d blacklist.json --spec=draft7
+    - if [ -f index/mirrors.json ]; then
+    - npx --yes ajv-cli validate -s schema/mirrors.schema.json -d index/mirrors.json --spec=draft7
+    - fi
     - ""
-    - '# 拉取源提交'
+    - '# 拉取源提交（目标分支基线与 PR 源提交）'
+    - ""
     - rm -rf ../HEAD/
     - mkdir ../HEAD/
     - pushd ../HEAD/
@@ -31,21 +38,41 @@ stages:
     - git remote add origin https://${GITEE_PIPELINE_TRIGGER_USER}:${SVP_MERGE_BOT}@gitee.com/${GITEE_REPO}
     - git fetch origin ${GITEE_COMMIT}
     - git reset --hard ${GITEE_COMMIT}
+    - git fetch origin ${GITEE_SOURCE_COMMIT}
     - popd
     - ""
     - '# 检查修改生成文件和是否修改多于1个文件'
+    - ""
     - diff -q index/current.json ../HEAD/index/current.json
     - if [[ $(diff -r -q --exclude=".git" . ../HEAD | wc -l) -gt 1 ]]; then exit 1; fi
     - ""
-    - '# 检查不允许修改的字段'
+    - '# 归档以外的文件仅允许 mirrors.json（黑名单/配置/门禁改动请走 GitHub PR）'
+    - ""
+    - files=$(diff -r -q --exclude=".git" . ../HEAD | awk '{print $2}' | sed 's|^\./||')
+    - echo "changed files: $files"
+    - non_allowed=$(echo "$files" | grep -v -e '^index/archive/[0-9]\{4\}-[0-9]\{2\}\.json$' -e '^index/mirrors\.json$' || true)
+    - if [ -n "$non_allowed" ]; then echo "不允许修改: $non_allowed"; exit 1; fi
+    - ""
+    - '# 检查不允许修改的字段与未来日期（不可变 + 不得晚于当前时间）'
+    - ""
     - node scripts/check-submitted-at.mjs ../HEAD/index/archive index/archive
+    - ""
+    - '# 黑名单：PR 提交与索引条目的作者/邮箱'
+    - ""
+    - pushd ../HEAD/
+    - node "$WORKDIR/scripts/check-blacklist.mjs" ${GITEE_COMMIT} ${GITEE_SOURCE_COMMIT}
+    - popd
+    - ""
+    - '# 镜像索引：仅在改动时做单 key + svp-archive.json 一致性校验'
+    - ""
+    - if ! diff -q index/mirrors.json ../HEAD/index/mirrors.json >/dev/null 2>&1; then
+    - node scripts/check-mirrors.mjs ../HEAD/index/mirrors.json index/mirrors.json
+    - fi
     - ""
     - '# 校验是否是单个commit'
     - ""
     - cd ../HEAD/
-    - git fetch origin ${GITEE_BRANCH}
     - git checkout -B ${GITEE_BRANCH}
-    - git fetch origin ${GITEE_SOURCE_COMMIT}
     - if [[ ${GITEE_COMMIT} != $(git rev-parse ${GITEE_SOURCE_COMMIT}^1) ]]; then exit 1; fi
     - ""
     - '# 合入提交'
@@ -58,16 +85,6 @@ stages:
       resource:
         cpu: "1"
         memory: "2"
-  # - step: merge-pr@gitee
-  #   name: merge
-  #   displayName: 合并 PR
-  #   token: $SVP_MERGE_BOT
-  #   mergeMethod: merge
-  #   pruneSourceBranch: "true"
-  #   closeRelatedIssue: "false"
-  #   strategy:
-  #     retry: "0"
-  #   dependsOn: validate
 triggers:
   trigger: auto
   pr:
@@ -80,6 +97,7 @@ triggers:
       precise: []
       include:
       - index/archive/.*
+      - index/mirrors.json
 notify: []
 variables:
   global:

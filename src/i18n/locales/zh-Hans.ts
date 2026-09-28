@@ -19,11 +19,11 @@ const zhHans = {
   'line.atomgit': 'AtomGit · 国内镜像',
   'line.gitcode': 'GitCode · 国内镜像',
   'line.all': '全部平台',
-    'auth.expiredTitle': '登录过期',
+  'auth.expiredTitle': '登录过期',
   'auth.expiredHint': '登录令牌已失效，本地登录信息已清除。可重新登录，或刷新后以匿名方式访问。',
   'auth.relogin': '重新登录',
   'auth.anonymousAccess': '匿名访问',
-'auth.title': '授权登录',
+  'auth.title': '授权登录',
   'auth.intro': '选择数据托管平台，注册账号并创建令牌，授权本站访问你的内容仓库。',
   'auth.loggedIn': '已登陆',
   'auth.tokenHint': '如果 OAuth 代理不可用，可以尝试使用令牌登录：',
@@ -113,7 +113,7 @@ const zhHans = {
   'detail.like': '点赞',
   'detail.liked': '已点赞',
   'detail.licenseCustomName': '自定义',
-'detail.commentsDisabled': '评论区已禁用',
+  'detail.commentsDisabled': '评论区已禁用',
   'detail.commentsClosed': '已关闭评论区',
   'detail.issueReopen': '启用',
   'detail.issueClose': '关闭',
@@ -297,8 +297,6 @@ const zhHans = {
   'editor.errPassword': '加密文件需要密码',
   'editor.errCoverType': '封面必须是图片',
   'editor.errLoad': '稿件内容加载失败',
-
-  'footer.powered': 'Powered by DecentCMS',
 };
 
 export type MessageKey = keyof typeof zhHans;

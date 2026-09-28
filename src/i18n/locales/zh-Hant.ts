@@ -21,11 +21,11 @@ const zhHant: Record<MessageKey, string> = {
   'line.atomgit': 'AtomGit · 國內鏡像',
   'line.gitcode': 'GitCode · 國內鏡像',
   'line.all': '全部平台',
-    'auth.expiredTitle': '登入過期',
+  'auth.expiredTitle': '登入過期',
   'auth.expiredHint': '登入權杖已失效，本地登入資訊已清除。可重新登入，或重新整理後以匿名方式存取。',
   'auth.relogin': '重新登入',
   'auth.anonymousAccess': '匿名存取',
-'auth.title': '授權登入',
+  'auth.title': '授權登入',
   'auth.intro': '選擇資料託管平台，註冊帳號並創建權杖，授權本站存取你的內容倉庫。',
   'auth.loggedIn': '已登入',
   'auth.tokenHint': '如果 OAuth 代理不可用，可以嘗試使用令牌登入：',
@@ -115,7 +115,7 @@ const zhHant: Record<MessageKey, string> = {
   'detail.like': '點讚',
   'detail.liked': '已點讚',
   'detail.licenseCustomName': '自訂',
-'detail.commentsDisabled': '評論區已停用',
+  'detail.commentsDisabled': '評論區已停用',
   'detail.commentsClosed': '已關閉評論區',
   'detail.issueReopen': '啟用',
   'detail.issueClose': '關閉',
@@ -299,8 +299,6 @@ const zhHant: Record<MessageKey, string> = {
   'editor.errPassword': '加密檔案需要密碼',
   'editor.errCoverType': '封面必須是圖片',
   'editor.errLoad': '稿件內容載入失敗',
-
-  'footer.powered': 'Powered by DecentCMS',
 };
 
 export default zhHant;

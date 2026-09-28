@@ -21,11 +21,11 @@ const en: Record<MessageKey, string> = {
   'line.atomgit': 'AtomGit · CN mirror',
   'line.gitcode': 'GitCode · CN mirror',
   'line.all': 'All platforms',
-    'auth.expiredTitle': 'Login expired',
+  'auth.expiredTitle': 'Login expired',
   'auth.expiredHint': 'The saved token is no longer valid and local login data has been cleared. Log in again, or refresh to continue anonymously.',
   'auth.relogin': 'Log in again',
   'auth.anonymousAccess': 'Continue anonymously',
-'auth.title': 'Authorize & sign in',
+  'auth.title': 'Authorize & sign in',
   'auth.intro': 'Choose your data hosting platform, register an account and create a token so this site can access your content repositories.',
   'auth.loggedIn': 'logged in',
   'auth.tokenHint': 'If the OAuth proxy is unavailable, try logging in with a token:',
@@ -115,7 +115,7 @@ const en: Record<MessageKey, string> = {
   'detail.like': 'Like',
   'detail.liked': 'Liked',
   'detail.licenseCustomName': 'Custom',
-'detail.commentsDisabled': 'Comments are disabled',
+  'detail.commentsDisabled': 'Comments are disabled',
   'detail.commentsClosed': 'Comments are closed',
   'detail.issueReopen': 'Reopen',
   'detail.issueClose': 'Close',
@@ -300,8 +300,6 @@ const en: Record<MessageKey, string> = {
   'editor.errPassword': 'Encrypted files require a password',
   'editor.errCoverType': 'Cover must be an image',
   'editor.errLoad': 'Failed to load submission content',
-
-  'footer.powered': 'Powered by DecentCMS',
 };
 
 export default en;

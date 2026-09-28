@@ -21,11 +21,11 @@ const ja: Record<MessageKey, string> = {
   'line.atomgit': 'AtomGit · 中国ミラー',
   'line.gitcode': 'GitCode · 中国ミラー',
   'line.all': 'すべてのプラットフォーム',
-    'auth.expiredTitle': 'ログイン期限切れ',
+  'auth.expiredTitle': 'ログイン期限切れ',
   'auth.expiredHint': '保存されたトークンが無効になったため、ローカルのログイン情報を消去しました。再ログインするか、再読み込みして匿名で続行できます。',
   'auth.relogin': '再ログイン',
   'auth.anonymousAccess': '匿名で続行',
-'auth.title': '認証してログイン',
+  'auth.title': '認証してログイン',
   'auth.intro': 'データホスティングプラットフォームを選択し、アカウントを登録してトークンを作成し、本サイトがコンテンツリポジトリにアクセスすることを許可してください。',
   'auth.loggedIn': 'ログイン済み',
   'auth.tokenHint': 'OAuth プロキシが利用できない場合はトークンでのログインを試してください：',
@@ -115,7 +115,7 @@ const ja: Record<MessageKey, string> = {
   'detail.like': 'いいね',
   'detail.liked': 'いいね済み',
   'detail.licenseCustomName': 'カスタム',
-'detail.commentsDisabled': 'コメント欄は無効です',
+  'detail.commentsDisabled': 'コメント欄は無効です',
   'detail.commentsClosed': 'コメントは締め切られています',
   'detail.issueReopen': '再開',
   'detail.issueClose': '締め切る',
@@ -300,8 +300,6 @@ const ja: Record<MessageKey, string> = {
   'editor.errPassword': '暗号化ファイルにはパスワードが必要です',
   'editor.errCoverType': 'カバーは画像である必要があります',
   'editor.errLoad': '作品の読み込みに失敗しました',
-
-  'footer.powered': 'Powered by DecentCMS',
 };
 
 export default ja;

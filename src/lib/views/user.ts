@@ -155,8 +155,13 @@ function dialogShell(title: string): { overlay: HTMLElement; body: HTMLElement }
 /**
  * 新建集合对话框：前缀 + 名称、属主（账户/组织）、模板库（可不使用）、默认许可证（可自定义）。
  * 前缀与模板列表来自 deployment.json（repoPrefix / templates），属主含账户所在组织。
+ * onCreated 在创建成功时回调（完整 仓库名），供编辑器刷新仓库下拉。
  */
-async function openCreateDialog(init: UserInit, platform: Platform): Promise<void> {
+export async function openCreateDialog(
+  init: Pick<UserInit, 'labels'>,
+  platform: Platform,
+  onCreated?: (fullRepoName: string) => void,
+): Promise<void> {
   const { labels } = init;
   const session = loadSessionBy(platform)!;
   const { overlay, body } = dialogShell(labels.newCollection);
@@ -292,6 +297,7 @@ async function openCreateDialog(init: UserInit, platform: Platform): Promise<voi
       });
       status.textContent = labels.created;
       create.removeAttribute('disabled');
+      if (onCreated) onCreated(`${ownerSelect.value}/${prefixInput.value.trim()}${repoName}`);
       setTimeout(() => overlay.remove(), 800);
     } catch (err) {
       status.classList.add('hidden');

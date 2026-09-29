@@ -4,6 +4,10 @@ import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, SUPP
   } from '@/config';
 import { withBase } from '@/lib/base';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
+import { openAuthDialog } from '@/lib/auth-dialog';
+import { buildAuthLabels, buildUserLabels } from '@/lib/labels';
+import { getClientLocale } from '@/lib/i18n-client';
+import { openCreateDialog } from '@/lib/views/user';
 import { getToken, loadSession, loadSessionBy, saveSession, setToken } from '@/lib/auth';
 import { loadReleases, loadSubmissionContent, type ProjectFile } from '@/lib/content';
 import {
@@ -179,48 +183,6 @@ function section(title: string): { box: HTMLElement; content: HTMLElement } {
   const content = el('div', 'flex flex-col gap-2');
   box.appendChild(content);
   return { box, content };
-}
-
-/** 登录门控（仅真实模式）：平台下拉 + token 粘贴验证 */
-function renderAuthGate(root: HTMLElement, labels: EditorLabels): void {
-  root.textContent = '';
-  const card = el('div', 'card flex max-w-md flex-col gap-3 p-6');
-  card.setAttribute('data-role', 'auth');
-  card.appendChild(el('p', 'text-sm font-medium', labels.authRequired));
-
-  const platformSelect = el('select', 'input w-full');
-  platformSelect.setAttribute('data-field', 'platform');
-  for (const platform of SUPPORTED_PLATFORMS) {
-    const option = el('option', undefined, platform);
-    option.value = platform;
-    platformSelect.appendChild(option);
-  }
-
-  const tokenInput = el('input', 'input w-full');
-  tokenInput.type = 'password';
-  tokenInput.placeholder = labels.tokenPh;
-  tokenInput.setAttribute('data-field', 'token');
-
-  const error = el('p', 'hidden text-sm text-rose-600', labels.tokenBad);
-
-  const button = el('button', 'btn btn-primary', labels.tokenSave);
-  button.type = 'button';
-  button.addEventListener('click', async () => {
-    const platform = platformSelect.value as Platform;
-    const token = tokenInput.value.trim();
-    if (!token) return;
-    try {
-      const viewer = await (await getAdapterAsync(platform)).getViewer(token);
-      setToken(platform, token);
-      saveSession(viewer);
-      window.location.reload();
-    } catch {
-      error.classList.remove('hidden');
-    }
-  });
-
-  card.append(el('label', 'text-xs text-slate-500', labels.platform), platformSelect, tokenInput, error, button);
-  root.appendChild(card);
 }
 
 function renderListInput(
@@ -925,13 +887,14 @@ export async function initEditor(
 ): Promise<void> {
   root.textContent = '';
   const isEdit = config.mode === 'edit';
-  // 当前线路的平台集合：新建模式的登录门控与仓库下拉只看这些平台（线路切换后随线路走）
+  // 当前线路的平台集合：新建模式的仓库下拉只看这些平台（线路切换后随线路走）
   const linePlatforms = [...new Set((await getLineSources()).map((source) => source.platform))];
-  // 编辑模式的平台由稿件决定（线路可能不同），保持任一平台令牌即可进入
-  const hasAnyToken = SUPPORTED_PLATFORMS.some((platform) => getToken(platform));
-  if (!hasAnyToken || (!isEdit && !linePlatforms.some((platform) => getToken(platform)))) {
-    renderAuthGate(root, labels);
-    return;
+  // 未登录不再拦截表单：直接展示投稿界面，同时弹出与导航栏登录按钮相同的授权对话框
+  if (!isEdit && !linePlatforms.some((platform) => getToken(platform))) {
+    void openAuthDialog(
+      buildAuthLabels(getClientLocale()),
+      (linePlatforms[0] as 'github' | 'gitee' | 'atomgit') ?? undefined,
+    );
   }
 
   const form = el('form', 'flex max-w-3xl flex-col gap-5');
@@ -1110,6 +1073,25 @@ export async function initEditor(
           : first;
       repoSelect.value = wanted;
       applyRepoSelection();
+    } else if (!isEdit) {
+      // 已登录但没有任何可用集合仓库：弹出创建集合对话框，成功后补入下拉并选中
+      const platform = linePlatforms.find((p) => getToken(p));
+      const session = platform ? loadSessionBy(platform) : null;
+      if (platform && session) {
+        void openCreateDialog({ labels: buildUserLabels(getClientLocale()) }, platform, (fullRepoName) => {
+          const [owner, name] = fullRepoName.split('/');
+          if (!owner || !name) return;
+          const option = { user: owner, repo: name, platform };
+          if (!repoOptions.some((o) => `${o.user}/${o.repo}` === fullRepoName)) {
+            repoOptions.push(option);
+            const node = el('option', undefined, fullRepoName);
+            node.value = fullRepoName;
+            repoSelect.appendChild(node);
+          }
+          repoSelect.value = fullRepoName;
+          applyRepoSelection();
+        });
+      }
     }
   };
 

@@ -111,6 +111,7 @@
 | 派生数据保护   | 禁止手改 `index/current.json`（由 Action 生成，PR 中出现该文件改动即失败）                         |
 | 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败；`submittedAt`/`publishedAt` 不得晚于当前时间（预留 5 分钟时钟偏差） |
 | PR 范围限制    | 删除任何文件、或一次修改多个稿件（新增+改动 > 1 条）的 PR 不自动合并，评论说明原因并请求管理员审核 |
+| PR 身份校验    | PR 用户名必须与被改动（新增/修改/删除）条目中同平台条目的 `owner` 一致，不一致转人工审核；跨平台镜像条目由各自平台门禁把关 |
 | 黑名单        | `blacklist.json` 的规则（name/email 正则，同一规则内 AND）校验 git 提交与索引条目的作者/邮箱，命中即失败 |
 | 镜像索引      | `index/mirrors.json` 单次 PR 只允许修改一个顶层 key；修改时抓取源仓库与全部镜像仓根目录的 `svp-archive.json`，其 `mirrors` 字段必须与源仓库完全一致（顺序不敏感；不可达即失败） |
 | JSON 语法      | `index/archive/*.json` 必须是合法 JSON                                                             |

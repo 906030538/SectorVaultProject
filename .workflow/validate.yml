@@ -70,6 +70,10 @@ stages:
     - node scripts/check-mirrors.mjs ../HEAD/index/mirrors.json index/mirrors.json
     - fi
     - ""
+    - '# PR 作者必须是同平台（gitee）被改动条目的 owner，否则不合入'
+    - ""
+    - node scripts/check-pr-owner.mjs ../HEAD/index/archive index/archive ${GITEE_PIPELINE_TRIGGER_USER} gitee
+    - ""
     - '# 校验是否是单个commit'
     - ""
     - cd ../HEAD/

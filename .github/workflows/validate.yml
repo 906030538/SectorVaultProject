@@ -88,6 +88,16 @@ jobs:
             echo "改动归档以外的文件，转人工审核: $non_archive"
             echo "decision=review" >> "$GITHUB_OUTPUT"
           fi
+          # PR 作者必须是同平台被改动条目的 owner（跨平台镜像条目除外）
+          if ! node scripts/check-pr-owner.mjs \
+              index/archive ../pr/index/archive \
+              "${{ github.event.pull_request.user.login }}" github; then
+            echo "PR 作者与被改动条目的 owner 不一致，转人工审核"
+            echo "decision=review" >> "$GITHUB_OUTPUT"
+            echo "ownerMismatch=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "ownerMismatch=0" >> "$GITHUB_OUTPUT"
+          fi
       - name: Auto merge single-submission PRs
         # fork 来的 PR 中内置 GITHUB_TOKEN 被降级为只读，自动合并必须用 PAT/App token
         if: success() && steps.scope.outputs.decision == 'auto'
@@ -98,7 +108,7 @@ jobs:
       - name: Request admin review for out-of-scope PRs
         if: success() && steps.scope.outputs.decision == 'review'
         run: |
-          gh pr comment "$PR_URL" --body "该 PR 删除了文件或同时修改了多个投稿（changed=${{ steps.scope.outputs.changed }}, deleted=${{ steps.scope.outputs.deleted }}），不能自动合并，需要管理员审核。"
+          gh pr comment "$PR_URL" --body "该 PR 不能自动合并，需要管理员审核（changed=${{ steps.scope.outputs.changed }}, deleted=${{ steps.scope.outputs.deleted }}${{ steps.scope.outputs.ownerMismatch == '1' && ', PR作者与条目owner不一致' || '' }}）。"
           gh pr edit "$PR_URL" --add-reviewer "${{ github.repository_owner }}"
         env:
           GH_TOKEN: ${{ secrets.SVP_BOT_TOKEN || github.token }}

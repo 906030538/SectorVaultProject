@@ -1,0 +1,14 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/view", "destination": "/404.html" },
+    { "source": "/view/*", "destination": "/404.html" },
+    { "source": "/user", "destination": "/404.html" },
+    { "source": "/user/*", "destination": "/404.html" },
+    { "source": "/edit", "destination": "/404.html" },
+    { "source": "/edit/*", "destination": "/404.html" },
+    { "source": "/login", "destination": "/404.html" },
+    { "source": "/login/*", "destination": "/404.html" }
+  ]
+}

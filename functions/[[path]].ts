@@ -1,7 +1,9 @@
-// Cloudflare Pages Functions：根捕获（SPA 回退）
+// Pages Functions 根捕获（SPA 回退）：兼容 Cloudflare Pages 与腾讯云 EdgeOne Pages
 // 所有请求先进本函数：命中静态资源直接返回；未命中时回退 404 页内容
 // （HTTP 200，地址栏不变），由页面内路由组件按 window.location 自行激活。
 // 更具体的 Functions（/gh-oauth/*、/oauth/*）优先于本捕获匹配。
+// 平台差异：CF 的 ASSETS 做无扩展名映射（/404 → 404.html、/about → /about/），
+// EdgeOne 不做——回退须显式取 /404.html，目录页须补尾斜杠重试。
 
 interface PagesEnv {
   ASSETS: { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
@@ -58,8 +60,42 @@ export const onRequest: PagesFunction<PagesEnv> = async (context) => {
     return new Response('Not Found', { status: 404 });
   }
 
-  // ASSETS 把 /404.html 规范化为 /404，直接请求 /404 并以 200 返回其内容
-  const fallback = await context.env.ASSETS.fetch(new Request(new URL('/404', request.url), request));
+  // EdgeOne 的 ASSETS 不做目录页映射：无扩展名未命中先补尾斜杠再试一次
+  // （命中 dist/<dir>/index.html 的真实目录页，如 /about；SPA 路径无目录则继续回退）
+  if (!path.endsWith('/')) {
+    const withSlash = new URL(request.url);
+    withSlash.pathname = `${path}/`;
+    try {
+      const dirPage = await context.env.ASSETS.fetch(new Request(withSlash.href, request));
+      if (dirPage.status < 300) return dirPage;
+    } catch {
+      /* 无目录页，继续走 404 页回退 */
+    }
+  }
+
+  // 取 404 页内容：EdgeOne 需显式 /404.html（无扩展名映射）；CF 会把 /404.html
+  // 规范化 308 到 /404（须跟随一跳）。逐候选取首个 2xx，均未命中退回纯 404
+  let fallback: Response | null = null;
+  for (const candidate of ['/404.html', '/404']) {
+    let page: Response | null = null;
+    try {
+      page = await context.env.ASSETS.fetch(new Request(new URL(candidate, request.url), request));
+      if (page.status >= 300 && page.status < 400) {
+        const pageLocation = page.headers.get('location') ?? '';
+        if (pageLocation) {
+          page = await context.env.ASSETS.fetch(new Request(new URL(pageLocation, request.url), request));
+        }
+      }
+    } catch {
+      page = null;
+    }
+    if (page && page.status < 300) {
+      fallback = page;
+      break;
+    }
+  }
+  if (!fallback) return new Response('Not Found', { status: 404 });
+
   return new Response(fallback.body, {
     status: 200,
     headers: { 'content-type': fallback.headers.get('content-type') ?? 'text/html;charset=utf-8' },

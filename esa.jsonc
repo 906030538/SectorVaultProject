@@ -1,0 +1,13 @@
+{
+  // 与 ESA 控制台的项目名对齐（同名项目自动关联；改名或删掉此字段以控制台为准）
+  "name": "sector-vault",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "assets": {
+    "directory": "./dist",
+    // 本站 SPA 外壳是 404.html（路由宿主全部挂在 404 页，首页是落地页没有路由宿主）：
+    // - singlePageApplication → 返回 index.html + 200，内容错误（路由不激活），不可用
+    // - 404Page → 返回 404.html + 404，内容正确、浏览器体验一致（代价见 DEPLOY-ESA.md）
+    "notFoundStrategy": "404Page"
+  }
+}

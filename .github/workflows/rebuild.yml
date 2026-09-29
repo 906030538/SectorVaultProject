@@ -21,6 +21,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Sync index from content repo archives
+        run: node scripts/sync-from-archives.mjs
+      - name: Validate archives after sync
+        run: |
+          if ls index/archive/*.json >/dev/null 2>&1; then
+            npx --yes ajv-cli validate \
+              -s schema/archive.schema.json \
+              -r schema/submission.schema.json \
+              -r schema/user.schema.json \
+              -d "index/archive/*.json" --spec=draft7
+          fi
       - name: Rebuild current.json from archives
         run: node scripts/rebuild.mjs
         env:

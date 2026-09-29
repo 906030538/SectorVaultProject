@@ -29,6 +29,8 @@
 │   ├── sync-to-github.mjs      # 用 GitHub token 将镜像改动以 PR 提交到主索引仓
 │   ├── check-mirrors.mjs       # 镜像索引单 key + svp-archive.json 一致性校验
 │   ├── check-blacklist.mjs     # 黑名单校验（git 提交与索引条目的作者/邮箱）
+│   ├── check-pr-owner.mjs      # PR 作者与被改动条目 owner 一致性校验
+│   ├── sync-from-archives.mjs  # 从内容仓 svp-archive.json 同步稿件（补充/移除）
 │   └── generate-atom.mjs       # 从 current.json 生成 Atom feed（index/atom.xml）
 ├── config.json             # 索引仓配置：currentLimit（current.json 稿件数上限，默认 1024）
 ├── .github/workflows/
@@ -94,8 +96,9 @@
 ### 定时任务
 
 - `rebuild.yml` 每月 1 日 12:00 UTC 运行（也可手动触发）：
-  1. **预生成下月归档**：确保下个月的空归档文件 `index/archive/YYYY-MM.json` 存在，投稿 PR 始终有当月文件可写。
-  2. **仓库存活检查**：逐一检查用户索引中记录的仓库（GitHub/Gitee/Atomgit API）是否存在，不存在则从用户记录中删除，并重建 `current.json`。
+  1. **内容仓同步**（`scripts/sync-from-archives.mjs`）：从所有已索引仓库的根目录 `svp-archive.json` 抓取稿件记录，按 slug 与归档对比——缺失的稿件按投稿月份补入归档；内容仓已删除的稿件移除；仓库或 `svp-archive.json` 404/410 视为已删除并移除其全部条目与用户记录，网络/超时等其他错误保留现有条目（防瞬时故障误删）；双方投稿时间不一致时保留索引值并告警。同步后整体 schema 校验，失败则中止不合入。
+  2. **预生成下月归档**：确保下个月的空归档文件 `index/archive/YYYY-MM.json` 存在，投稿 PR 始终有当月文件可写。
+  3. **仓库存活检查**：逐一检查用户索引中记录的仓库（GitHub/Gitee/Atomgit API）是否存在，不存在则从用户记录中删除，并重建 `current.json`。
 
 ### 阅读顺序（主站点加载）
 

@@ -26,10 +26,10 @@ ESA 的回退对全部导航路径统一生效（未命中静态资源即回退�
 
 ## OAuth：依赖 oauthBases 远程代理
 
-ESA 不运行 `functions/`，本站自身的 `/oauth/env` 不存在。前端解析顺序
-（`src/lib/index/sources.ts`）：`deployment.json` 的 **`oauthBases`** 列表依次探测
-`GET <base>/oauth/env`，取首个可达代理（当前为 `https://cf.svp.lyoko.cn`），
-全部不可达才回退本站相对路径。因此 ESA 部署**开箱即用**：
+ESA 不运行 `functions/`，本站自身的 `/oauth/env` 不存在（探测返回 404，跳过）。前端解析顺序
+（`src/lib/index/sources.ts`）：**优先本站** `/oauth/env`，不可用时依次探测 `deployment.json`
+的 **`oauthBases`** 列表（当前 `https://eo.svp.lyoko.cn` → `https://cf.svp.lyoko.cn`），
+取首个返回非空配置的代理。因此 ESA 部署**开箱即用**：
 
 - 登录、token 交换、GitHub 设备流均经远程代理完成（所有 OAuth 端点均带
   `Access-Control-Allow-Origin: *`，跨域可用）；

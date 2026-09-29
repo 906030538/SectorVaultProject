@@ -24,7 +24,7 @@ export interface DeploymentConfig {
   faqPages?: unknown;
   /** 跨子域共享 cookie 的父域（如 svp.lyoko.cn；令牌/会话镜像到该域） */
   cookieDomain?: unknown;
-  /** OAuth 代理基址列表（依次探测取首个可达；兼容旧 oauthBase 单值） */
+  /** OAuth 代理基址列表（本站 /oauth/env 不可用时依次探测取首个可达；兼容旧 oauthBase 单值） */
   oauthBases?: unknown;
   /** OAuth 代理基址（单值，旧字段；建议改用 oauthBases 列表） */
   oauthBase?: unknown;
@@ -154,9 +154,10 @@ interface OauthProxyResolution {
 let oauthProxyPromise: Promise<OauthProxyResolution> | undefined;
 
 /**
- * OAuth 代理选择：依次探测 oauthBases 列表（兼容旧 oauthBase 单值），
- * 取第一个 /oauth/env 可达的代理；全部不可用时回退本站（无基址）。
- * 探测结果连同凭据缓存，避免二次请求。
+ * OAuth 代理选择：优先探测本站 /oauth/env（Functions 部署直接用当前域名），
+ * 不可用时再依次探测 oauthBases 列表（兼容旧 oauthBase 单值）。
+ * 仅接受返回**非空配置**的候选——Functions 已部署但环境变量未配置时 /oauth/env
+ * 返回 200 空对象，视为不可用并继续尝试下一个候选。解析结果连同凭据缓存，避免二次请求。
  */
 function resolveOauthProxy(): Promise<OauthProxyResolution> {
   oauthProxyPromise ??= (async () => {
@@ -167,21 +168,22 @@ function resolveOauthProxy(): Promise<OauthProxyResolution> {
     ]
       .filter((base): base is string => typeof base === 'string' && !!base.trim())
       .map((base) => base.trim().replace(/\/+$/, ''));
-    for (const base of [...new Set(raw)]) {
+    // '' 为本站（相对端点），排在 oauthBases 之前
+    for (const base of ['', ...new Set(raw)]) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 4000);
-        try {
-          const response = await fetch(`${base}/oauth/env`, { signal: controller.signal });
-          if (response.ok) {
-            const env = (await response.json()) as OauthProxyResolution['env'];
-            if (env && typeof env === 'object') return { base, env };
+        const response = await fetch(`${base}/oauth/env`, { signal: controller.signal });
+        if (response.ok) {
+          const env = (await response.json()) as OauthProxyResolution['env'];
+          if (env && typeof env === 'object' && Object.keys(env).length > 0) {
+            return base ? { base, env } : { env };
           }
-        } finally {
-          clearTimeout(timer);
         }
       } catch {
         /* 代理不可达时尝试下一个候选 */
+      } finally {
+        clearTimeout(timer);
       }
     }
     return {};
@@ -189,7 +191,7 @@ function resolveOauthProxy(): Promise<OauthProxyResolution> {
   return oauthProxyPromise;
 }
 
-/** OAuth 端点基址：oauthBases 中首个可达代理；未配置或全部不可达返回 undefined */
+/** OAuth 端点基址：本站可用时返回 undefined（相对端点）；否则为 oauthBases 中首个可达代理 */
 export async function getOauthBase(): Promise<string | undefined> {
   return (await resolveOauthProxy()).base;
 }
@@ -205,14 +207,10 @@ let oauthPromise: Promise<Record<string, OAuthProviderConfig>> | undefined;
 export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>> {
   oauthPromise ??= (async () => {
     const merged: Record<string, OAuthProviderConfig> = {};
-    // 服务端环境变量下发的凭据（oauthBases 代理或本站的 /oauth/env Functions）；
+    // 服务端环境变量下发的凭据（优先本站、其次 oauthBases 代理的 /oauth/env）；
     // GitHub 的 appClientId（App 设备流）与 clientId（OAuth 网页流）相互独立
     try {
-      let envConfig = (await resolveOauthProxy()).env ?? null;
-      if (!envConfig) {
-        const response = await fetch(withBase('/oauth/env'));
-        if (response.ok) envConfig = (await response.json()) as typeof envConfig;
-      }
+      const envConfig = (await resolveOauthProxy()).env;
       if (envConfig) {
         for (const [platform, entry] of Object.entries(envConfig)) {
           const creds: OAuthProviderConfig = { clientId: '' };
@@ -270,7 +268,7 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
 }
 
 /** 平台的可用 OAuth 配置（含默认端点）；clientId（网页流）与 appClientId（设备流）均未配置时返回 null。
- * 相对端点（站内 Functions 代理）在有 oauthBase 时指向 worker 子域，绝对地址原样透传。 */
+ * 相对端点（站内 Functions 代理）在选中 oauthBases 代理时指向该基址；本站优先或无可用代理时为相对路径。 */
 export async function getOAuthConfig(
   platform: Platform,
 ): Promise<(Required<Pick<OAuthProviderConfig, 'clientId' | 'authorizeUrl' | 'tokenUrl' | 'scope'>> &

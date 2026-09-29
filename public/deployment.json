@@ -42,7 +42,8 @@
   },
   "cookieDomain": "svp.lyoko.cn",
   "oauthBases": [
-    "https://cf.svp.lyoko.cn"
+    "https://cf.svp.lyoko.cn",
+    "https://eo.svp.lyoko.cn"
   ],
   "faqPages": [
     "Home",

@@ -4,7 +4,18 @@
   <id>https://svp.lyoko.cn/atom.xml</id>
   <link rel="self" type="application/atom+xml" href="https://svp.lyoko.cn/atom.xml"/>
   <link rel="alternate" type="text/html" href="https://svp.lyoko.cn/project"/>
-  <updated>2026-09-30T15:59:18.310Z</updated>
+  <updated>2026-09-30T16:39:21.703Z</updated>
+  <entry>
+    <id>https://svp.lyoko.cn/view/KarlAurora/svp-SVP/261001-who</id>
+    <title>who?</title>
+    <link rel="alternate" type="text/html" href="https://svp.lyoko.cn/view/KarlAurora/svp-SVP/261001-who"/>
+    <summary type="html">&lt;img src=&quot;https://raw.githubusercontent.com/KarlAurora/svp-SVP/HEAD/posts/261001-who/8a97316228a3fc23928da331f9274b88c79162f4.jpg&quot; alt=&quot;who?&quot;/&gt;</summary>
+    <published>2026-09-30T16:39:21.703Z</published>
+    <updated>2026-09-30T16:39:21.703Z</updated>
+    <author>
+      <name>KarlAurora</name>
+    </author>
+  </entry>
   <entry>
     <id>https://svp.lyoko.cn/view/KarlAurora/svp-SVP/260930-幸福刑</id>
     <title>幸福刑</title>

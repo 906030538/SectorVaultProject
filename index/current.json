@@ -1,6 +1,33 @@
 {
   "submissions": [
     {
+      "cover": "8a97316228a3fc23928da331f9274b88c79162f4.jpg",
+      "email": "1872581107@qq.com",
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "issue": "4",
+      "languages": [
+        "ja"
+      ],
+      "owner": "KarlAurora",
+      "paramState": "tuned",
+      "platform": "github",
+      "publishedAt": "2026-09-30T16:39:21.703Z",
+      "release": "400244187",
+      "repo": "svp-SVP",
+      "slug": "261001-who",
+      "songs": [
+        "who?"
+      ],
+      "submittedAt": "2026-09-30T16:39:21.703Z",
+      "title": "who?",
+      "type": "project",
+      "voicebanks": [
+        "無來"
+      ]
+    },
+    {
       "cover": "84d816dde4b736473f8a795269b1232694edaba6.jpg",
       "email": "1872581107@qq.com",
       "engines": [
@@ -756,7 +783,7 @@
     {
       "file": "2026-09.json",
       "byType": {
-        "project": 1,
+        "project": 2,
         "article": 1
       }
     },

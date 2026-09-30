@@ -1064,23 +1064,23 @@ export async function initDetail(init: DetailInit): Promise<void> {
       reusePreloaded && preloaded
         ? Promise.resolve(preloaded)
         : loadSubmissionContent(p, u, r, slug).catch((error) => {
-            if (isRateLimitError(error)) showApiLimitNotice(p);
-            throw error;
-          }),
+          if (isRateLimitError(error)) showApiLimitNotice(p);
+          throw error;
+        }),
       loadRepoInfo(p, u, r).catch(() => null),
       loadReleases(p, u, r).catch(() => []),
       cachedIssue
         ? Promise.resolve([
-            {
-              number: cachedIssue.number,
-              title: slug,
-              htmlUrl: `${platformRepoUrl(p, u, r)}/issues/${cachedIssue.number}`,
-              comments: cachedIssue.comments,
-              createdAt: '',
-              state: 'open' as const,
-              likes: cachedIssue.likes,
-            },
-          ])
+          {
+            number: cachedIssue.number,
+            title: slug,
+            htmlUrl: `${platformRepoUrl(p, u, r)}/issues/${cachedIssue.number}`,
+            comments: cachedIssue.comments,
+            createdAt: '',
+            state: 'open' as const,
+            likes: cachedIssue.likes,
+          },
+        ])
         : loadIssues(p, u, r).catch(() => [] as IssueInfo[]),
     ]);
   };
@@ -1134,7 +1134,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   // 封面（有则先于参数显示；相对文件名经 applyCover 解析为 raw 地址）
   const figure = document.createElement('figure');
   figure.dataset.role = 'detail-cover';
-  figure.className = 'mb-2 hidden overflow-hidden rounded-xl';
+  figure.className = 'mt-2 hidden overflow-hidden rounded-xl';
   const coverHolder = document.createElement('div');
   coverHolder.className =
     'flex aspect-video w-full max-w-xl items-center justify-center rounded-xl bg-slate-100 text-4xl text-slate-300 dark:bg-slate-800 dark:text-slate-600';

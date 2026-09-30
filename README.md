@@ -174,12 +174,12 @@ Gitee 侧的 PR 门禁 `.workflow/validate.yml`（`triggers.pr`，目标分支 `
 
 ### 镜像索引 `index/mirrors.json`
 
-顶层 key 是源仓库地址，值是该源仓库全部镜像地址的字符串数组：
+顶层 key 是源仓库地址，值是该源仓库全部镜像地址的字符串数组（地址一律不带 `https://` 前缀，格式 `host/owner/repo`）：
 
 ```json
 {
-  "https://github.com/906030538/SectorVaultProject": [
-    "https://gitcode.com/CLCNTanya/SectorVaultProject"
+  "github.com/906030538/SectorVaultProject": [
+    "gitcode.com/CLCNTanya/SectorVaultProject"
   ]
 }
 ```

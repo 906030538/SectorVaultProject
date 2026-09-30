@@ -39,20 +39,23 @@ if (changedKeys.size > 1) {
 if (changedKeys.size) console.log(`modified key: ${[...changedKeys].join(", ")}`);
 
 // 2. 各仓库 svp-archive.json 的 mirrors 字段一致性
+// 地址格式为不带 scheme 的 host/owner/repo（schema 强制），抓取时统一补 https://
 const archiveUrls = (addr) => {
-  const u = addr.replace(/\.git$/, "").replace(/\/+$/, "");
-  const m = u.match(/^https?:\/\/([^/]+)\/([^/]+)\/([^/]+)/);
+  const u = addr.replace(/^https?:\/\//, "").replace(/\.git$/, "").replace(/\/+$/, "");
+  const m = u.match(/^([^/]+)\/([^/]+)\/([^/]+)/);
   if (!m) throw new Error(`无法解析仓库地址: ${addr}`);
   const [, host, owner, repo] = m;
+  // 本机地址用 http（本地/自建实例），其余强制 https
+  const scheme = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(host) ? "http" : "https";
   const urls = [];
   if (host === "github.com" || host === "www.github.com") {
     urls.push(`https://raw.githubusercontent.com/${owner}/${repo}/HEAD/svp-archive.json`);
   } else {
     for (const br of ["HEAD", "main", "master"]) {
-      urls.push(`https://${host}/${owner}/${repo}/raw/${br}/svp-archive.json`);
+      urls.push(`${scheme}://${host}/${owner}/${repo}/raw/${br}/svp-archive.json`);
     }
   }
-  urls.push(`${u}/svp-archive.json`); // 其他托管的兜底
+  urls.push(`${scheme}://${u}/svp-archive.json`); // 其他托管的兜底
   return urls;
 };
 

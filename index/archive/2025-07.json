@@ -1,44 +1,44 @@
 {
   "submissions": [
     {
-      "slug": "250706-今年夏天",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "今年夏天",
-      "submittedAt": "2025-07-06T09:45:00.000Z",
-      "publishedAt": "2026-09-13T20:26:00.000Z",
       "cover": "e44c39d5326ae8449596c43aa75d9b7f09da5c57.jpg",
-      "issue": "IKFR7Q",
-      "release": "1142195",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "issue": "IKFR7Q",
+      "languages": [
+        "zh"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "tuned",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T20:26:00.000Z",
+      "release": "1142195",
+      "repo": "svp-default",
+      "slug": "250706-今年夏天",
+      "songs": [
+        "今年夏天"
+      ],
+      "submittedAt": "2025-07-06T09:45:00.000Z",
       "tags": [
         "夢ノ結唱",
         "毕业",
         "前岛亚美",
         "丸山彩"
       ],
-      "paramState": "tuned",
-      "songs": [
-        "今年夏天"
-      ],
-      "engines": [
-        "Synthesizer V 2"
-      ],
+      "title": "今年夏天",
+      "type": "project",
       "voicebanks": [
         "PASTEL",
         "ROSE"
-      ],
-      "languages": [
-        "zh"
       ]
     }
   ],
   "users": [
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

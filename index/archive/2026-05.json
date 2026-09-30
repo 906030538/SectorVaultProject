@@ -1,16 +1,26 @@
 {
   "submissions": [
     {
-      "slug": "260514-Maihime",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "Maihime",
-      "submittedAt": "2026-05-14T04:05:00.000Z",
-      "publishedAt": "2026-09-15T20:53:17.657Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "issue": "IKG230",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-15T20:53:17.657Z",
+      "release": "1146341",
+      "repo": "svp-default",
+      "slug": "260514-Maihime",
+      "songs": [
+        "Maihime"
+      ],
+      "submittedAt": "2026-05-14T04:05:00.000Z",
       "tags": [
         "夢ノ結唱",
         "D4DJ",
@@ -21,30 +31,20 @@
         "渡濑结月",
         "深川瑠华"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "Maihime"
-      ],
-      "engines": [
-        "Synthesizer V 2"
-      ],
+      "title": "Maihime",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE",
         "PASTEL",
         "HALO"
-      ],
-      "languages": [
-        "ja"
-      ],
-      "issue": "IKG230",
-      "release": "1146341"
+      ]
     }
   ],
   "users": [
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

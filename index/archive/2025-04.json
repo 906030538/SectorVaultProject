@@ -1,44 +1,44 @@
 {
   "submissions": [
     {
-      "slug": "250430-天球彗星",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "天球中彗星跨越夜晚",
-      "submittedAt": "2025-04-30T02:30:00.000Z",
-      "publishedAt": "2026-09-13T20:20:15.020Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
+      ],
+      "issue": "IKFEXI",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T20:20:15.020Z",
+      "release": "1142193",
+      "repo": "svp-default",
+      "slug": "250430-天球彗星",
+      "songs": [
+        "天球、彗星は夜を跨いで"
+      ],
+      "submittedAt": "2025-04-30T02:30:00.000Z",
       "tags": [
         "夢ノ結唱",
         "星街彗星",
         "天球",
         "星街すいせい"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "天球、彗星は夜を跨いで"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "天球中彗星跨越夜晚",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
-      ],
-      "languages": [
-        "ja"
-      ],
-      "issue": "IKFEXI",
-      "release": "1142193"
+      ]
     }
   ],
   "users": [
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

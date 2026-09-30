@@ -1,18 +1,26 @@
 {
   "submissions": [
     {
-      "slug": "260403-皆大欢喜",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "皆大欢喜",
-      "submittedAt": "2026-04-03T04:15:00.000Z",
-      "publishedAt": "2026-09-13T20:31:00.000Z",
       "cover": "82d10118a7d0dda88e700b29e95cf2df6d003157.jpg",
-      "issue": "IKFR7S",
-      "release": "1142198",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "issue": "IKFR7S",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T20:31:00.000Z",
+      "release": "1142198",
+      "repo": "svp-default",
+      "slug": "260403-皆大欢喜",
+      "songs": [
+        "お気に召すまま"
+      ],
+      "submittedAt": "2026-04-03T04:15:00.000Z",
       "tags": [
         "夢ノ結唱",
         "Eve",
@@ -21,60 +29,52 @@
         "ワンダーランズ×ショウタイム",
         "Project SEKAI"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "お気に召すまま"
-      ],
-      "engines": [
-        "Synthesizer V 2"
-      ],
+      "title": "皆大欢喜",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE",
         "PASTEL",
         "HALO",
         "AVER"
-      ],
-      "languages": [
-        "ja"
       ]
     },
     {
-      "slug": "260411-Borderline",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "Borderline",
-      "submittedAt": "2026-04-11T04:15:00.000Z",
-      "publishedAt": "2026-09-15T20:28:51.536Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
-      "paramState": "with-params",
-      "songs": [
-        "Borderline"
-      ],
       "engines": [
         "Synthesizer V 2"
       ],
+      "issue": "IKG225",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-15T20:28:51.536Z",
+      "release": "1146336",
+      "repo": "svp-default",
+      "slug": "260411-Borderline",
+      "songs": [
+        "Borderline"
+      ],
+      "submittedAt": "2026-04-11T04:15:00.000Z",
+      "title": "Borderline",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE",
         "PASTEL",
         "HALO",
         "AVER"
-      ],
-      "languages": [
-        "ja"
-      ],
-      "issue": "IKG225",
-      "release": "1146336"
+      ]
     }
   ],
   "users": [
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

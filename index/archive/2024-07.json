@@ -1,104 +1,104 @@
 {
   "submissions": [
     {
-      "slug": "240704-学猫叫",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "学猫叫",
-      "submittedAt": "2024-07-04T02:00:00.000Z",
-      "publishedAt": "2026-09-13T17:40:58.004Z",
       "cover": "43eec63ed4144a4c1f599becf1b5d5ffffa2182c.jpg",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
+      ],
+      "issue": "IKFED6",
+      "languages": [
+        "zh"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T17:40:58.004Z",
+      "release": "1142066",
+      "repo": "svp-default",
+      "slug": "240704-学猫叫",
+      "songs": [
+        "学猫叫"
+      ],
+      "submittedAt": "2024-07-04T02:00:00.000Z",
       "tags": [
         "夢ノ結唱",
         "潘柚彤",
         "陈峰",
         "PICO"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "学猫叫"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "学猫叫",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
+      ]
+    },
+    {
+      "cover": "cover.png",
+      "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
       ],
+      "issue": "IKFEDI",
       "languages": [
         "zh"
       ],
-      "issue": "IKFED6",
-      "release": "1142066"
-    },
-    {
-      "slug": "240707-仙儿",
       "owner": "CLCNTanya",
-      "repo": "svp-default",
+      "paramState": "with-params",
       "platform": "gitee",
-      "type": "project",
-      "title": "仙儿",
-      "submittedAt": "2024-07-07T02:00:00.000Z",
       "publishedAt": "2026-09-13T17:52:36.981Z",
-      "cover": "cover.png",
-      "email": "906030538@qq.com",
+      "release": "1142077",
+      "repo": "svp-default",
+      "slug": "240707-仙儿",
+      "songs": [
+        "仙儿"
+      ],
+      "submittedAt": "2024-07-07T02:00:00.000Z",
       "tags": [
         "夢ノ結唱",
         "二手玫瑰",
         "唢呐",
         "翻调"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "仙儿"
-      ],
+      "title": "仙儿",
+      "type": "project",
+      "voicebanks": [
+        "POPY"
+      ]
+    },
+    {
+      "cover": "cover.png",
+      "email": "906030538@qq.com",
       "engines": [
         "Synthesizer V"
       ],
-      "voicebanks": [
-        "POPY"
-      ],
+      "issue": "IKFEDP",
       "languages": [
         "zh"
       ],
-      "issue": "IKFEDI",
-      "release": "1142077"
-    },
-    {
-      "slug": "240717-先富起来",
       "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "允许丰川祥子先富起来",
-      "submittedAt": "2024-07-17T01:00:00.000Z",
-      "publishedAt": "2026-09-13T17:56:01.667Z",
-      "cover": "cover.png",
-      "email": "906030538@qq.com",
       "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T17:56:01.667Z",
+      "release": "1142080",
+      "repo": "svp-default",
+      "slug": "240717-先富起来",
       "songs": [
         "允许部分艺术家先富起来"
       ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "submittedAt": "2024-07-17T01:00:00.000Z",
+      "title": "允许丰川祥子先富起来",
+      "type": "project",
       "voicebanks": [
         "POPY"
-      ],
-      "languages": [
-        "zh"
-      ],
-      "issue": "IKFEDP",
-      "release": "1142080"
+      ]
     }
   ],
   "users": [
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

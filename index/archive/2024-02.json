@@ -1,15 +1,26 @@
 {
   "submissions": [
     {
-      "slug": "240213-饯别之鸟",
-      "owner": "y2361547758",
-      "repo": "svp-default",
-      "platform": "github",
-      "type": "project",
-      "title": "饯别之鸟",
-      "submittedAt": "2024-02-12T16:00:00.000Z",
-      "publishedAt": "2026-09-11T23:27:40.706Z",
       "cover": "PoSelia.png",
+      "engines": [
+        "CeVIO AI",
+        "Synthesizer V"
+      ],
+      "issue": "6",
+      "languages": [
+        "ja"
+      ],
+      "owner": "y2361547758",
+      "paramState": "with-params",
+      "platform": "github",
+      "publishedAt": "2026-09-11T23:27:40.706Z",
+      "release": "387386899",
+      "repo": "svp-default",
+      "slug": "240213-饯别之鸟",
+      "songs": [
+        "餞の鳥"
+      ],
+      "submittedAt": "2024-02-12T16:00:00.000Z",
       "tags": [
         "夢ノ結唱",
         "偶像大师",
@@ -20,35 +31,34 @@
         "爱美",
         "BanG Dream! 新春会"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "餞の鳥"
-      ],
-      "engines": [
-        "CeVIO AI",
-        "Synthesizer V"
-      ],
+      "title": "饯别之鸟",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
+      ]
+    },
+    {
+      "cover": "82c093430f5c14d3efb8551fcc715a473be2d932.jpg",
+      "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
       ],
+      "issue": "IKFDZH",
       "languages": [
         "ja"
       ],
-      "issue": "6",
-      "release": "387386899"
-    },
-    {
-      "slug": "240225-POPPY",
       "owner": "CLCNTanya",
-      "repo": "svp-default",
+      "paramState": "no-params",
       "platform": "gitee",
-      "type": "project",
-      "title": "POPPY",
-      "submittedAt": "2024-02-25T03:30:00.000Z",
       "publishedAt": "2026-09-13T15:18:20.924Z",
-      "cover": "82c093430f5c14d3efb8551fcc715a473be2d932.jpg",
-      "email": "906030538@qq.com",
+      "release": "1141890",
+      "repo": "svp-default",
+      "slug": "240225-POPPY",
+      "songs": [
+        "POPPY"
+      ],
+      "submittedAt": "2024-02-25T03:30:00.000Z",
       "tags": [
         "夢ノ結唱",
         "VRM",
@@ -56,27 +66,17 @@
         "3DMV",
         "STAYC"
       ],
-      "paramState": "no-params",
-      "songs": [
-        "POPPY"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "POPPY",
+      "type": "project",
       "voicebanks": [
         "POPY"
-      ],
-      "languages": [
-        "ja"
-      ],
-      "issue": "IKFDZH",
-      "release": "1141890"
+      ]
     }
   ],
   "users": [
     {
-      "platform": "github",
       "owner": "y2361547758",
+      "platform": "github",
       "repos": [
         {
           "repo": "svp-default"
@@ -84,8 +84,8 @@
       ]
     },
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

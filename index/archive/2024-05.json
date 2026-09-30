@@ -1,16 +1,26 @@
 {
   "submissions": [
     {
-      "slug": "240502-饯别之鸟",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "饯别之鸟",
-      "submittedAt": "2024-05-02T14:46:00.000Z",
-      "publishedAt": "2026-09-13T15:48:27.784Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
+      ],
+      "issue": "IKFE1P",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T15:48:27.784Z",
+      "release": "1141936",
+      "repo": "svp-default",
+      "slug": "240502-饯别之鸟",
+      "songs": [
+        "餞の鳥"
+      ],
+      "submittedAt": "2024-05-02T14:46:00.000Z",
       "tags": [
         "夢ノ結唱",
         "D/Zeal",
@@ -21,28 +31,18 @@
         "爱美",
         "田所梓"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "餞の鳥"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "饯别之鸟",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
-      ],
-      "languages": [
-        "ja"
-      ],
-      "issue": "IKFE1P",
-      "release": "1141936"
+      ]
     }
   ],
   "users": [
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

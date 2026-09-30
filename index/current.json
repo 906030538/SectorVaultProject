@@ -72,16 +72,26 @@
       "type": "article"
     },
     {
-      "slug": "260514-Maihime",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "Maihime",
-      "submittedAt": "2026-05-14T04:05:00.000Z",
-      "publishedAt": "2026-09-15T20:53:17.657Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "issue": "IKG230",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-15T20:53:17.657Z",
+      "release": "1146341",
+      "repo": "svp-default",
+      "slug": "260514-Maihime",
+      "songs": [
+        "Maihime"
+      ],
+      "submittedAt": "2026-05-14T04:05:00.000Z",
       "tags": [
         "夢ノ結唱",
         "D4DJ",
@@ -92,69 +102,67 @@
         "渡濑结月",
         "深川瑠华"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "Maihime"
-      ],
-      "engines": [
-        "Synthesizer V 2"
-      ],
+      "title": "Maihime",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE",
         "PASTEL",
         "HALO"
-      ],
-      "languages": [
-        "ja"
-      ],
-      "issue": "IKG230",
-      "release": "1146341"
+      ]
     },
     {
-      "slug": "260411-Borderline",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "Borderline",
-      "submittedAt": "2026-04-11T04:15:00.000Z",
-      "publishedAt": "2026-09-15T20:28:51.536Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
-      "paramState": "with-params",
-      "songs": [
-        "Borderline"
-      ],
       "engines": [
         "Synthesizer V 2"
       ],
+      "issue": "IKG225",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-15T20:28:51.536Z",
+      "release": "1146336",
+      "repo": "svp-default",
+      "slug": "260411-Borderline",
+      "songs": [
+        "Borderline"
+      ],
+      "submittedAt": "2026-04-11T04:15:00.000Z",
+      "title": "Borderline",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE",
         "PASTEL",
         "HALO",
         "AVER"
+      ]
+    },
+    {
+      "cover": "82d10118a7d0dda88e700b29e95cf2df6d003157.jpg",
+      "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V 2"
       ],
+      "issue": "IKFR7S",
       "languages": [
         "ja"
       ],
-      "issue": "IKG225",
-      "release": "1146336"
-    },
-    {
-      "slug": "260403-皆大欢喜",
       "owner": "CLCNTanya",
-      "repo": "svp-default",
+      "paramState": "with-params",
       "platform": "gitee",
-      "type": "project",
-      "title": "皆大欢喜",
-      "submittedAt": "2026-04-03T04:15:00.000Z",
       "publishedAt": "2026-09-13T20:31:00.000Z",
-      "cover": "82d10118a7d0dda88e700b29e95cf2df6d003157.jpg",
-      "issue": "IKFR7S",
       "release": "1142198",
-      "email": "906030538@qq.com",
+      "repo": "svp-default",
+      "slug": "260403-皆大欢喜",
+      "songs": [
+        "お気に召すまま"
+      ],
+      "submittedAt": "2026-04-03T04:15:00.000Z",
       "tags": [
         "夢ノ結唱",
         "Eve",
@@ -163,91 +171,83 @@
         "ワンダーランズ×ショウタイム",
         "Project SEKAI"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "お気に召すまま"
-      ],
-      "engines": [
-        "Synthesizer V 2"
-      ],
+      "title": "皆大欢喜",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE",
         "PASTEL",
         "HALO",
         "AVER"
-      ],
-      "languages": [
-        "ja"
       ]
     },
     {
-      "slug": "250706-今年夏天",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "今年夏天",
-      "submittedAt": "2025-07-06T09:45:00.000Z",
-      "publishedAt": "2026-09-13T20:26:00.000Z",
       "cover": "e44c39d5326ae8449596c43aa75d9b7f09da5c57.jpg",
-      "issue": "IKFR7Q",
-      "release": "1142195",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "issue": "IKFR7Q",
+      "languages": [
+        "zh"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "tuned",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T20:26:00.000Z",
+      "release": "1142195",
+      "repo": "svp-default",
+      "slug": "250706-今年夏天",
+      "songs": [
+        "今年夏天"
+      ],
+      "submittedAt": "2025-07-06T09:45:00.000Z",
       "tags": [
         "夢ノ結唱",
         "毕业",
         "前岛亚美",
         "丸山彩"
       ],
-      "paramState": "tuned",
-      "songs": [
-        "今年夏天"
-      ],
-      "engines": [
-        "Synthesizer V 2"
-      ],
+      "title": "今年夏天",
+      "type": "project",
       "voicebanks": [
         "PASTEL",
         "ROSE"
-      ],
-      "languages": [
-        "zh"
       ]
     },
     {
-      "slug": "250430-天球彗星",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "天球中彗星跨越夜晚",
-      "submittedAt": "2025-04-30T02:30:00.000Z",
-      "publishedAt": "2026-09-13T20:20:15.020Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
+      ],
+      "issue": "IKFEXI",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T20:20:15.020Z",
+      "release": "1142193",
+      "repo": "svp-default",
+      "slug": "250430-天球彗星",
+      "songs": [
+        "天球、彗星は夜を跨いで"
+      ],
+      "submittedAt": "2025-04-30T02:30:00.000Z",
       "tags": [
         "夢ノ結唱",
         "星街彗星",
         "天球",
         "星街すいせい"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "天球、彗星は夜を跨いで"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "天球中彗星跨越夜晚",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
-      ],
-      "languages": [
-        "ja"
-      ],
-      "issue": "IKFEXI",
-      "release": "1142193"
+      ]
     },
     {
       "cover": "Cover.png",
@@ -291,110 +291,120 @@
       ]
     },
     {
-      "slug": "240717-先富起来",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "允许丰川祥子先富起来",
-      "submittedAt": "2024-07-17T01:00:00.000Z",
-      "publishedAt": "2026-09-13T17:56:01.667Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
-      "paramState": "with-params",
-      "songs": [
-        "允许部分艺术家先富起来"
-      ],
       "engines": [
         "Synthesizer V"
       ],
-      "voicebanks": [
-        "POPY"
-      ],
+      "issue": "IKFEDP",
       "languages": [
         "zh"
       ],
-      "issue": "IKFEDP",
-      "release": "1142080"
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T17:56:01.667Z",
+      "release": "1142080",
+      "repo": "svp-default",
+      "slug": "240717-先富起来",
+      "songs": [
+        "允许部分艺术家先富起来"
+      ],
+      "submittedAt": "2024-07-17T01:00:00.000Z",
+      "title": "允许丰川祥子先富起来",
+      "type": "project",
+      "voicebanks": [
+        "POPY"
+      ]
     },
     {
-      "slug": "240707-仙儿",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "仙儿",
-      "submittedAt": "2024-07-07T02:00:00.000Z",
-      "publishedAt": "2026-09-13T17:52:36.981Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
+      ],
+      "issue": "IKFEDI",
+      "languages": [
+        "zh"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T17:52:36.981Z",
+      "release": "1142077",
+      "repo": "svp-default",
+      "slug": "240707-仙儿",
+      "songs": [
+        "仙儿"
+      ],
+      "submittedAt": "2024-07-07T02:00:00.000Z",
       "tags": [
         "夢ノ結唱",
         "二手玫瑰",
         "唢呐",
         "翻调"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "仙儿"
-      ],
+      "title": "仙儿",
+      "type": "project",
+      "voicebanks": [
+        "POPY"
+      ]
+    },
+    {
+      "cover": "43eec63ed4144a4c1f599becf1b5d5ffffa2182c.jpg",
+      "email": "906030538@qq.com",
       "engines": [
         "Synthesizer V"
       ],
-      "voicebanks": [
-        "POPY"
-      ],
+      "issue": "IKFED6",
       "languages": [
         "zh"
       ],
-      "issue": "IKFEDI",
-      "release": "1142077"
-    },
-    {
-      "slug": "240704-学猫叫",
       "owner": "CLCNTanya",
-      "repo": "svp-default",
+      "paramState": "with-params",
       "platform": "gitee",
-      "type": "project",
-      "title": "学猫叫",
-      "submittedAt": "2024-07-04T02:00:00.000Z",
       "publishedAt": "2026-09-13T17:40:58.004Z",
-      "cover": "43eec63ed4144a4c1f599becf1b5d5ffffa2182c.jpg",
-      "email": "906030538@qq.com",
+      "release": "1142066",
+      "repo": "svp-default",
+      "slug": "240704-学猫叫",
+      "songs": [
+        "学猫叫"
+      ],
+      "submittedAt": "2024-07-04T02:00:00.000Z",
       "tags": [
         "夢ノ結唱",
         "潘柚彤",
         "陈峰",
         "PICO"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "学猫叫"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "学猫叫",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
-      ],
-      "languages": [
-        "zh"
-      ],
-      "issue": "IKFED6",
-      "release": "1142066"
+      ]
     },
     {
-      "slug": "240502-饯别之鸟",
-      "owner": "CLCNTanya",
-      "repo": "svp-default",
-      "platform": "gitee",
-      "type": "project",
-      "title": "饯别之鸟",
-      "submittedAt": "2024-05-02T14:46:00.000Z",
-      "publishedAt": "2026-09-13T15:48:27.784Z",
       "cover": "cover.png",
       "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
+      ],
+      "issue": "IKFE1P",
+      "languages": [
+        "ja"
+      ],
+      "owner": "CLCNTanya",
+      "paramState": "with-params",
+      "platform": "gitee",
+      "publishedAt": "2026-09-13T15:48:27.784Z",
+      "release": "1141936",
+      "repo": "svp-default",
+      "slug": "240502-饯别之鸟",
+      "songs": [
+        "餞の鳥"
+      ],
+      "submittedAt": "2024-05-02T14:46:00.000Z",
       "tags": [
         "夢ノ結唱",
         "D/Zeal",
@@ -405,34 +415,34 @@
         "爱美",
         "田所梓"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "餞の鳥"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "饯别之鸟",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
+      ]
+    },
+    {
+      "cover": "82c093430f5c14d3efb8551fcc715a473be2d932.jpg",
+      "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
       ],
+      "issue": "IKFDZH",
       "languages": [
         "ja"
       ],
-      "issue": "IKFE1P",
-      "release": "1141936"
-    },
-    {
-      "slug": "240225-POPPY",
       "owner": "CLCNTanya",
-      "repo": "svp-default",
+      "paramState": "no-params",
       "platform": "gitee",
-      "type": "project",
-      "title": "POPPY",
-      "submittedAt": "2024-02-25T03:30:00.000Z",
       "publishedAt": "2026-09-13T15:18:20.924Z",
-      "cover": "82c093430f5c14d3efb8551fcc715a473be2d932.jpg",
-      "email": "906030538@qq.com",
+      "release": "1141890",
+      "repo": "svp-default",
+      "slug": "240225-POPPY",
+      "songs": [
+        "POPPY"
+      ],
+      "submittedAt": "2024-02-25T03:30:00.000Z",
       "tags": [
         "夢ノ結唱",
         "VRM",
@@ -440,32 +450,33 @@
         "3DMV",
         "STAYC"
       ],
-      "paramState": "no-params",
-      "songs": [
-        "POPPY"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "POPPY",
+      "type": "project",
       "voicebanks": [
         "POPY"
+      ]
+    },
+    {
+      "cover": "PoSelia.png",
+      "engines": [
+        "CeVIO AI",
+        "Synthesizer V"
       ],
+      "issue": "6",
       "languages": [
         "ja"
       ],
-      "issue": "IKFDZH",
-      "release": "1141890"
-    },
-    {
-      "slug": "240213-饯别之鸟",
       "owner": "y2361547758",
-      "repo": "svp-default",
+      "paramState": "with-params",
       "platform": "github",
-      "type": "project",
-      "title": "饯别之鸟",
-      "submittedAt": "2024-02-12T16:00:00.000Z",
       "publishedAt": "2026-09-11T23:27:40.706Z",
-      "cover": "PoSelia.png",
+      "release": "387386899",
+      "repo": "svp-default",
+      "slug": "240213-饯别之鸟",
+      "songs": [
+        "餞の鳥"
+      ],
+      "submittedAt": "2024-02-12T16:00:00.000Z",
       "tags": [
         "夢ノ結唱",
         "偶像大师",
@@ -476,67 +487,66 @@
         "爱美",
         "BanG Dream! 新春会"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "餞の鳥"
-      ],
-      "engines": [
-        "CeVIO AI",
-        "Synthesizer V"
-      ],
+      "title": "饯别之鸟",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
+      ]
+    },
+    {
+      "cover": "656999453f2f3d0e41f8dca4fba0390a6155265a.jpg",
+      "email": "906030538@qq.com",
+      "engines": [
+        "Synthesizer V"
       ],
+      "issue": "IKFB2X",
       "languages": [
         "ja"
       ],
-      "issue": "6",
-      "release": "387386899"
-    },
-    {
-      "slug": "240117-向着无尽的灰",
       "owner": "CLCNTanya",
-      "repo": "svp-default",
+      "paramState": "with-params",
       "platform": "gitee",
-      "type": "project",
-      "title": "向着无尽的灰",
-      "submittedAt": "2024-01-16T18:35:00.000Z",
       "publishedAt": "2026-09-13T02:48:46.827Z",
-      "cover": "656999453f2f3d0e41f8dca4fba0390a6155265a.jpg",
-      "email": "906030538@qq.com",
+      "release": "1140700",
+      "repo": "svp-default",
+      "slug": "240117-向着无尽的灰",
+      "songs": [
+        "限りなく灰色へ"
+      ],
+      "submittedAt": "2024-01-16T18:35:00.000Z",
       "tags": [
         "夢ノ結唱",
         "Project SEKAI",
         "25時、ナイトコードで。"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "限りなく灰色へ"
-      ],
-      "engines": [
-        "Synthesizer V"
-      ],
+      "title": "向着无尽的灰",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "POPY"
+      ]
+    },
+    {
+      "cover": "封面.png",
+      "engines": [
+        "CeVIO AI"
       ],
+      "issue": "5",
       "languages": [
         "ja"
       ],
-      "issue": "IKFB2X",
-      "release": "1140700"
-    },
-    {
-      "slug": "230806-無路矢",
       "owner": "y2361547758",
-      "repo": "svp-default",
+      "paramState": "tuned",
       "platform": "github",
-      "type": "project",
-      "title": "無路矢",
-      "submittedAt": "2023-08-06T04:05:00.000Z",
       "publishedAt": "2026-09-11T23:12:48.893Z",
-      "cover": "封面.png",
+      "release": "387382997",
+      "repo": "svp-default",
+      "slug": "230806-無路矢",
+      "songs": [
+        "無路矢"
+      ],
+      "submittedAt": "2023-08-06T04:05:00.000Z",
       "tags": [
         "夢ノ結唱",
         "MyGO",
@@ -544,65 +554,65 @@
         "青木阳菜",
         "羊宫妃娜"
       ],
-      "paramState": "tuned",
-      "songs": [
-        "無路矢"
-      ],
-      "engines": [
-        "CeVIO AI"
-      ],
+      "title": "無路矢",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
+      ]
+    },
+    {
+      "cover": "ksm单齿轮眼.png",
+      "engines": [
+        "CeVIO AI"
       ],
+      "issue": "7",
       "languages": [
         "ja"
       ],
-      "issue": "5",
-      "release": "387382997"
-    },
-    {
-      "slug": "230725-梅菲斯特",
       "owner": "y2361547758",
-      "repo": "svp-default",
+      "paramState": "tuned",
       "platform": "github",
-      "type": "project",
-      "title": "梅菲斯特",
-      "submittedAt": "2023-07-25T04:10:00.000Z",
       "publishedAt": "2026-09-11T23:33:14.662Z",
-      "cover": "ksm单齿轮眼.png",
+      "release": "387388390",
+      "repo": "svp-default",
+      "slug": "230725-梅菲斯特",
+      "songs": [
+        "メフィスト"
+      ],
+      "submittedAt": "2023-07-25T04:10:00.000Z",
       "tags": [
         "夢ノ結唱",
         "女王蜂",
         "【我推的孩子】"
       ],
-      "paramState": "tuned",
-      "songs": [
-        "メフィスト"
-      ],
-      "engines": [
-        "CeVIO AI"
-      ],
+      "title": "梅菲斯特",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
+      ]
+    },
+    {
+      "cover": "封面.png",
+      "engines": [
+        "CeVIO AI"
       ],
+      "issue": "4",
       "languages": [
         "ja"
       ],
-      "issue": "7",
-      "release": "387388390"
-    },
-    {
-      "slug": "230315-向着无尽的灰",
       "owner": "y2361547758",
-      "repo": "svp-default",
+      "paramState": "with-params",
       "platform": "github",
-      "type": "project",
-      "title": "向着无尽的灰",
-      "submittedAt": "2023-03-15T02:30:00.000Z",
       "publishedAt": "2026-09-11T22:34:36.742Z",
-      "cover": "封面.png",
+      "release": "387360200",
+      "repo": "svp-default",
+      "slug": "230315-向着无尽的灰",
+      "songs": [
+        "限りなく灰色へ"
+      ],
+      "submittedAt": "2023-03-15T02:30:00.000Z",
       "tags": [
         "夢ノ結唱",
         "Project SEKAI",
@@ -610,58 +620,48 @@
         "铃木实里",
         "末永華子"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "限りなく灰色へ"
-      ],
-      "engines": [
-        "CeVIO AI"
-      ],
+      "title": "向着无尽的灰",
+      "type": "project",
       "voicebanks": [
         "POPY",
         "ROSE"
-      ],
-      "languages": [
-        "ja"
-      ],
-      "issue": "4",
-      "release": "387360200"
+      ]
     },
     {
-      "slug": "230116-夜空中最亮的星",
-      "owner": "y2361547758",
-      "repo": "svp-default",
-      "platform": "github",
-      "type": "project",
-      "title": "夜空中最亮的星",
-      "submittedAt": "2023-01-15T16:00:00.000Z",
-      "publishedAt": "2026-09-11T21:02:47.794Z",
       "cover": "718745031df4d3bf73f4ba9394c64c0672f13d1c.jpg",
+      "engines": [
+        "CeVIO AI"
+      ],
+      "issue": "1",
+      "languages": [
+        "zh"
+      ],
+      "owner": "y2361547758",
+      "paramState": "with-params",
+      "platform": "github",
+      "publishedAt": "2026-09-11T21:02:47.794Z",
+      "repo": "svp-default",
+      "slug": "230116-夜空中最亮的星",
+      "songs": [
+        "夜空中最亮的星"
+      ],
+      "submittedAt": "2023-01-15T16:00:00.000Z",
       "tags": [
         "夢ノ結唱",
         "逃跑计划",
         "跨语种"
       ],
-      "paramState": "with-params",
-      "songs": [
-        "夜空中最亮的星"
-      ],
-      "engines": [
-        "CeVIO AI"
-      ],
+      "title": "夜空中最亮的星",
+      "type": "project",
       "voicebanks": [
         "POPY"
-      ],
-      "languages": [
-        "zh"
-      ],
-      "issue": "1"
+      ]
     }
   ],
   "users": [
     {
-      "platform": "github",
       "owner": "y2361547758",
+      "platform": "github",
       "repos": [
         {
           "repo": "svp-default"
@@ -669,8 +669,8 @@
       ]
     },
     {
-      "platform": "gitee",
       "owner": "CLCNTanya",
+      "platform": "gitee",
       "repos": [
         {
           "repo": "svp-default"

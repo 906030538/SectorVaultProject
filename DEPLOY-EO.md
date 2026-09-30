@@ -4,19 +4,24 @@
 约定（EdgeOne Pages 兼容），OAuth 代理（`/gh-oauth/*`、`/oauth/*`）开箱可用；SPA 回退
 需要下述两处适配。
 
-## 与 Cloudflare Pages 的行为差异
+## 与 Cloudflare Pages 的行为差异（2026-09 线上实测）
 
 1. **静态托管不自动回退根目录 `404.html`**：CF Pages 对未命中路径自动返回项目 404 页，
    EdgeOne 返回平台默认 404；
-2. **函数内 `ASSETS.fetch` 不做无扩展名映射**：CF 会把 `/404` 映射到 `404.html`、
-   `/about` 映射到 `about/index.html`，EdgeOne 都按字面路径匹配，未命中即 404。
+2. **函数环境无 `ASSETS` 绑定**：`context.env.ASSETS.fetch` 在 EdgeOne 上访问即抛错，
+   平台返回 545 `Error return from script`（`/oauth/*` 等不碰 ASSETS 的函数不受影响）；
+3. **`_routes.json` 不生效**：函数按文件模板匹配派发，未列入 include 的路径
+   （如任意未知路径）同样会进 `functions/[[path]].ts` 捕获；
+4. **优先级：`edgeone.json` rewrites > 静态资源 > Functions**——重写命中的路径不进函数，
+   静态资源命中的路径不进函数，双未命中才派发函数（再按更具体者优先）。
 
 ### `functions/[[path]].ts` 的适配
 
-- 404 页回退显式请求 `/404.html`（EdgeOne 必需），`/404` 作为 CF 兼容候补；
-  CF 会把 `/404.html` 规范化 308 到 `/404`，因此对 3xx 跟随一跳；
-- 无扩展名路径未命中时先补尾斜杠重试一次（目录型页面 `/about`、`/discussions` 等），
-  SPA 路径无目录页则继续回退。
+- 无 ASSETS 绑定时走纯回退分支：自源 `fetch('/404.html')` 取 404 页内容以 200 返回
+  （/404.html 是真实静态资源，静态优先于函数，自源取不会递归回本函数）；带扩展名的
+  未命中路径保持纯 404；
+- CF（有 ASSETS）保留原逻辑：404 页回退显式请求 `/404.html`（CF 会 308 规范化到
+  `/404`，跟随一跳）；无扩展名未命中先补尾斜杠重试目录页。
 
 ## edgeone.json（项目根目录）
 
@@ -34,9 +39,9 @@ EdgeOne Pages 仅把 `/*` → `/index.html` 这一样式识别为 SPA fallback
 `[[path]].ts` 回退，重写先匹配则由平台兜底，二者内容相同。
 
 `/discussions` **不进重写**：`/discussions/index.html` 是真实的静态列表页，普通重写
-在未定义的优先级下可能劫持它；讨论详情页由 `functions/[[path]].ts` 回退（`public/_routes.json`
-已含 `/discussions/*`）。若线上验证发现函数未被调用导致详情页 404，需先确认
-rewrite 与静态资源的优先级再决定是否补 `/discussions/*`。
+在未定义的优先级下可能劫持它；讨论详情页（`/discussions/<id>`）由 `functions/[[path]].ts`
+的回退分支兜住（重写与静态双未命中后进函数，自源取 404 页）。未知路径（如 `/random`）
+同样由函数回退，不再返回 545。
 
 ## 部署步骤
 
@@ -58,8 +63,10 @@ rewrite 与静态资源的优先级再决定是否补 `/discussions/*`。
 ## 线上冒烟清单
 
 - `/oauth/env` 返回各平台 clientId（函数路由）；
-- `/view/<owner>/<repo>/<slug>`、`/user/<name>`、`/edit/…`、`/login/…`、`/discussions/<id>`
-  返回 404 页外壳（HTTP 200）且页面内路由组件激活、地址栏不变；
+- `/view/<owner>/<repo>/<slug>`、`/user/<name>`、`/edit/…`、`/login/…` 经 edgeone.json
+  重写返回 404 页外壳（HTTP 200）且页面内路由组件激活、地址栏不变；
+- `/discussions/<id>`、任意未知路径（如 `/random`）经 `[[path]].ts` 回退分支返回
+  404 页外壳（HTTP 200）——不再出现 545 `Error return from script`；
 - `/about`、`/discussions`、`/new`、`/project` 等静态目录页正常（不被重写劫持）；
 - `/_astro/*`、`/icons/*` 静态资源 200，不存在的带扩展名路径保持 404；
 - `/gh-oauth/device/code` POST 透传正常。

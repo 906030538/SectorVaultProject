@@ -4,6 +4,9 @@
 // 更具体的 Functions（/gh-oauth/*、/oauth/*）优先于本捕获匹配。
 // 平台差异：CF 的 ASSETS 做无扩展名映射（/404 → 404.html、/about → /about/），
 // EdgeOne 不做——回退须显式取 /404.html，目录页须补尾斜杠重试。
+// EdgeOne 实测（2026-09）：优先级 rewrites(edgeone.json) > 静态资源 > Functions，
+// _routes.json 不生效（未列入 include 的路径也会进函数），且函数环境无 ASSETS
+// 绑定——走到本函数的请求必为重写与静态资源双未命中，只剩回退一件事（自源取 404 页）。
 
 interface PagesEnv {
   ASSETS: { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
@@ -26,8 +29,37 @@ function normalizedRequest(request: Request): Request {
   return new Request(target.href, request);
 }
 
+/** 无 ASSETS 绑定平台（EdgeOne）的 SPA 回退：自源 fetch 静态层取 404 页内容，取不到则纯 404 */
+async function spaFallback(request: Request): Promise<Response> {
+  const path = new URL(request.url).pathname;
+  // 静态资源（带扩展名）未命中时保持 404，不做 SPA 回退
+  if (/\.[\w]+$/.test(path) && !path.endsWith('.html')) {
+    return new Response('Not Found', { status: 404 });
+  }
+  try {
+    // /404.html 是真实静态资源（静态优先于函数），自源取不会递归回本函数
+    const page = await fetch(new URL('/404.html', request.url).href);
+    if (page.ok) {
+      return new Response(page.body, {
+        status: 200,
+        headers: { 'content-type': page.headers.get('content-type') ?? 'text/html;charset=utf-8' },
+      });
+    }
+  } catch {
+    /* 自源不可达时退回纯 404 */
+  }
+  return new Response('Not Found', { status: 404 });
+}
+
 export const onRequest: PagesFunction<PagesEnv> = async (context) => {
   const request = normalizedRequest(context.request);
+
+  // EdgeOne 无 ASSETS 绑定（访问即抛 545 Error return from script）：
+  // 走本分支做纯回退，不再代理静态资源
+  if (!context.env?.ASSETS || typeof context.env.ASSETS.fetch !== 'function') {
+    return spaFallback(request);
+  }
+
   let asset: Response;
   try {
     asset = await context.env.ASSETS.fetch(request);

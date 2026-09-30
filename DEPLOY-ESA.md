@@ -24,22 +24,31 @@
 ESA 的回退对全部导航路径统一生效（未命中静态资源即回退），**不需要** EdgeOne 那样的
 逐前缀 rewrites，`/view`、`/user`、`/edit`、`/login`、`/discussions/<id>` 一并覆盖。
 
-## OAuth：依赖 oauthBases 远程代理
+## OAuth：esa/entry.js 单入口代理（零密钥）
 
-ESA 不运行 `functions/`，本站自身的 `/oauth/env` 不存在（探测返回 404，跳过）。前端解析顺序
-（`src/lib/index/sources.ts`）：**优先本站** `/oauth/env`，不可用时依次探测 `deployment.json`
-的 **`oauthBases`** 列表（当前 `https://eo.svp.lyoko.cn` → `https://cf.svp.lyoko.cn`），
-取首个返回非空配置的代理。因此 ESA 部署**开箱即用**：
+ESA **没有** `functions/` 目录的文件路由（也没有 `_routes.json`）——`esa.jsonc` 的
+`entry` 把所有「未命中静态资源」的请求交给**一个**入口文件。把 entry 指向
+`functions/` 下的某个文件是无效的：那个文件按自身逻辑处理所有路径（如 `[[path]].ts`
+会把 `/oauth/env` 当无扩展名路径回退成 404 页），且其余 functions 文件永远不会被分发。
 
-- 登录、token 交换、GitHub 设备流均经远程代理完成（所有 OAuth 端点均带
-  `Access-Control-Allow-Origin: *`，跨域可用）；
-- OAuth 回调地址仍是主站域名（`https://<域名>/login/{platform}`），与代理域名无关。
+`esa/entry.js`（EdgeRoutine，Service Worker 风格）实现了 `DEPLOY-FC.md` 的代理契约，
+**ESA 侧零密钥**：
 
-可选：在 ESA 上本地承载 OAuth 代理——用 `entry` 指向一个单文件 ER 边缘函数，
-实现 `DEPLOY-FC.md` 第一节的平台无关契约（4 类请求 + CORS）。注意两点须先验证：
-ESA 边缘函数运行时的入口导出格式与**运行时环境变量**读取方式（官方 build-pages 文档
-未明确，构建环境变量经 `process.env`，运行时待确认）；secret 只能存平台环境变量，
-绝不可写进 entry 文件。
+| 端点 | 行为 |
+| --- | --- |
+| `GET /oauth/env` | 内嵌公开 clientId（与 `public/deployment.json` oauth 段同步；轮换时两处同改） |
+| `POST /gh-oauth/device/code`、`/gh-oauth/access_token` | 直接透传 github.com/login/*（设备流无需 secret） |
+| `POST /oauth/{github\|gitee\|atomgit}/token` | 服务端中继到 `RELAY_BASE`（EdgeOne 部署，持有全套 OAUTH_* 密钥；浏览器仍只与本站通信） |
+
+与 `notFoundStrategy: 404Page` 的配合（官方文档语义）：同时配置函数与回退策略时，
+**导航请求不进函数**（由静态回退返回 404.html 外壳，SPA 路由照常激活），进函数的都是
+fetch/XHR——正好是 OAuth 端点的请求形态。
+
+ESA 控制台**无需配置任何 OAUTH_* 环境变量**（密钥只在 EdgeOne）；token 交换依赖
+`RELAY_BASE` 可用，EdgeOne 不可达时前端自动降级 oauthBases 列表（eo → cf）。
+
+另：登录、token 交换经代理完成时所有 OAuth 端点均带 `Access-Control-Allow-Origin: *`，
+跨域可用；OAuth 回调地址仍是主站域名（`https://<域名>/login/{platform}`），与代理域名无关。
 
 ## 部署步骤
 
@@ -49,13 +58,15 @@ ESA 边缘函数运行时的入口导出格式与**运行时环境变量**读取
 2. `esa.jsonc` 的 `name` 与 ESA 项目名保持一致（同名项目自动关联，不存在则自动创建）；
 3. Node 版本：构建环境若低于 Astro 7 要求（≥ 20.3），在 `package.json` 加
    `"engines": { "node": ">=20.3.0" }`（ESA 以 engines.node 为准，优先级高于控制台）；
-4. OAuth 密钥环境变量**无需**在 ESA 配置（走 oauthBases 远程代理）；若部署了本地
-   ER 入口代理，则按 `DEPLOY-FC.md` 的变量表配置并把本站域名追加进 `oauthBases` 首位。
+4. 边缘函数：`esa.jsonc` 已声明 `entry: ./esa/entry.js`（优先级高于控制台的
+   「函数文件路径」，控制台指向旧路径也不影响）；ESA 侧无需任何 OAUTH_* 环境变量。
 
 ## 线上冒烟清单
 
+- `GET /oauth/env` 返回 clientId JSON（函数路由生效；若返回 404 页说明 entry 未生效）；
+- `POST /gh-oauth/device/code` 透传 GitHub 正常（设备流）；
+- `POST /oauth/gitee/token` 空 code 应返回上游平台错误 JSON（中继链路通）；
 - `/view/<owner>/<repo>/<slug>`、`/user/<name>`、`/login/…`、`/discussions/<id>`
   返回 404 页外壳（HTTP 404）且页面内路由组件激活、地址栏不变——状态码是 404 属预期；
 - `/about`、`/discussions`、`/new`、`/project` 等静态目录页正常（尾斜杠重定向后 200）；
-- `/_astro/*`、`/icons/*` 静态资源 200，不存在的带扩展名路径保持 404；
-- 登录流程正常（经 `oauthBases` 代理）：`/login` → 授权 → 回调 `/login/{platform}` 激活。
+- `/_astro/*`、`/icons/*` 静态资源 200，不存在的带扩展名路径保持 404。

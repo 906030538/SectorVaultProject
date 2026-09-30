@@ -1,6 +1,9 @@
 {
   // 与 ESA 控制台的项目名对齐（同名项目自动关联；改名或删掉此字段以控制台为准）
-  "name": "sector-vault",
+  "name": "sector-vault-project",
+  // 边缘函数单一入口（ESA 无 functions/ 目录路由，OAuth 代理契约在 entry 里实现；
+  // 本文件优先级高于控制台的「函数文件路径」设置）
+  "entry": "./esa/entry.js",
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "assets": {

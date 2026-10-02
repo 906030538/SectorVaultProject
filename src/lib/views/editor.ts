@@ -9,7 +9,7 @@ import { buildAuthLabels, buildUserLabels } from '@/lib/labels';
 import { getClientLocale } from '@/lib/i18n-client';
 import { openCreateDialog } from '@/lib/views/user';
 import { getToken, loadSession, loadSessionBy, saveSession, setToken } from '@/lib/auth';
-import { loadReleases, loadSubmissionContent, type ProjectFile } from '@/lib/content';
+import { loadReleases, loadSubmissionContent, parseAttrList, type ProjectFile } from '@/lib/content';
 import {
   defaultScheme,
   detectTextLike,
@@ -1411,9 +1411,9 @@ export async function initEditor(
       oldCoverAttr = content.parsed.attrs.cover || undefined;
       oldFiles = content.parsed.files;
       const videosAttr = content.parsed.attrs.videos;
-      if (videosAttr) state.lists.videos = videosAttr.split(',').map((v) => v.trim()).filter(Boolean);
+      if (videosAttr) state.lists.videos = parseAttrList(videosAttr);
       const tagsAttr = content.parsed.attrs.tags;
-      if (tagsAttr) state.tags = tagsAttr.split(',').map((v) => v.trim()).filter(Boolean);
+      if (tagsAttr) state.tags = parseAttrList(tagsAttr);
       state.files = oldFiles.map((f) => ({
         id: newEditorFileId(),
         file: null,

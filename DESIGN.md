@@ -47,7 +47,7 @@
 5. 如果有封面先显示封面再显示参数。
 6. 渲染正文，不用包含文件头的各种属性；正文结束后显示tag列表。
 7. 仓库媒体区只展示可显示/播放的媒体（图片/音频/视频），排除封面（顶部已展示）；工程文件中的明文媒体类文件不在工程文件区显示、改在媒体区展示（压缩/加密文件仍留在工程文件区）；无内容时隐藏区块。音频默认只显示「加载播放」按钮（部分平台raw响应缺MIME类型，直渲染audio无法播放）：点击后fetch到内存、按扩展名补全MIME（wav/mp3/ogg/flac/m4a/aiff）以blob url播放并自动播放；下载失败（如平台raw无CORS头）回退直链播放器。
-8. 作者卡显示用户头像（API拉取失败回退首字母）、作者名（索引记录优先，回退仓库用户名）、仓库badge（仅显示仓库名，点击进入站内集合详情页）、收藏badge（Gitee/AtomGit为平台官方star badge图，其余平台为★|数量SVG；点击跳转仓库主页新窗口）、许可证：优先级为索引license字段（发布管线写入）> README属性 > LICENSE文件内容识别（正文归一化后SHA-256比对config.ts的LICENSE_FINGERPRINTS双源指纹表，哈希未命中次级比对首行）> 仓库级名称chip；识别为SPDX显示摘要折叠卡（deed风格摘要按语言组合 + spdx.org与CC当前语言deed外链）；自定义显示LICENSE全文折叠卡，展开时命中指纹则升级为SPDX摘要卡。README formatter属性头解析兼容旧版`- key: value`列表风格。
+8. 作者卡显示用户头像（API拉取失败回退首字母）、作者名（索引记录优先，回退仓库用户名）、仓库badge（仅显示仓库名，点击进入站内集合详情页）、收藏badge（Gitee/AtomGit为平台官方star badge图，其余平台为★|数量SVG；点击跳转仓库主页新窗口）、许可证：优先级为索引license字段（发布管线写入）> README属性 > LICENSE文件内容识别（正文归一化后SHA-256比对config.ts的LICENSE_FINGERPRINTS双源指纹表，哈希未命中次级比对首行）> 仓库级名称chip；识别为SPDX显示摘要折叠卡（deed风格摘要按语言组合 + spdx.org与CC当前语言deed外链）；自定义显示LICENSE全文折叠卡，展开时命中指纹则升级为SPDX摘要卡。README formatter属性头解析兼容旧版`- key: value`列表风格；多值字段（songs/engines/voicebanks/languages/videos/tags）以YAML流序列写入（JSON数组形式，含逗号/引号的值安全），读取端parseAttrList兼容YAML流序列与旧版逗号分隔两种格式。
 9. 工程文件列表：非加密文件整框可点击下载（无独立按钮），悬停手势+扩展名图标（public/icons按扩展名自动识别）；加密文件两行布局（名称行/密码+解密按钮行），解密成功后切换普通文件样式（隐藏控件、标签改已解密、记住密码）。
 10. 附件区（原关联release区）：标题行右侧"前往release"按钮；卡片先渲染release正文（发布简介+链接）再列附件列表。平台自动附带的源码打包（gitee的{tag}.zip/.tar.gz，下载地址走/archive/refs/tags/）不属于用户附件，适配层过滤不展示。
 11. 留言区：评论列表（头像拉取+本地追加+本人评论可删+右置删除按钮+去除超链接）+ 评论输入框（满行宽度）。
@@ -230,7 +230,7 @@ svp-archive.json -- 本地索引
 - `repoPrefix`：新建集合对话框默认前缀。
 - `templates`：按平台配置的模板仓（`{owner, repo}` 列表，如三平台的 svp-skeleton）；GitHub 用模板生成 API，v5 系按文件复制。
 - `cookieDomain`：跨子域共享登录态的父域（令牌/会话cookie镜像）。
-- `oauthBases`：OAuth代理基址列表，依次探测取首个可达（兼容旧`oauthBase`单值）。
+- `oauthBases`：OAuth代理基址列表，依次探测取首个可达。
 - `faqPages`：FAQ目录页面列表（兜底：wiki侧栏`_Sidebar.md`不可用时使用）。
 
 ## Cloudflare Pages Functions

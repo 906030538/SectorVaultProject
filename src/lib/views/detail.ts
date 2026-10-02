@@ -8,6 +8,7 @@ import {
   loadReleases,
   loadIssues,
   loadSubmissionContent,
+  parseAttrList,
   mediaKind,
   type MediaItem,
   type ProjectFile,
@@ -961,7 +962,7 @@ async function findEntryFromRepo(
     };
     if (type === 'project') {
       const fromAttrs = (key: string): string[] | undefined => {
-        const values = (attrs[key] ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+        const values = parseAttrList(attrs[key]);
         return values.length ? values : undefined;
       };
       entry.paramState = archived?.paramState;
@@ -1152,10 +1153,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
 
   // 元数据列表（视频链接来自稿件 README 头部，逗号分隔）
   els.meta.textContent = '';
-  const videos = (content.parsed.attrs.videos ?? '')
-    .split(',')
-    .map((v) => v.trim())
-    .filter(Boolean);
+  const videos = parseAttrList(content.parsed.attrs.videos);
   const metaList = buildMetaList(entry, labels, videos);
   els.meta.appendChild(metaList);
 
@@ -1163,10 +1161,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   const html = await marked.parse(content.parsed.body);
   els.body.innerHTML = DOMPurify.sanitize(html) as string;
 
-  const tags = (content.parsed.attrs.tags ?? '')
-    .split(',')
-    .map((v) => v.trim())
-    .filter(Boolean);
+  const tags = parseAttrList(content.parsed.attrs.tags);
   renderTags(tags, els);
   // 媒体分流：工程文件中的明文图片/音频/视频不在文件列表显示，改在仓库媒体区展示
   // （压缩/加密文件无法直接展示，仍留在工程文件区）

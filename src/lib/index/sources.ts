@@ -24,10 +24,8 @@ export interface DeploymentConfig {
   faqPages?: unknown;
   /** 跨子域共享 cookie 的父域（如 svp.lyoko.cn；令牌/会话镜像到该域） */
   cookieDomain?: unknown;
-  /** OAuth 代理基址列表（本站 /oauth/env 不可用时依次探测取首个可达；兼容旧 oauthBase 单值） */
+  /** OAuth 代理基址列表（本站 /oauth/env 不可用时依次探测取首个可达） */
   oauthBases?: unknown;
-  /** OAuth 代理基址（单值，旧字段；建议改用 oauthBases 列表） */
-  oauthBase?: unknown;
 }
 
 /** 模板仓配置（deployment.json 的 templates 段条目） */
@@ -155,17 +153,14 @@ let oauthProxyPromise: Promise<OauthProxyResolution> | undefined;
 
 /**
  * OAuth 代理选择：优先探测本站 /oauth/env（Functions 部署直接用当前域名），
- * 不可用时再依次探测 oauthBases 列表（兼容旧 oauthBase 单值）。
+ * 不可用时再依次探测 oauthBases 列表。
  * 仅接受返回**非空配置**的候选——Functions 已部署但环境变量未配置时 /oauth/env
  * 返回 200 空对象，视为不可用并继续尝试下一个候选。解析结果连同凭据缓存，避免二次请求。
  */
 function resolveOauthProxy(): Promise<OauthProxyResolution> {
   oauthProxyPromise ??= (async () => {
     const config = await loadDeploymentConfig();
-    const raw = [
-      ...(Array.isArray(config?.oauthBases) ? (config!.oauthBases as unknown[]) : []),
-      ...(typeof config?.oauthBase === 'string' && config.oauthBase.trim() ? [config.oauthBase] : []),
-    ]
+    const raw = (Array.isArray(config?.oauthBases) ? (config!.oauthBases as unknown[]) : [])
       .filter((base): base is string => typeof base === 'string' && !!base.trim())
       .map((base) => base.trim().replace(/\/+$/, ''));
     // '' 为本站（相对端点），排在 oauthBases 之前
@@ -230,25 +225,8 @@ export function getOAuthProviders(): Promise<Record<string, OAuthProviderConfig>
           /** 顶层 github.clientId 简写（GitHub App 认证） */
           github?: { clientId?: string };
         };
-        // 兼容 id/secret 简写（gitee/atomgit 常用）→ clientId/clientSecret
-        const normalizeProvider = (
-          raw: Record<string, unknown> | undefined,
-        ): OAuthProviderConfig | undefined =>
-          raw
-            ? {
-                ...(raw as unknown as OAuthProviderConfig),
-                clientId:
-                  ((raw as Record<string, unknown>).clientId as string | undefined) ??
-                  ((raw as Record<string, unknown>).id as string | undefined) ??
-                  '',
-                clientSecret:
-                  ((raw as Record<string, unknown>).clientSecret as string | undefined) ??
-                  ((raw as Record<string, unknown>).secret as string | undefined),
-              }
-            : undefined;
-        for (const [platform, raw] of Object.entries(config.oauth ?? {})) {
-          const normalized = normalizeProvider(raw as unknown as Record<string, unknown> | undefined);
-          if (normalized?.clientId) merged[platform] = normalized;
+        for (const [platform, provider] of Object.entries(config.oauth ?? {})) {
+          if (provider?.clientId) merged[platform] = provider;
         }
         // 顶层 github.clientId 与 oauth.github 合并（后者优先）
         if (config.github?.clientId && !merged.github?.clientId) {

@@ -27,7 +27,7 @@ export interface MediaItem {
 export interface SubmissionContent {
   parsed: ParsedReadme;
   media: MediaItem[];
-  /** 投稿实际所在目录（posts/[slug] 或兼容的 [slug]） */
+  /** 投稿所在目录（posts/[slug]） */
   baseDir: string;
 }
 
@@ -44,6 +44,39 @@ function slugKey(user: string, repo: string, slug: string): string {
  * 头部固定 *Powered by...*，随后属性行（issue、cover、license 等），
  * 第一个 --- 分隔符后为正文，第二个分隔符后为工程文件列表。
  */
+/**
+ * 多值属性解析：YAML 流序列（["a", "b"]）与旧版逗号分隔格式（a, b）兼容。
+ * 值首尾空白与空项被去除。
+ */
+export function parseAttrList(raw: string | undefined): string[] {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.map((value) => String(value).trim()).filter(Boolean);
+      }
+    } catch {
+      /* 非严格 JSON 的 YAML 流序列：退回按逗号切分（去除首尾括号与引号） */
+    }
+    return trimmed
+      .slice(1, -1)
+      .split(',')
+      .map((value) => value.trim().replace(/^["']|["']$/g, '').trim())
+      .filter(Boolean);
+  }
+  return trimmed
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+/** 多值属性序列化为 YAML 流序列（JSON 数组形式，YAML 兼容） */
+function formatAttrList(values: string[]): string {
+  return `[${values.map((value) => JSON.stringify(value.trim())).join(', ')}]`;
+}
+
 export function parseReadme(raw: string): ParsedReadme {
   const sections = raw.split(/^\s*---\s*$/m);
   const header = sections[0] ?? '';
@@ -91,7 +124,6 @@ export interface ReadmeInput {
   /** 发布时间（ISO） */
   publishedAt?: string;
   cover?: string;
-  license?: string;
   /** 关联 release id */
   release?: number | string;
   /** 关联曲目（多值，逗号连接） */
@@ -121,12 +153,13 @@ export function generateReadme(input: ReadmeInput): string {
   if (input.submittedAt) header.push(`submittedAt: ${input.submittedAt}`);
   if (input.publishedAt) header.push(`publishedAt: ${input.publishedAt}`);
   if (input.cover) header.push(`cover: ${input.cover}`);
-  if (input.songs?.length) header.push(`songs: ${input.songs.join(', ')}`);
-  if (input.engines?.length) header.push(`engines: ${input.engines.join(', ')}`);
-  if (input.voicebanks?.length) header.push(`voicebanks: ${input.voicebanks.join(', ')}`);
-  if (input.languages?.length) header.push(`languages: ${input.languages.join(', ')}`);
-  if (input.videos?.length) header.push(`videos: ${input.videos.join(', ')}`);
-  if (input.tags?.length) header.push(`tags: ${input.tags.join(', ')}`);
+  // 多值字段以 YAML 流序列写入（JSON 数组形式）；读取端兼容旧版逗号分隔
+  if (input.songs?.length) header.push(`songs: ${formatAttrList(input.songs)}`);
+  if (input.engines?.length) header.push(`engines: ${formatAttrList(input.engines)}`);
+  if (input.voicebanks?.length) header.push(`voicebanks: ${formatAttrList(input.voicebanks)}`);
+  if (input.languages?.length) header.push(`languages: ${formatAttrList(input.languages)}`);
+  if (input.videos?.length) header.push(`videos: ${formatAttrList(input.videos)}`);
+  if (input.tags?.length) header.push(`tags: ${formatAttrList(input.tags)}`);
 
   const fileList = input.files.map((f) => {
     const stars = f.encrypted ? '**' : f.compressed ? '*' : '';
@@ -170,26 +203,20 @@ export async function loadAbout(
   }
 }
 
-/**
- * 解析投稿基础目录：优先 posts/[slug]（DESIGN 内容仓结构），
- * 兼容早期直接位于根下的 [slug] 目录。
- */
+/** 解析投稿基础目录（DESIGN 内容仓结构：posts/[slug]） */
 async function resolveBaseDir(
   platform: Platform,
   user: string,
   repo: string,
   slug: string,
 ): Promise<string> {
-  const adapter = await getAdapterAsync(platform);
-  for (const base of [`${POSTS_DIR}/${slug}`, slug]) {
-    try {
-      await adapter.readFile(user, repo, `${base}/README.md`);
-      return base;
-    } catch {
-      /* 尝试下一个候选目录 */
-    }
+  const base = `${POSTS_DIR}/${slug}`;
+  try {
+    await (await getAdapterAsync(platform)).readFile(user, repo, `${base}/README.md`);
+  } catch {
+    throw new Error(`README not found: ${user}/${repo}/${slug}`);
   }
-  throw new Error(`README not found: ${user}/${repo}/${slug}`);
+  return base;
 }
 
 async function loadReadme(

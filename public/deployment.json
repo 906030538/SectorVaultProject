@@ -54,13 +54,13 @@
   ],
   "oauth": {
     "gitee": {
-      "id": "0715c0c7ff892ba18c797963ee9771d53e537d1be5a2a72d7d475937cd873537"
+      "clientId": "0715c0c7ff892ba18c797963ee9771d53e537d1be5a2a72d7d475937cd873537"
     },
     "atomgit": {
-      "id": "f1b16bb0456241ed920113c33ad7edc2"
+      "clientId": "f1b16bb0456241ed920113c33ad7edc2"
     },
     "github": {
-      "id": "Ov23liHaS6KYboeULvpf"
+      "clientId": "Ov23liHaS6KYboeULvpf"
     }
   }
 }

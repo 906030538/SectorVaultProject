@@ -112,7 +112,6 @@ export function buildReadmeText(
     submittedAt: dates?.submittedAt,
     publishedAt: dates?.publishedAt,
     cover: coverName || undefined,
-    license: draft.license || undefined,
     songs: draft.tracks.filter(Boolean),
     engines: draft.engines.filter(Boolean),
     voicebanks: draft.voicebanks.filter(Boolean),

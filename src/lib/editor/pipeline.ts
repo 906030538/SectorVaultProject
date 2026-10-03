@@ -112,6 +112,7 @@ export function buildReadmeText(
     submittedAt: dates?.submittedAt,
     publishedAt: dates?.publishedAt,
     cover: coverName || undefined,
+    paramState: draft.type === 'project' ? draft.params : undefined,
     songs: draft.tracks.filter(Boolean),
     engines: draft.engines.filter(Boolean),
     voicebanks: draft.voicebanks.filter(Boolean),

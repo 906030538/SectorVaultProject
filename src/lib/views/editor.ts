@@ -1364,7 +1364,9 @@ export async function initEditor(
       // 原稿无邮箱：缺省取当前平台登录用户的邮箱
       syncDefaultEmail();
     }
+    // paramState 回填：索引记录优先；README formatter 属性在 content 加载后补齐（见下）
     state.params = entry.paramState ?? 'with-params';
+    let paramsFromAttrs = !entry.paramState;
     const radio = paramsRow.querySelector<HTMLInputElement>(`input[value="${state.params}"]`);
     if (radio) radio.checked = true;
     state.lists.videos = [];
@@ -1382,6 +1384,13 @@ export async function initEditor(
       const content = await loadSubmissionContent(entry.platform, config.user!, config.repo!, config.slug!);
       state.body = content.parsed.body;
       state.license = content.parsed.attrs.license ?? '';
+      // 索引缺 paramState 时读 README formatter 属性补齐
+      if (paramsFromAttrs && content.parsed.attrs.paramState) {
+        state.params = content.parsed.attrs.paramState as typeof state.params;
+        paramsFromAttrs = false;
+        const attrRadio = paramsRow.querySelector<HTMLInputElement>(`input[value="${state.params}"]`);
+        if (attrRadio) attrRadio.checked = true;
+      }
       // README 不再记录 license；回填从 slug 目录 LICENSE 文件内容推断
       try {
         const licenseRaw = await (await getAdapterAsync(entry.platform)).readFile(

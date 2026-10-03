@@ -965,7 +965,7 @@ async function findEntryFromRepo(
         const values = parseAttrList(attrs[key]);
         return values.length ? values : undefined;
       };
-      entry.paramState = archived?.paramState;
+      entry.paramState = archived?.paramState ?? (attrs.paramState as SubmissionEntry['paramState'] | undefined);
       entry.songs = archived?.songs ?? fromAttrs('songs');
       entry.engines = archived?.engines ?? fromAttrs('engines');
       entry.voicebanks = archived?.voicebanks ?? fromAttrs('voicebanks');

@@ -124,6 +124,8 @@ export interface ReadmeInput {
   /** 发布时间（ISO） */
   publishedAt?: string;
   cover?: string;
+  /** 有参/微调/无参（工程类稿件） */
+  paramState?: string;
   /** 关联 release id */
   release?: number | string;
   /** 关联曲目（多值，逗号连接） */
@@ -153,6 +155,7 @@ export function generateReadme(input: ReadmeInput): string {
   if (input.submittedAt) header.push(`submittedAt: ${input.submittedAt}`);
   if (input.publishedAt) header.push(`publishedAt: ${input.publishedAt}`);
   if (input.cover) header.push(`cover: ${input.cover}`);
+  if (input.paramState) header.push(`paramState: ${input.paramState}`);
   // 多值字段以 YAML 流序列写入（JSON 数组形式）；读取端兼容旧版逗号分隔
   if (input.songs?.length) header.push(`songs: ${formatAttrList(input.songs)}`);
   if (input.engines?.length) header.push(`engines: ${formatAttrList(input.engines)}`);

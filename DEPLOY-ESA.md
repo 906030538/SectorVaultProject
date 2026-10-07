@@ -37,8 +37,12 @@ ESA **没有** `functions/` 目录的文件路由（也没有 `_routes.json`）�
 | 端点 | 行为 |
 | --- | --- |
 | `GET /oauth/env` | 内嵌公开 clientId（与 `public/deployment.json` oauth 段同步；轮换时两处同改） |
-| `POST /gh-oauth/device/code`、`/gh-oauth/access_token` | 直接透传 github.com/login/*（设备流无需 secret） |
+| `POST /gh-oauth/device/code`、`/gh-oauth/access_token` | 中继到 `RELAY_BASE`（EdgeOne）——ESA 边缘节点直连 github.com 实测超时 504，EdgeOne 出方向可达 GitHub |
 | `POST /oauth/{github\|gitee\|atomgit}/token` | 服务端中继到 `RELAY_BASE`（EdgeOne 部署，持有全套 OAUTH_* 密钥；浏览器仍只与本站通信） |
+
+entry 格式（线上实测报 599 的原文要求）：**ES module 默认导出带 `fetch` 方法的对象**
+（`export default { async fetch(request) {...} }`）——不是 CDN EdgeRoutine 控制台的
+`addEventListener('fetch')` Service-Worker 风格。
 
 与 `notFoundStrategy: 404Page` 的配合（官方文档语义）：同时配置函数与回退策略时，
 **导航请求不进函数**（由静态回退返回 404.html 外壳，SPA 路由照常激活），进函数的都是

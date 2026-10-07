@@ -1,10 +1,17 @@
-// SVP 阿里云 ESA Pages 边缘函数入口（EdgeRoutine，Service Worker 风格，零依赖）
+// SVP 阿里云 ESA Pages 边缘函数入口（零依赖）
 //
 // ESA Pages 没有 Cloudflare 式 functions/ 目录路由：所有「未命中静态资源」的请求
 // 都进本文件，由这里的路由实现 DEPLOY-FC.md 的 OAuth 代理契约（4 类请求 + CORS）。
 // 配合 esa.jsonc 的 notFoundStrategy:404Page——导航请求由静态回退处理、不进本函数
 //（官方文档：同时配置函数与 notFoundStrategy 时导航请求不触发函数），到这里的
 // 都是 fetch/XHR 类请求，正好是 OAuth 端点的形态。
+//
+// 入口格式（2026-09-30 线上实测，报 599 时的原文）：
+//   Error: Load user script error: the JavaScript script does not conform to the
+//   expected ES module format, where an object with a function named "fetch" or
+//   "bypass" is expected to be default exported.
+// 即 ESA Pages 要求 ES module **默认导出**带 fetch 方法的对象——不是 CDN
+// EdgeRoutine 控制台的 addEventListener('fetch') Service-Worker 风格。
 //
 // 密钥策略（ESA 侧零密钥，secret 永不进本文件/仓库）：
 //   GET  /oauth/env                内嵌公开 clientId（见 ENV_CONFIG）
@@ -38,9 +45,12 @@ const GH_PROXY = {
   '/gh-oauth/access_token': 'https://github.com/login/oauth/access_token',
 };
 
-addEventListener('fetch', (event) => {
-  event.respondWith(handle(event.request));
-});
+// ESA Pages 入口约定：默认导出 { fetch }，所有未命中静态资源的请求由此处理
+export default {
+  async fetch(request) {
+    return handle(request);
+  },
+};
 
 async function handle(request) {
   const url = new URL(request.url);

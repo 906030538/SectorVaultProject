@@ -15,9 +15,10 @@
 //
 // 密钥策略（ESA 侧零密钥，secret 永不进本文件/仓库）：
 //   GET  /oauth/env                内嵌公开 clientId（见 ENV_CONFIG）
-//   POST /gh-oauth/device/code     直接透传 github.com/login/device/code（设备流无需 secret）
-//   POST /gh-oauth/access_token    直接透传 github.com/login/oauth/access_token
-//   POST /oauth/{platform}/token   转发给 RELAY_BASE（EdgeOne 部署持有全套密钥），
+//   POST /gh-oauth/device/code     中继到 RELAY_BASE（EdgeOne）——2026-09-30 实测 ESA
+//                                  边缘节点直连 github.com 超时 504，EdgeOne 出方向可达
+//   POST /gh-oauth/access_token    同上，中继到 RELAY_BASE
+//   POST /oauth/{platform}/token   中继到 RELAY_BASE（EdgeOne 持有全套 OAUTH_* 密钥），
 //                                  浏览器仍只与本站通信（同源中继）
 
 // token 交换中继目标：EdgeOne 部署（eo.svp.lyoko.cn 已配 OAUTH_* 环境变量）
@@ -40,10 +41,9 @@ const CORS = {
   'access-control-allow-headers': 'content-type',
 };
 
-const GH_PROXY = {
-  '/gh-oauth/device/code': 'https://github.com/login/device/code',
-  '/gh-oauth/access_token': 'https://github.com/login/oauth/access_token',
-};
+// GitHub 设备流路径：ESA 边缘节点直连 github.com 超时（实测 504），与 token 交换
+// 一并经 EdgeOne 中继（其出方向可达 GitHub，且设备流无需 secret）
+const GH_PATHS = ['/gh-oauth/device/code', '/gh-oauth/access_token'];
 
 // ESA Pages 入口约定：默认导出 { fetch }，所有未命中静态资源的请求由此处理
 export default {
@@ -65,9 +65,9 @@ async function handle(request) {
     });
   }
 
-  // GitHub 设备流透传（无需 secret）
-  if (request.method === 'POST' && GH_PROXY[url.pathname]) {
-    return forward(request, GH_PROXY[url.pathname]);
+  // GitHub 设备流：经 EdgeOne 中继（ESA 节点直连 github.com 超时）
+  if (request.method === 'POST' && GH_PATHS.indexOf(url.pathname) !== -1) {
+    return forward(request, `${RELAY_BASE}${url.pathname}`);
   }
 
   // token 交换：secret 只在 RELAY_BASE——服务端转发无 CORS 限制，响应加回本站 CORS

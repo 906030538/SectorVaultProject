@@ -63,9 +63,22 @@ ESA 控制台**无需配置任何 OAUTH_* 环境变量**（密钥只在 EdgeOne�
 
 ## 线上冒烟清单
 
-- `GET /oauth/env` 返回 clientId JSON（函数路由生效；若返回 404 页说明 entry 未生效）；
-- `POST /gh-oauth/device/code` 透传 GitHub 正常（设备流）；
-- `POST /oauth/gitee/token` 空 code 应返回上游平台错误 JSON（中继链路通）；
+> **验证陷阱**：浏览器地址栏直接访问 `/oauth/env` 等 API 路径**必然返回 404 页**——
+> 地址栏请求是导航请求（`Sec-Fetch-Mode: navigate`），按官方规则**不进函数**、由
+> `notFoundStrategy` 返回 404.html 外壳。这不代表函数未生效。验证函数必须用
+> **不带该头的请求**（curl）或从前端页面发起 fetch（`Sec-Fetch-Mode: cors`）：
+
+```bash
+# 1. 函数路由（curl 无导航头 → 进函数）：期望 200 + clientId JSON
+curl -sD - https://<ESA域名>/oauth/env
+# 2. 设备流透传：期望 GitHub 的 JSON 响应（错误参数也返回上游 JSON 而非 404 页）
+curl -s -X POST -d "client_id=test" https://<ESA域名>/gh-oauth/device/code
+# 3. token 交换中继：空 code 期望上游平台的错误 JSON（链路经 EdgeOne）
+curl -s -X POST -d "code=test" https://<ESA域名>/oauth/gitee/token
+```
+
+- 最终验收以**前端流程**为准：站点页面打开后触发 `fetch('/oauth/env')`（非导航），
+  登录全链路正常；
 - `/view/<owner>/<repo>/<slug>`、`/user/<name>`、`/login/…`、`/discussions/<id>`
   返回 404 页外壳（HTTP 404）且页面内路由组件激活、地址栏不变——状态码是 404 属预期；
 - `/about`、`/discussions`、`/new`、`/project` 等静态目录页正常（尾斜杠重定向后 200）；

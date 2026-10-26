@@ -1,10 +1,17 @@
+---
+import { HASH_ROUTER, routeHref } from "@/lib/router";
+---
+
+<!-- hash 单页构建（境内托管）不展示备案号；path 构建保留 -->
 <footer
   class="border-t border-slate-200 py-6 text-center text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400"
 >
   <span>Powered by DecentCMS | </span>
-  <a href="/terms" data-i18n="footer.terms">服务条款</a>
-  <span> | </span>
-  <a href="https://beian.miit.gov.cn/" target="_blank">
-    粤ICP备2026147540号-1
-  </a>
+  <a href={routeHref("/terms")} data-i18n="footer.terms">服务条款</a>
+  <span>{HASH_ROUTER ? "" : " | "}</span>
+  {!HASH_ROUTER && (
+    <a href="https://beian.miit.gov.cn/" target="_blank">
+      粤ICP备2026147540号-1
+    </a>
+  )}
 </footer>

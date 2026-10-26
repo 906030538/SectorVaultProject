@@ -10,6 +10,7 @@ import {
 } from '@/config';
 import { GITHUB_CLIENT_ID } from '@/lib/auth';
 import { withBase } from '@/lib/base';
+import { HASH_ROUTER } from '@/lib/router';
 import type { Platform } from '@/types';
 
 /** 部署配置结构 */
@@ -277,13 +278,18 @@ export async function getOAuthConfig(
 /** 线路偏好（选定的托管平台）存储键；未设置 = 全部平台 */
 export const LINE_STORAGE_KEY = 'svp-line';
 
-/** 当前线路（null = 全部平台） */
+/**
+ * 当前线路（null = 全部平台）。hash 单页构建（境内托管）未设置时默认 gitee 线
+ * （国内镜像，直连可达）；用户显式切换后以存储值为准。path 构建保持 null 缺省。
+ */
 export function getStoredLine(): string | null {
   try {
-    return localStorage.getItem(LINE_STORAGE_KEY) || null;
+    const stored = localStorage.getItem(LINE_STORAGE_KEY);
+    if (stored) return stored;
   } catch {
-    return null;
+    /* 存储不可用时走缺省 */
   }
+  return HASH_ROUTER ? 'gitee' : null;
 }
 
 export function setStoredLine(platform: Platform | null): void {

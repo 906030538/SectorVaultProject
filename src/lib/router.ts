@@ -35,6 +35,7 @@ export function navigate(path: string): void {
 /**
  * 当前路由：hash 模式优先取 # 后路径；# 为空时回退 pathname——
  * 兼容经静态回退 / 重写送进来的旧路径链接（如 404.html 外壳直出 /view/…）。
+ * # 为空且路径是站点入口（/index.html 直达）时视为根路径，默认显示首页。
  * query 合并 # 内查询与 location.search（OAuth 回调的 ?code 落在 search 上）。
  */
 export function currentRoute(): RouteLocation {
@@ -45,10 +46,10 @@ export function currentRoute(): RouteLocation {
     const query = queryIndex === -1 ? '' : raw.slice(queryIndex + 1);
     return { path: normalizePath(path), query: mergeQuery(window.location.search, query) };
   }
-  return {
-    path: normalizePath(stripBase(window.location.pathname)),
-    query: new URLSearchParams(window.location.search),
-  };
+  let path = normalizePath(stripBase(window.location.pathname));
+  // index.html 直达视作根路径：无 # 的入口访问默认显示首页
+  if (HASH_ROUTER && path === '/index.html') path = '/';
+  return { path, query: new URLSearchParams(window.location.search) };
 }
 
 /** 路由路径分段（过滤空段并逐段解码；CJK 路径段以百分号编码到达） */

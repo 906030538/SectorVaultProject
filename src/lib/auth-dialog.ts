@@ -2,7 +2,7 @@ import { loadSessionBy, logoutPlatform, saveSession, setToken } from '@/lib/auth
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getOAuthConfig } from '@/lib/index/sources';
 import { pollDeviceToken, requestDeviceCode } from '@/lib/auth';
-import { withBase } from '@/lib/base';
+import { routeHref } from '@/lib/router';
 import type { Platform } from '@/types';
 
 export interface AuthLabels {
@@ -288,7 +288,7 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
   const hint = el('p', 'mt-3 text-xs text-slate-500 dark:text-slate-400');
   hint.appendChild(document.createTextNode(`${labels.tokenHint} `));
   const faq = el('a', 'text-emerald-600 hover:underline dark:text-emerald-400', labels.faqLink);
-  faq.href = withBase('/faq?page=' + encodeURIComponent('用户帐户'));
+  faq.href = routeHref('/faq?page=' + encodeURIComponent('用户帐户'));
   faq.dataset.action = 'goto-faq';
   hint.appendChild(faq);
   card.appendChild(hint);

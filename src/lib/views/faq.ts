@@ -1,3 +1,4 @@
+import { replaceRouteUrl, routeHref } from '@/lib/router';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 
@@ -110,11 +111,11 @@ function rewriteWikiLinks(root: HTMLElement, owner: string, repo: string, init: 
     if (!prefix) continue;
     const page = decodeURIComponent(href.slice(prefix.length)).replace(/\/+$/, '');
     if (!page) continue;
-    link.href = `/faq?page=${encodeURIComponent(page)}`;
+    link.href = routeHref(`/faq?page=${encodeURIComponent(page)}`);
     link.addEventListener('click', (event) => {
       event.preventDefault();
       void loadFaqPage({ ...init, page });
-      window.history.replaceState(null, '', `/faq?page=${encodeURIComponent(page)}`);
+      replaceRouteUrl(`/faq?page=${encodeURIComponent(page)}`);
     });
   }
 }

@@ -76,7 +76,7 @@ const locale = DEFAULT_LOCALE;
 </article>
 
 <script>
-  import { stripBase } from '@/lib/base';
+  import { registerRoute, routeSegments } from '@/lib/router';
   import { initDetail } from '@/lib/views/detail';
   import { buildDetailLabels } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
@@ -85,22 +85,13 @@ const locale = DEFAULT_LOCALE;
   import { getStoredLine, setStoredLine } from '@/lib/index/sources';
   import type { Platform } from '@/types';
 
-void (async () => {
-  // 路由匹配：/view/:user/:repo/:slug...（3 段起为投稿详情）；pathname 中文为百分号编码，逐段解码
-  const segments = stripBase(window.location.pathname)
-    .split('/')
-    .filter(Boolean)
-    .map((part) => {
-      try {
-        return decodeURIComponent(part);
-      } catch {
-        return part;
-      }
-    });
-  const user = segments[1];
-  const repo = segments[2];
-  const slug = segments.slice(3).join('/');
-  if (segments[0] !== 'view' || !user || !repo || !slug) return;
+  registerRoute(async (loc) => {
+    // 路由匹配：/view/:user/:repo/:slug...（3 段起为投稿详情）；路径中文为百分号编码，逐段解码
+    const segments = routeSegments(loc.path);
+    const user = segments[1];
+    const repo = segments[2];
+    const slug = segments.slice(3).join('/');
+    if (segments[0] !== 'view' || !user || !repo || !slug) return;
 
   const root = document.querySelector<HTMLElement>('[data-route-component="submission"]')!;
   // SPA 回退：显示宿主容器并隐藏 404 内容（静态预渲染页无宿主容器）
@@ -157,5 +148,5 @@ void (async () => {
   } catch (error) {
     console.error('[submission] init failed:', error);
   }
-})();
+});
 </script>

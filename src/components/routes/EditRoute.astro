@@ -16,7 +16,7 @@ const locale = DEFAULT_LOCALE;
 </div>
 
 <script>
-  import { stripBase } from '@/lib/base';
+  import { registerRoute, routeSegments } from '@/lib/router';
   import { initEditor, type EditorConfig } from '@/lib/views/editor';
   import { buildEditorLabels, buildLicenseOptions } from '@/lib/labels';
   import { getClientLocale } from '@/lib/i18n-client';
@@ -24,18 +24,11 @@ const locale = DEFAULT_LOCALE;
   import { SITE_NAME } from '@/config';
 
   // 路由匹配：/edit/:name/:repo/:slug（严格四段）；逐段解码（CJK slug 以百分号编码到达）
-  const segments = stripBase(window.location.pathname)
-    .split('/')
-    .filter(Boolean)
-    .map((part) => {
-      try {
-        return decodeURIComponent(part);
-      } catch {
-        return part;
-      }
-    });
-  const [name, repo, slug] = segments.slice(1);
-  if (segments[0] === 'edit' && segments.length === 4 && name && repo && slug) {
+  registerRoute(async (loc) => {
+    const segments = routeSegments(loc.path);
+    const [name, repo, slug] = segments.slice(1);
+    if (!(segments[0] === 'edit' && segments.length === 4 && name && repo && slug)) return;
+    {
     const root = document.querySelector<HTMLElement>('[data-route-component="edit"]')!;
     const host = root.closest<HTMLElement>('[data-route-host]');
     if (host) host.hidden = false;
@@ -58,4 +51,5 @@ const locale = DEFAULT_LOCALE;
       console.error('[editor] init failed:', error);
     }
   }
+  });
 </script>

@@ -1,0 +1,43 @@
+---
+import HomeRoute from '@/components/routes/HomeRoute.astro';
+import ProjectRoute from '@/components/routes/ProjectRoute.astro';
+import ArticleRoute from '@/components/routes/ArticleRoute.astro';
+import DiscussionsRoute from '@/components/routes/DiscussionsRoute.astro';
+import AboutRoute from '@/components/routes/AboutRoute.astro';
+import FaqRoute from '@/components/routes/FaqRoute.astro';
+import NewRoute from '@/components/routes/NewRoute.astro';
+import DynamicRouteHosts from '@/components/DynamicRouteHosts.astro';
+import { SITE_NAME } from '@/config';
+import { DEFAULT_LOCALE } from '@/i18n';
+import { routeHref } from '@/lib/router';
+
+/**
+ * hash 模式整站壳：全部路由宿主挂载于单页（index / 404 复用），
+ * router 按 # 路径激活其一（# 为空时回退 pathname，兼容旧路径直出）。
+ * 首屏显示 home 宿主（路由模块加载前即渲染，避免空白）；showNotFound 时
+ * （404 外壳）改为显示 404 文案，由匹配的路由激活后隐藏。
+ */
+interface Props {
+  showNotFound?: boolean;
+}
+
+const { showNotFound = false } = Astro.props;
+const locale = DEFAULT_LOCALE;
+---
+
+<div class="py-24 text-center" data-role="not-found" hidden={!showNotFound}>
+  <p class="text-6xl font-bold text-slate-200 dark:text-slate-800">404</p>
+  <a href={routeHref("/")} class="btn btn-primary mt-6">
+    ← {SITE_NAME}
+  </a>
+</div>
+
+<div data-route-host="home" hidden={showNotFound}><HomeRoute /></div>
+<div hidden data-route-host="project"><ProjectRoute /></div>
+<div hidden data-route-host="article"><ArticleRoute /></div>
+<div hidden data-route-host="discussions"><DiscussionsRoute /></div>
+<div hidden data-route-host="about"><AboutRoute /></div>
+<div hidden data-route-host="faq"><FaqRoute /></div>
+<div hidden data-route-host="new"><NewRoute /></div>
+
+<DynamicRouteHosts />

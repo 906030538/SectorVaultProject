@@ -1,0 +1,19 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import LoginRoute from '@/components/routes/LoginRoute.astro';
+import { SUPPORTED_PLATFORMS } from '@/config';
+
+/**
+ * OAuth 回调落地页 /login/:platform：预渲染为真实静态文件，
+ * 任何静态托管（含无 404 回退 / 无重写的环境）都能直接 serve，
+ * redirect_uri 得以保持 /login/:platform 形态不变。
+ * path 模式此前经 404 SPA 回退承载，现在双模式统一由本页承载。
+ */
+export function getStaticPaths() {
+  return SUPPORTED_PLATFORMS.map((platform) => ({ params: { platform } }));
+}
+---
+
+<BaseLayout title="Login">
+  <LoginRoute />
+</BaseLayout>

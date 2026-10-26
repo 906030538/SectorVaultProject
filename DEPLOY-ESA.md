@@ -13,16 +13,20 @@
 
    | 取值 | 行为 | 适用性 |
    | --- | --- | --- |
-   | `singlePageApplication` | 未命中静态资源返回 `index.html` + **200** | 首页是落地页、无路由宿主——`/view/…` 会显示首页内容，**不可用** |
-   | `404Page` | 未命中返回 `404.html` + **404** | 外壳正确（路由宿主在 404 页，客户端路由照常激活），**采用** |
+   | `singlePageApplication` | 未命中静态资源返回 `index.html` + **200** | hash 构建下 index 与 404 页同为整站壳（路由回退 pathname 激活），**可用且返回 200** |
+   | `404Page` | 未命中返回 `404.html` + **404** | 同样可用（外壳与行为一致），**维持采用**（语义不变，减少一处线上变更） |
 
-   采用 `404Page` 的代价：SPA 路由（`/view/…`、`/discussions/<id>` 等）对爬虫返回 404
-   状态码（CF/EdgeOne 线路返回 200，见 `DEPLOY-CF.md` 的 SEO 取舍）。浏览器体验完全一致，
-   作为镜像线路可接受；若需 200 语义须自写 ER 入口回退（见下）。
+   > hash 构建（`esa.jsonc` 的 `buildCommand` 已切 `npm run build:hash`，与 EdgeOne 一致）
+   > 下整站收敛为 `index.html` 单页（`/#/…` 路由），**正常浏览完全不经过回退**；
+   > 两种策略如今都只是**站外旧路径外链**（`/view/…` 等）的入口。若在意旧路径对爬虫
+   > 返回 200，可切换为 `singlePageApplication`（前端行为等价）。
 3. 默认开启**尾斜杠重定向**（`/about` → `/about/`），与 CF 一致，无需处理。
 
 ESA 的回退对全部导航路径统一生效（未命中静态资源即回退），**不需要** EdgeOne 那样的
 逐前缀 rewrites，`/view`、`/user`、`/edit`、`/login`、`/discussions/<id>` 一并覆盖。
+hash 构建下这些旧路径只在站外外链到达时才走回退：`/about`、`/project` 等原静态页已变为
+重定向壳（真实文件直接命中），`/login/<platform>` 亦为真实静态回调页（OAuth redirect_uri
+不变）。
 
 ## OAuth：esa/entry.js 单入口代理（零密钥）
 

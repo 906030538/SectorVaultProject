@@ -1,0 +1,33 @@
+---
+import { routeHref } from '@/lib/router';
+
+/**
+ * hash 构建下旧路径静态页的重定向壳：真实静态文件（如 /about）被直接访问时，
+ * 立即跳转到对应 # 路由（携带地址栏查询串，如 /faq?page=X → /#/faq?page=X）。
+ * 仅在 HASH_ROUTER 构建中渲染（见各 pages 条件），path 构建不产出此页。
+ */
+interface Props {
+  /** 目标站内路由路径（以 / 开头，可含 ?query） */
+  to: string;
+}
+
+const { to } = Astro.props;
+const target = routeHref(to);
+---
+
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirecting…</title>
+    <script is:inline define:vars={{ target }}>
+      // 旧路径 → hash 路由；查询串并入 # 路由查询（如 ?page=X）
+      (function () {
+        var query = window.location.search || '';
+        window.location.replace(query ? target + query : target);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

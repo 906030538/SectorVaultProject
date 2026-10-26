@@ -1,84 +1,16 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import LoadingBlock from '@/components/LoadingBlock.astro';
-import { DEFAULT_LOCALE, t } from '@/i18n';
-import { DEFAULT_INDEX_SOURCES } from '@/config';
-
-const locale = DEFAULT_LOCALE;
-const primary = DEFAULT_INDEX_SOURCES[0];
-const discussionsUrl = `https://github.com/${primary.owner}/${primary.repo}/discussions`;
+import DiscussionsRoute from '@/components/routes/DiscussionsRoute.astro';
+import HashRedirect from '@/components/HashRedirect.astro';
+import { HASH_ROUTER } from '@/lib/router';
 ---
 
-<BaseLayout titleKey="discussions.title">
-  <div class="mb-6 flex flex-wrap items-center gap-3">
-    <h1 class="text-2xl font-bold" data-i18n="discussions.title">{t(locale, 'discussions.title')}</h1>
-    <div class="ml-auto flex gap-2">
-      <button type="button" class="btn btn-primary" data-role="new-discussion" data-i18n="discussions.newDiscussion">
-        {t(locale, 'discussions.newDiscussion')}
-      </button>
-      <a href={discussionsUrl} target="_blank" rel="noopener noreferrer" class="btn" data-role="open-discussions">
-        <span data-i18n="discussions.open">{t(locale, 'discussions.open')}</span> →
-      </a>
-    </div>
-  </div>
-  <p class="mb-6 text-sm text-slate-500 dark:text-slate-400" data-i18n="discussions.description">
-    {t(locale, 'discussions.description')}
-  </p>
-
-  <div class="flex flex-col gap-3" data-component="discussion-list"></div>
-  <p class="py-8 text-center text-slate-400" data-role="empty" data-i18n="discussions.none" hidden>
-    {t(locale, 'discussions.none')}
-  </p>
-  <p class="py-8 text-center text-rose-500" data-role="error" data-i18n="discussions.loadError" hidden>
-    {t(locale, 'discussions.loadError')}
-  </p>
-  <LoadingBlock locale={locale} />
-
-  <script>
-    import { discussionSources, initDiscussionList, wireNewDiscussionButton } from '@/lib/views/discussions';
-    import { buildDiscussionsLabels } from '@/lib/labels';
-    import { getClientLocale } from '@/lib/i18n-client';
-    import { getIndexSources, getStoredLine, setStoredLine } from '@/lib/index/sources';
-    import { getAdapterAsync } from '@/lib/adapters/lazy';
-
-    const locale = getClientLocale();
-    const labels = buildDiscussionsLabels(locale);
-
-    // gitee 线无讨论数据源：进入讨论页自动切换到 atomgit 线（讨论本就读 atomgit 索引仓）
-    let switched = false;
-    if (getStoredLine() === 'gitee') {
-      const all = await getIndexSources();
-      if (all.some((source) => source.platform === 'atomgit')) {
-        setStoredLine('atomgit');
-        switched = true;
-        location.reload();
-      }
-    }
-
-    if (!switched) {
-      // 「前往讨论区」跳转目标随线路：github 线为 github 仓讨论页，gitee/atomgit 线为 atomgit 仓讨论页
-      const [target] = await discussionSources();
-      const openBtn = document.querySelector<HTMLAnchorElement>('[data-role="open-discussions"]');
-      if (target && openBtn) {
-        const adapter = await getAdapterAsync(target.platform);
-        openBtn.href = adapter.discussionsUrl(target.owner, target.repo);
-      }
-
-      const newButton = document.querySelector<HTMLButtonElement>('[data-role="new-discussion"]');
-      if (newButton) wireNewDiscussionButton(locale, labels, newButton);
-      try {
-        await initDiscussionList(locale, labels, {
-          list: document.querySelector('[data-component="discussion-list"]')!,
-          empty: document.querySelector<HTMLElement>('[data-role="empty"]')!,
-          error: document.querySelector<HTMLElement>('[data-role="error"]')!,
-          loading: document.querySelector<HTMLElement>('[data-component="loading"]')!,
-        });
-      } catch {
-        const loading = document.querySelector<HTMLElement>('[data-component="loading"]');
-        if (loading) loading.hidden = true;
-        const error = document.querySelector<HTMLElement>('[data-role="error"]');
-        if (error) error.hidden = false;
-      }
-    }
-  </script>
-</BaseLayout>
+{
+  HASH_ROUTER ? (
+    <HashRedirect to="/discussions" />
+  ) : (
+    <BaseLayout titleKey="discussions.title">
+      <DiscussionsRoute />
+    </BaseLayout>
+  )
+}

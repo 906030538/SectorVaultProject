@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, POSTS_DIR } from '@/config';
-import { withBase } from '@/lib/base';
+import { routeHref } from '@/lib/router';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels, buildUserLabels } from '@/lib/labels';
@@ -808,10 +808,10 @@ function renderDone(root: HTMLElement, labels: EditorLabels, config: EditorConfi
   panel.appendChild(el('h2', 'text-lg font-semibold', mode === 'new' ? labels.doneNew : labels.doneEdit));
   const links = el('div', 'flex gap-2');
   const collection = el('a', 'btn', labels.gotoCollection);
-  collection.href = withBase(`/view/${config.user}/${config.repo}`);
+  collection.href = routeHref(`/view/${config.user}/${config.repo}`);
   collection.setAttribute('data-action', 'goto-collection');
   const submission = el('a', 'btn btn-primary', labels.gotoSubmission);
-  submission.href = withBase(`/view/${config.user}/${config.repo}/${config.slug}`);
+  submission.href = routeHref(`/view/${config.user}/${config.repo}/${config.slug}`);
   submission.setAttribute('data-action', 'goto-submission');
   links.append(collection, submission);
   panel.appendChild(links);
@@ -1730,7 +1730,7 @@ export async function initEditor(
           /* 忽略清除失败 */
         }
         currentProgress = null;
-        showSuccessDialog(labels, withBase(`/view/${draft.user}/${draft.repo}/${draft.slug}`), () => {
+        showSuccessDialog(labels, routeHref(`/view/${draft.user}/${draft.repo}/${draft.slug}`), () => {
           renderDone(root, labels, config, 'new');
         });
       }

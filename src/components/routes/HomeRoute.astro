@@ -1,0 +1,110 @@
+---
+import { SITE_NAME } from '@/config';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+import { routeHref } from '@/lib/router';
+
+/**
+ * 首页路由 /（hash 模式挂在 index 单页壳上，path 模式直接渲染在 index 页）。
+ * 统计与最新列表由客户端拉取索引渲染。
+ */
+const locale = DEFAULT_LOCALE;
+---
+
+<section class="py-12 text-center" data-route-component="home">
+  <h1 class="text-4xl font-bold tracking-tight">
+    {SITE_NAME}
+  </h1>
+  <p class="mt-3 text-lg text-slate-500 dark:text-slate-400" data-i18n="home.hero">
+    {t(locale, 'home.hero')}
+  </p>
+  <p class="mt-2 text-sm text-slate-400 dark:text-slate-500" data-i18n="home.tagline">
+    {t(locale, 'home.tagline')}
+  </p>
+  <p
+    class="mx-auto mt-6 max-w-2xl leading-relaxed text-slate-600 dark:text-slate-300"
+    data-i18n="home.intro"
+  >
+    {t(locale, 'home.intro')}
+  </p>
+  <div class="mt-8 flex items-center justify-center gap-3">
+    <a href={routeHref("/project")} class="btn btn-primary" data-i18n="nav.projects">
+      {t(locale, 'nav.projects')}
+    </a>
+    <a href={routeHref("/about")} class="btn" data-i18n="nav.about">{t(locale, 'nav.about')}</a>
+  </div>
+</section>
+
+<section class="mx-auto grid max-w-3xl grid-cols-2 gap-4 text-center">
+  <div class="card p-6">
+    <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-stat="submissions">
+      –
+    </div>
+    <div
+      class="mt-1 text-sm text-slate-500 dark:text-slate-400"
+      data-i18n="home.submissionCount"
+    >
+      {t(locale, 'home.submissionCount')}
+    </div>
+  </div>
+  <div class="card p-6">
+    <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-stat="users">–</div>
+    <div class="mt-1 text-sm text-slate-500 dark:text-slate-400" data-i18n="home.userCount">
+      {t(locale, 'home.userCount')}
+    </div>
+  </div>
+</section>
+
+<section class="mt-12">
+  <div class="mb-4 flex items-center justify-between">
+    <h2 class="text-xl font-semibold" data-i18n="home.latest">{t(locale, 'home.latest')}</h2>
+    <a
+      href={routeHref("/project")}
+      class="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+    >
+      <span data-i18n="home.viewAll">{t(locale, 'home.viewAll')}</span> →
+    </a>
+  </div>
+  <div class="flex flex-col gap-3" data-component="latest-list"></div>
+</section>
+
+<script>
+  import { registerRoute } from '@/lib/router';
+  import { loadLineIndexMerged } from '@/lib/index/loader';
+  import { renderCard } from '@/lib/ui';
+  import { buildCardLabels } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { SITE_NAME } from '@/config';
+
+  registerRoute(async (loc) => {
+    if (loc.path !== '/') return;
+    const root = document.querySelector<HTMLElement>('[data-route-component="home"]');
+    if (!root) return;
+    const host = root.closest<HTMLElement>('[data-route-host]');
+    if (host) host.hidden = false;
+    document.querySelector('[data-role="not-found"]')?.setAttribute('hidden', '');
+    document.title = SITE_NAME;
+
+    const locale = getClientLocale();
+    const labels = buildCardLabels(locale);
+
+    try {
+      // current + 归档合并：无 CI 重建 current 的线路投稿在归档里
+      const index = await loadLineIndexMerged();
+
+      const submissions = root.querySelector('[data-stat="submissions"]');
+      if (submissions) submissions.textContent = String(index.submissions.length);
+      const users = root.querySelector('[data-stat="users"]');
+      if (users) users.textContent = String(new Set(index.submissions.map((s) => s.owner)).size);
+
+      const list = root.querySelector('[data-component="latest-list"]');
+      if (list) {
+        const latest = [...index.submissions]
+          .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+          .slice(0, 5);
+        for (const entry of latest) list.appendChild(renderCard(entry, locale, labels));
+      }
+    } catch {
+      /* 索引加载失败时保留静态壳 */
+    }
+  });
+</script>

@@ -1,53 +1,56 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import SubmissionRoute from '@/components/routes/SubmissionRoute.astro';
-import CollectionRoute from '@/components/routes/CollectionRoute.astro';
-import UserRoute from '@/components/routes/UserRoute.astro';
-import EditRoute from '@/components/routes/EditRoute.astro';
-import DiscussionRoute from '@/components/routes/DiscussionRoute.astro';
-import LoginRoute from '@/components/routes/LoginRoute.astro';
+import DynamicRouteHosts from '@/components/DynamicRouteHosts.astro';
+import SpaShell from '@/components/SpaShell.astro';
 import { SITE_NAME } from '@/config';
-import { withBase } from '@/lib/base';
+import { routeHref, HASH_ROUTER } from '@/lib/router';
+
+// path 模式：本页是静态托管 404 回退壳（未知路径回退到 404.html）；
+// hash 模式：本页与 index 同为整站单页壳 —— 经重写 / 函数兜底送进来的旧路径
+// （#/ 为空）由 router 回退 pathname 激活，等价于 path 模式的回退行为
 ---
 
 <BaseLayout title="404">
-  <div class="py-24 text-center" data-role="not-found">
-    <p class="text-6xl font-bold text-slate-200 dark:text-slate-800">404</p>
-    <a href={withBase("/")} class="btn btn-primary mt-6">
-      ← {SITE_NAME}
-    </a>
-  </div>
+  {HASH_ROUTER ? (
+    <SpaShell showNotFound />
+  ) : (
+    <>
+      <div class="py-24 text-center" data-role="not-found">
+        <p class="text-6xl font-bold text-slate-200 dark:text-slate-800">404</p>
+        <a href={routeHref("/")} class="btn btn-primary mt-6">
+          ← {SITE_NAME}
+        </a>
+      </div>
 
-  <!--
-    SPA 回退：静态托管对未知路径返回本页，各路由组件按 window.location
-    自行判断是否激活（匹配则显示宿主容器并隐藏 404 内容），
-    使索引尚未收录（或构建后才新增）的 /view、/user、/edit 路径可直接访问。
-  -->
-  <script is:inline define:vars={{ base: import.meta.env.BASE_URL }}>
-    // 命中 SPA 路由前缀时预先隐藏 404 与返回按钮（模块脚本加载前即生效，避免闪现）；
-    // 若超时后仍无路由组件激活（路径不合法等），恢复显示 404
-    (function () {
-      var path = window.location.pathname;
-      if (base && base !== '/' && path.indexOf(base) === 0) path = path.slice(base.length);
-      var first = path.split('/').filter(Boolean)[0];
-      if (!first || ['view', 'user', 'edit', 'discussions', 'login'].indexOf(first) === -1) return;
-      var notice = document.querySelector('[data-role="not-found"]');
-      if (notice) notice.setAttribute('hidden', '');
-      setTimeout(function () {
-        var active = Array.prototype.some.call(
-          document.querySelectorAll('[data-route-host]'),
-          function (host) {
-            return !host.hidden && host.getBoundingClientRect().height > 0;
-          },
-        );
-        if (!active && notice) notice.removeAttribute('hidden');
-      }, 2500);
-    })();
-  </script>
-  <div hidden data-route-host="submission"><SubmissionRoute /></div>
-  <div hidden data-route-host="collection"><CollectionRoute /></div>
-  <div hidden data-route-host="user"><UserRoute /></div>
-  <div hidden data-route-host="edit"><EditRoute /></div>
-  <div hidden data-route-host="discussion"><DiscussionRoute /></div>
-  <div hidden data-route-host="login"><LoginRoute /></div>
+      {/*
+        SPA 回退：静态托管对未知路径返回本页，各路由组件按路由位置
+        自行判断是否激活（匹配则显示宿主容器并隐藏 404 内容），
+        使索引尚未收录（或构建后才新增）的 /view、/user、/edit 路径可直接访问。
+      */}
+      <script is:inline define:vars={{ base: import.meta.env.BASE_URL }}>
+        // 命中 SPA 路由前缀时预先隐藏 404 与返回按钮（模块脚本加载前即生效，避免闪现）；
+        // 若超时后仍无路由组件激活（路径不合法等），恢复显示 404。
+        // hash 模式下 # 路由未命中时应保留 404 文案（由 router 收尾），只处理无 # 的旧路径。
+        (function () {
+          if (window.location.hash.length > 1) return;
+          var path = window.location.pathname;
+          if (base && base !== '/' && path.indexOf(base) === 0) path = path.slice(base.length);
+          var first = path.split('/').filter(Boolean)[0];
+          if (!first || ['view', 'user', 'edit', 'discussions', 'login', 'project', 'article', 'about', 'faq', 'new'].indexOf(first) === -1) return;
+          var notice = document.querySelector('[data-role="not-found"]');
+          if (notice) notice.setAttribute('hidden', '');
+          setTimeout(function () {
+            var active = Array.prototype.some.call(
+              document.querySelectorAll('[data-route-host]'),
+              function (host) {
+                return !host.hidden && host.getBoundingClientRect().height > 0;
+              },
+            );
+            if (!active && notice) notice.removeAttribute('hidden');
+          }, 2500);
+        })();
+      </script>
+      <DynamicRouteHosts />
+    </>
+  )}
 </BaseLayout>

@@ -3,7 +3,7 @@ import { loadEngagements, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions } from '@/lib/index/loader';
 import { getLineSources } from '@/lib/index/sources';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
-import { withBase } from '@/lib/base';
+import { routeHref } from '@/lib/router';
 import { loadSession, loadSessionBy, getToken } from '@/lib/auth';
 import { spdxLicenseText } from '@/lib/utils';
 import { getIndexSources, setStoredLine } from '@/lib/index/sources';
@@ -485,7 +485,7 @@ export async function initCollection(init: CollectionInit): Promise<void> {
     els.actions.textContent = '';
     if (!isOwner) return;
     const submit = document.createElement('a');
-    submit.href = withBase('/new');
+    submit.href = routeHref('/new');
     submit.className = 'btn btn-primary';
     submit.dataset.action = 'submit';
     submit.textContent = labels.submit;

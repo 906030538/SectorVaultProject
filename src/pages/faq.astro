@@ -1,115 +1,16 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { DEFAULT_INDEX_SOURCES } from '@/config';
-import { DEFAULT_LOCALE, t } from '@/i18n';
-
-const locale = DEFAULT_LOCALE;
-const primary = DEFAULT_INDEX_SOURCES[0];
+import FaqRoute from '@/components/routes/FaqRoute.astro';
+import HashRedirect from '@/components/HashRedirect.astro';
+import { HASH_ROUTER } from '@/lib/router';
 ---
 
-<BaseLayout titleKey="faq.title">
-  <div class="mb-6 flex flex-wrap items-center gap-3">
-    <h1 class="text-2xl font-bold" data-i18n="faq.title">{t(locale, 'faq.title')}</h1>
-    <a
-      href={`https://github.com/${primary.owner}/${primary.repo}/wiki`}
-      target="_blank"
-      rel="noopener noreferrer"
-      class="btn ml-auto"
-      data-role="source-btn"
-    >
-      <span data-i18n="faq.viewSource">{t(locale, 'faq.viewSource')}</span> ↗
-    </a>
-  </div>
-  <p class="mb-4 text-slate-500 dark:text-slate-400" data-i18n="faq.description">
-    {t(locale, 'faq.description')}
-  </p>
-
-  <!-- 目录：桌面端左侧列表（吸附），窄屏回退顶部横排；页面列表来自 deployment.json 的 faqPages -->
-  <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
-    <nav
-      class="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 p-2 dark:border-slate-800 lg:sticky lg:top-20 lg:w-56 lg:min-w-0 lg:shrink-0 lg:flex-col"
-      data-role="faq-toc"
-      aria-label={t(locale, 'faq.toc')}
-    >
-    </nav>
-
-    <div class="min-w-0 flex-1">
-      <p class="hidden py-8 text-center text-rose-500" data-role="faq-error" data-i18n="faq.loadError">
-        {t(locale, 'faq.loadError')}
-      </p>
-      <div class="card prose-svp p-6" data-role="faq-body"></div>
-    </div>
-  </div>
-
-  <script>
-    import { loadFaqPage, loadFaqSidebar } from '@/lib/views/faq';
-    import { getFaqPages } from '@/lib/index/sources';
-    import { getClientLocale } from '@/lib/i18n-client';
-    import { t } from '@/i18n';
-    import { withBase } from '@/lib/base';
-
-    const locale = getClientLocale();
-    let current = new URLSearchParams(window.location.search).get('page') || 'Home';
-
-    const init = {
-      owner: '906030538',
-      repo: 'SectorVaultProject',
-      labels: {
-        viewSource: t(locale, 'faq.viewSource'),
-        loadError: t(locale, 'faq.loadError'),
-        empty: t(locale, 'faq.empty'),
-      },
-      els: {
-        body: document.querySelector<HTMLElement>('[data-role="faq-body"]')!,
-        sourceBtn: document.querySelector<HTMLAnchorElement>('[data-role="source-btn"]')!,
-        error: document.querySelector<HTMLElement>('[data-role="faq-error"]')!,
-      },
-    };
-
-    // 目录：当前页高亮，点击无刷新切换（桌面左侧列表样式）
-    const toc = document.querySelector('[data-role="faq-toc"]');
-    const homeLabel = t(locale, 'faq.home');
-    const TOC_LINK_CLASS =
-      'rounded-md px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white';
-    const TOC_ACTIVE_CLASS = 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
-    const renderToc = (entries: { page: string; label: string }[]): void => {
-      if (!toc) return;
-      toc.textContent = '';
-      for (const { page, label } of entries) {
-        const link = document.createElement('a');
-        link.href = withBase(`/faq?page=${encodeURIComponent(page)}`);
-        link.className = TOC_LINK_CLASS;
-        // Home 用 i18n 文案，其余用侧栏提供的显示名
-        link.textContent = page === 'Home' ? homeLabel : label;
-        link.dataset.page = page;
-        link.addEventListener('click', (event) => {
-          event.preventDefault();
-          if (page === current) return;
-          current = page;
-          window.history.replaceState(null, '', withBase(`/faq?page=${encodeURIComponent(page)}`));
-          highlight();
-          void loadFaqPage({ ...init, page });
-        });
-        toc.appendChild(link);
-      }
-      highlight();
-    };
-    const highlight = (): void => {
-      for (const link of Array.from(toc?.querySelectorAll<HTMLAnchorElement>('a') ?? [])) {
-        const active = link.dataset.page === current;
-        for (const cls of TOC_ACTIVE_CLASS.split(' ')) link.classList.toggle(cls, active);
-        if (active) link.setAttribute('aria-current', 'page');
-        else link.removeAttribute('aria-current');
-      }
-    };
-
-    // 目录来源：wiki 自定义侧栏（_Sidebar.md）优先，拉不到时回退 deployment.json 的 faqPages
-    void (async () => {
-      const sidebar = await loadFaqSidebar(init.owner, init.repo);
-      const entries =
-        sidebar ?? (await getFaqPages()).map((page) => ({ page, label: page }));
-      renderToc(entries);
-    })();
-    void loadFaqPage({ ...init, page: current });
-  </script>
-</BaseLayout>
+{
+  HASH_ROUTER ? (
+    <HashRedirect to="/faq" />
+  ) : (
+    <BaseLayout titleKey="faq.title">
+      <FaqRoute />
+    </BaseLayout>
+  )
+}

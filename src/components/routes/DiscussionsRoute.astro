@@ -1,0 +1,102 @@
+---
+import LoadingBlock from '@/components/LoadingBlock.astro';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+import { DEFAULT_INDEX_SOURCES } from '@/config';
+
+/**
+ * /discussions 讨论列表路由（hash 模式挂在 index 单页壳上，path 模式直接渲染在 /discussions 页）。
+ * 讨论为动态内容，列表由客户端拉取渲染；详情见 DiscussionRoute（五段路径）。
+ */
+const locale = DEFAULT_LOCALE;
+const primary = DEFAULT_INDEX_SOURCES[0];
+const discussionsUrl = `https://github.com/${primary.owner}/${primary.repo}/discussions`;
+---
+
+<div data-route-component="discussions">
+  <div class="mb-6 flex flex-wrap items-center gap-3">
+    <h1 class="text-2xl font-bold" data-i18n="discussions.title">{t(locale, 'discussions.title')}</h1>
+    <div class="ml-auto flex gap-2">
+      <button type="button" class="btn btn-primary" data-role="new-discussion" data-i18n="discussions.newDiscussion">
+        {t(locale, 'discussions.newDiscussion')}
+      </button>
+      <a href={discussionsUrl} target="_blank" rel="noopener noreferrer" class="btn" data-role="open-discussions">
+        <span data-i18n="discussions.open">{t(locale, 'discussions.open')}</span> →
+      </a>
+    </div>
+  </div>
+  <p class="mb-6 text-sm text-slate-500 dark:text-slate-400" data-i18n="discussions.description">
+    {t(locale, 'discussions.description')}
+  </p>
+
+  <div class="flex flex-col gap-3" data-component="discussion-list"></div>
+  <p class="py-8 text-center text-slate-400" data-role="empty" data-i18n="discussions.none" hidden>
+    {t(locale, 'discussions.none')}
+  </p>
+  <p class="py-8 text-center text-rose-500" data-role="error" data-i18n="discussions.loadError" hidden>
+    {t(locale, 'discussions.loadError')}
+  </p>
+  <LoadingBlock locale={locale} />
+</div>
+
+<script>
+  import { registerRoute } from '@/lib/router';
+  import { discussionSources, initDiscussionList, wireNewDiscussionButton } from '@/lib/views/discussions';
+  import { buildDiscussionsLabels } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { getIndexSources, getStoredLine, setStoredLine } from '@/lib/index/sources';
+  import { getAdapterAsync } from '@/lib/adapters/lazy';
+  import { t } from '@/i18n';
+  import { SITE_NAME } from '@/config';
+
+  registerRoute(async (loc) => {
+    // 列表路由恰好一段；/discussions/:platform/:owner/:repo/:number 归 DiscussionRoute
+    const segments = loc.path.split('/').filter(Boolean);
+    if (segments[0] !== 'discussions' || segments.length > 1) return;
+    const root = document.querySelector<HTMLElement>('[data-route-component="discussions"]');
+    if (!root) return;
+    const host = root.closest<HTMLElement>('[data-route-host]');
+    if (host) host.hidden = false;
+    document.querySelector('[data-role="not-found"]')?.setAttribute('hidden', '');
+    document.title = `${t(getClientLocale(), 'discussions.title')} - ${SITE_NAME}`;
+
+    const locale = getClientLocale();
+    const labels = buildDiscussionsLabels(locale);
+
+    // gitee 线无讨论数据源：进入讨论页自动切换到 atomgit 线（讨论本就读 atomgit 索引仓）
+    let switched = false;
+    if (getStoredLine() === 'gitee') {
+      const all = await getIndexSources();
+      if (all.some((source) => source.platform === 'atomgit')) {
+        setStoredLine('atomgit');
+        switched = true;
+        location.reload();
+      }
+    }
+
+    if (!switched) {
+      // 「前往讨论区」跳转目标随线路：github 线为 github 仓讨论页，gitee/atomgit 线为 atomgit 仓讨论页
+      const [target] = await discussionSources();
+      const openBtn = root.querySelector<HTMLAnchorElement>('[data-role="open-discussions"]');
+      if (target && openBtn) {
+        const adapter = await getAdapterAsync(target.platform);
+        openBtn.href = adapter.discussionsUrl(target.owner, target.repo);
+      }
+
+      const newButton = root.querySelector<HTMLButtonElement>('[data-role="new-discussion"]');
+      if (newButton) wireNewDiscussionButton(locale, labels, newButton);
+      try {
+        await initDiscussionList(locale, labels, {
+          list: root.querySelector('[data-component="discussion-list"]')!,
+          empty: root.querySelector<HTMLElement>('[data-role="empty"]')!,
+          error: root.querySelector<HTMLElement>('[data-role="error"]')!,
+          loading: root.querySelector<HTMLElement>('[data-component="loading"]')!,
+        });
+      } catch {
+        const loading = root.querySelector<HTMLElement>('[data-component="loading"]');
+        if (loading) loading.hidden = true;
+        const error = root.querySelector<HTMLElement>('[data-role="error"]');
+        if (error) error.hidden = false;
+      }
+    }
+  });
+</script>

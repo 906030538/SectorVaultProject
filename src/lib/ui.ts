@@ -4,6 +4,7 @@ import logoSmallUrl from '../../logo-small.svg?url';
 import { POSTS_DIR } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { withBase } from '@/lib/base';
+import { routeHref } from '@/lib/router';
 import { getClientLocale } from '@/lib/i18n-client';
 import { t } from '@/i18n';
 
@@ -207,7 +208,7 @@ export function renderCard(
   article.className = 'card flex gap-4 p-4';
 
   const coverLink = document.createElement('a');
-  coverLink.href = withBase(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
+  coverLink.href = routeHref(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   coverLink.className = 'block w-32 shrink-0';
   // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
   void applyCover(entry, coverLink, coverPlaceholder());
@@ -226,7 +227,7 @@ export function renderCard(
   const meta = document.createElement('p');
   meta.className = 'mt-1 text-sm text-slate-500 dark:text-slate-400';
   const userLink = document.createElement('a');
-  userLink.href = withBase(`/user/${entry.owner}`);
+  userLink.href = routeHref(`/user/${entry.owner}`);
   userLink.className = 'hover:text-emerald-600 dark:hover:text-emerald-400';
   userLink.textContent = entry.owner;
   const date = document.createElement('time');
@@ -276,7 +277,7 @@ export function renderCard(
     const actions = document.createElement('div');
     actions.className = 'mt-2 flex gap-2';
     const editBtn = document.createElement('a');
-    editBtn.href = withBase(`/edit/${entry.owner}/${entry.repo}/${entry.slug}`);
+    editBtn.href = routeHref(`/edit/${entry.owner}/${entry.repo}/${entry.slug}`);
     editBtn.className =
       'rounded-md border border-slate-300 px-2 py-0.5 text-xs hover:border-emerald-500 hover:text-emerald-600 dark:border-slate-600';
     editBtn.dataset.action = 'edit-submission';

@@ -1,0 +1,43 @@
+---
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+/**
+ * /new 新建投稿路由（hash 模式挂在 index 单页壳上，path 模式直接渲染在 /new 页）。
+ * 编辑器由客户端初始化。
+ */
+---
+
+<div data-route-component="new">
+  <h1 class="mb-6 text-2xl font-bold" data-i18n="new.title">{t(DEFAULT_LOCALE, 'new.title')}</h1>
+
+  <div data-role="editor-root"></div>
+</div>
+
+<script>
+  import { registerRoute } from '@/lib/router';
+  import { initEditor, type EditorConfig } from '@/lib/views/editor';
+  import { buildEditorLabels, buildLicenseOptions } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { t } from '@/i18n';
+  import { SITE_NAME } from '@/config';
+
+  registerRoute(async (loc) => {
+    const segments = loc.path.split('/').filter(Boolean);
+    if (segments[0] !== 'new' || segments.length > 1) return;
+    const root = document.querySelector<HTMLElement>('[data-route-component="new"]');
+    if (!root) return;
+    const host = root.closest<HTMLElement>('[data-route-host]');
+    if (host) host.hidden = false;
+    document.querySelector('[data-role="not-found"]')?.setAttribute('hidden', '');
+    document.title = `${t(getClientLocale(), 'new.title')} - ${SITE_NAME}`;
+
+    try {
+      const locale = getClientLocale();
+      const config: EditorConfig = { mode: 'new', licenseOptions: buildLicenseOptions(locale) };
+      const labels = buildEditorLabels(locale);
+      await initEditor(config, labels, root.querySelector('[data-role="editor-root"]')!);
+    } catch (error) {
+      console.error('[editor] init failed:', error);
+    }
+  });
+</script>

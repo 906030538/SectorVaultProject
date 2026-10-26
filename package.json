@@ -6,7 +6,9 @@
   "description": "Sector Vault Project - Git-based headless CMS for synth-engine project sharing",
   "scripts": {
     "dev": "astro dev",
+    "dev:hash": "PUBLIC_SVP_ROUTER=hash astro dev",
     "build": "astro build",
+    "build:hash": "PUBLIC_SVP_ROUTER=hash astro build",
     "prebuild": "node scripts/fetch-dict-pack.mjs",
     "check": "astro check",
     "preview": "astro preview"

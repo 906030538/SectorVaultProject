@@ -29,19 +29,20 @@ const locale = DEFAULT_LOCALE;
 </div>
 
 <script>
-  import { withBase } from '@/lib/base';
-  import { stripBase } from '@/lib/base';
+  import { navigate, registerRoute, routeSegments } from '@/lib/router';
   import { getAdapterAsync } from '@/lib/adapters/lazy';
   import { getOAuthConfig } from '@/lib/index/sources';
   import { setToken, saveSession } from '@/lib/auth';
   import { DIRECT_TOKEN_ENDPOINTS } from '@/config';
   import type { Platform } from '@/types';
 
-  const segments = stripBase(window.location.pathname).split('/').filter(Boolean);
-  const platform = segments[1];
-  const valid = ['github', 'gitee', 'atomgit', 'gitcode'].includes(platform);
+  registerRoute(async (loc) => {
+    const segments = routeSegments(loc.path);
+    const platform = segments[1];
+    const valid = ['github', 'gitee', 'atomgit', 'gitcode'].includes(platform);
 
-  if (segments[0] === 'login' && segments.length === 2 && valid) {
+    if (!(segments[0] === 'login' && segments.length === 2 && valid)) return;
+    {
     const root = document.querySelector<HTMLElement>('[data-route-component="login"]')!;
     const host = root.closest<HTMLElement>('[data-route-host]');
     if (host) host.hidden = false;
@@ -60,7 +61,8 @@ const locale = DEFAULT_LOCALE;
       errorEl.classList.add('hidden');
       actions.classList.add('hidden');
 
-      const params = new URLSearchParams(window.location.search);
+      // query 已合并地址栏 search（OAuth 回调 ?code 落在 search）与 # 内查询
+      const params = loc.query;
       const code = params.get('code');
       const state = params.get('state');
       const oauthError = params.get('error');
@@ -133,7 +135,7 @@ const locale = DEFAULT_LOCALE;
         ? `登录成功：${viewer.login}，正在返回…`
         : `Signed in as ${viewer.login}, redirecting…`;
       window.setTimeout(() => {
-        window.location.href = withBase('/');
+        navigate('/');
       }, 1500);
     }
 
@@ -148,7 +150,7 @@ const locale = DEFAULT_LOCALE;
     root
       .querySelector<HTMLButtonElement>('[data-action="fallback-pat"]')
       ?.addEventListener('click', () => {
-        window.location.href = withBase('/?auth=1');
+        navigate('/?auth=1');
       });
 
     retryBtn.addEventListener('click', () => {
@@ -165,4 +167,5 @@ const locale = DEFAULT_LOCALE;
       fail(error instanceof Error ? error.message : String(error));
     });
   }
+  });
 </script>

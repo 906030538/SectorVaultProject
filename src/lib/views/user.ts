@@ -4,7 +4,7 @@ import { CONTENT_REPO_PREFIX, LICENSE_OPTIONS, SUPPORTED_PLATFORMS } from '@/con
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getToken, loadSessionBy } from '@/lib/auth';
 import { applyCover, coverPlaceholder, setAvatar } from '@/lib/ui';
-import { withBase } from '@/lib/base';
+import { currentRoute, routeHref } from '@/lib/router';
 import { loadAbout, loadRepoInfo } from '@/lib/content';
 import { iterateAllSubmissions, loadLineIndexMerged } from '@/lib/index/loader';
 import { getRepoPrefix, getRepoTemplates } from '@/lib/index/sources';
@@ -90,7 +90,7 @@ function formatDate(date: string, locale: string): string {
 
 function miniCard(entry: SubmissionEntry, locale: string): HTMLElement {
   const link = el('a', 'card block w-40 shrink-0 overflow-hidden p-0');
-  link.href = withBase(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
+  link.href = routeHref(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   link.dataset.role = 'mini-card';
 
   // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
@@ -119,12 +119,12 @@ async function renderRepoCollection(
 
   const header = el('div', 'flex flex-wrap items-center gap-2');
   const repoLink = el('a', 'font-semibold hover:text-emerald-600 dark:hover:text-emerald-400', repo);
-  repoLink.href = withBase(`/view/${name}/${repo}`);
+  repoLink.href = routeHref(`/view/${name}/${repo}`);
   header.appendChild(repoLink);
   const info = await loadRepoInfo(platform, name, repo).catch(() => null);
   if (info) header.appendChild(el('span', 'text-sm text-slate-400', `★ ${info.stars}`));
   const more = el('a', 'btn ml-auto', labels.more);
-  more.href = withBase(`/view/${name}/${repo}`);
+  more.href = routeHref(`/view/${name}/${repo}`);
   more.dataset.action = 'more';
   header.appendChild(more);
   card.appendChild(header);
@@ -330,7 +330,8 @@ export async function initUser(init: UserInit): Promise<void> {
   const platforms = [...new Set(records.map((u) => u.platform))];
 
   // 同名用户存在于多个平台时，通过 ?git= 查询参数区分展示的数据
-  const requested = new URLSearchParams(window.location.search).get('git');
+  // hash 模式下 ?git= 折在 # 路由查询里，统一经路由位置读取
+  const requested = currentRoute().query.get('git');
   const platform: Platform | undefined =
     requested && platforms.includes(requested as Platform)
       ? (requested as Platform)
@@ -391,7 +392,7 @@ export async function initUser(init: UserInit): Promise<void> {
   if (platforms.length > 1) {
     for (const p of platforms) {
       const chip = el('a', 'chip', p);
-      chip.href = withBase(`/user/${name}?git=${p}`);
+      chip.href = routeHref(`/user/${name}?git=${p}`);
       chip.dataset.platform = p;
       if (p === platform) chip.classList.add('font-semibold', 'text-emerald-600', 'dark:text-emerald-400');
       els.platforms.appendChild(chip);

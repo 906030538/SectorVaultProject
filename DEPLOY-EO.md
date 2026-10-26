@@ -1,8 +1,30 @@
 # 腾讯云 EdgeOne Pages 部署
 
 本分支（`tx`）适配腾讯云 EdgeOne Pages。`functions/` 目录沿用 Cloudflare Pages Functions
-约定（EdgeOne Pages 兼容），OAuth 代理（`/gh-oauth/*`、`/oauth/*`）开箱可用；SPA 回退
+约定（EdgeOne Pages 兼容），OAuth 代理（`/gh-oauth/*`、`/oauth/*`）开箱可用；SPA 路由
 需要下述两处适配。
+
+## hash 单页构建（本分支默认，`npm run build:hash`）
+
+为适配**静态托管无法自动回退 404 页**的环境（EdgeOne Pages 即是），本分支默认产物为
+hash 单页应用（`edgeone.json` 的 `buildCommand` 已切 `npm run build:hash`，编译参数
+`PUBLIC_SVP_ROUTER=hash`）：
+
+- **整站收敛为 `index.html` 单页**：13 个路由宿主全部挂在 index（首页/列表/详情/编辑/
+  登录等），路由形如 `/#/view/owner/repo/slug`，站内链接全部 `#/` 前缀——**不依赖任何
+  404 回退 / 重写 / 边缘函数兜底**，任何纯静态托管可直接部署；
+- `404.html` 与 index 同为整站壳：经 rewrites / 函数兜底送进来的**旧路径外链**
+  （`/view/…` 等，`#` 为空）由前端路由回退 pathname 激活，行为与 path 模式回退一致；
+- 原 `/about`、`/project` 等静态目录页变为**重定向壳**（`location.replace('/#/about')`，
+  查询串并入 hash 查询）——被直接访问时跳进单页；
+- `/login/:platform` 预渲染为**真实静态回调页**（`login/[platform].astro`，四平台各一页），
+  OAuth `redirect_uri` 保持 `/login/:platform` 形态不变，无需在平台侧改回调地址；
+- 路由核心在 `src/lib/router.ts`：`registerRoute` 注册激活回调，hash 变化时按初始快照
+  重放宿主 DOM 再重新激活（可重复进出）；`#` 为空回退 pathname。path 模式
+  （默认 `npm run build`，CF/GH Pages 用）行为不变。
+
+原 edgeone.json 的 `/login` 重写已删除（rewrite 优先级高于静态资源，会劫持真实回调页）；
+`/view`、`/user`、`/edit` 重写保留，仅作为站外旧路径链接的入口（重写与函数兜底内容相同）。
 
 ## 与 Cloudflare Pages 的行为差异（2026-09 线上实测）
 
@@ -61,6 +83,11 @@ EdgeOne Pages 仅把 `/*` → `/index.html` 这一样式识别为 SPA fallback
 
 ## 线上冒烟清单
 
+- 首页 `/` 正常且导航链接全部为 `/#/…` 前缀；点击导航无整页刷新、标题随路由更新；
+- `/#/project`、`/#/article`、`/#/discussions`、`/#/faq?page=…`、`/#/user/<name>`、
+  `/#/view/<owner>/<repo>[/slug]` 直接打开与站内点击均激活对应路由；
+- 未知 `/#/…` 显示站内 404 文案；旧路径 `/about`、`/project/` 等重定向壳跳进对应 `#/` 路由；
+- `/login/<platform>` 返回真实静态回调页（不再依赖重写/回退）；
 - `/oauth/env` 返回各平台 clientId（函数路由）；
 - `/view/<owner>/<repo>/<slug>`、`/user/<name>`、`/edit/…`、`/login/…` 经 edgeone.json
   重写返回 404 页外壳（HTTP 200）且页面内路由组件激活、地址栏不变；

@@ -1,0 +1,20 @@
+---
+import SubmissionRoute from '@/components/routes/SubmissionRoute.astro';
+import CollectionRoute from '@/components/routes/CollectionRoute.astro';
+import UserRoute from '@/components/routes/UserRoute.astro';
+import EditRoute from '@/components/routes/EditRoute.astro';
+import DiscussionRoute from '@/components/routes/DiscussionRoute.astro';
+import LoginRoute from '@/components/routes/LoginRoute.astro';
+
+/**
+ * 动态路由宿主集合（view/user/edit/discussion/login 六类，按 window.location 自匹配激活）。
+ * path 模式挂在 404 SPA 回退壳；hash 模式由 SpaShell 一并挂载。
+ */
+---
+
+<div hidden data-route-host="submission"><SubmissionRoute /></div>
+<div hidden data-route-host="collection"><CollectionRoute /></div>
+<div hidden data-route-host="user"><UserRoute /></div>
+<div hidden data-route-host="edit"><EditRoute /></div>
+<div hidden data-route-host="discussion"><DiscussionRoute /></div>
+<div hidden data-route-host="login"><LoginRoute /></div>

@@ -1,0 +1,239 @@
+---
+import FilterBar from '@/components/FilterBar.astro';
+import LoadingBlock from '@/components/LoadingBlock.astro';
+import Pagination from '@/components/Pagination.astro';
+import { PAGE_SIZE } from '@/config';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+
+/**
+ * /project 工程列表路由（hash 模式挂在 index 单页壳上，path 模式直接渲染在 /project 页）。
+ * 列表数据、筛选、搜索与翻页全部客户端完成；分页大小经根节点 dataset 下发。
+ */
+const locale = DEFAULT_LOCALE;
+---
+
+<div data-route-component="project" data-page-size={PAGE_SIZE}>
+  <h1 class="mb-6 text-2xl font-bold" data-i18n="project.title">{t(locale, 'project.title')}</h1>
+
+  <div class="mb-4 flex flex-wrap items-center gap-2">
+    <FilterBar />
+    <div class="ml-auto flex items-center gap-2">
+      <input
+        type="search"
+        class="input w-56"
+        data-role="search-input"
+        placeholder={t(locale, 'project.searchPlaceholder')}
+        data-i18n-ph="project.searchPlaceholder"
+      />
+      <button type="button" class="btn btn-primary" data-action="search" data-i18n="common.search">
+        {t(locale, 'common.search')}
+      </button>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-3" data-component="list"></div>
+  <p class="py-8 text-center text-slate-400" data-role="empty" data-i18n="common.noResults" hidden>
+    {t(locale, 'common.noResults')}
+  </p>
+  <LoadingBlock locale={locale} />
+  <Pagination locale={locale} />
+</div>
+
+<script>
+  import { registerRoute } from '@/lib/router';
+  import { applyFilters, iterateAllSubmissions } from '@/lib/index/loader';
+  import { renderCard } from '@/lib/ui';
+  import { buildCardLabels } from '@/lib/labels';
+  import { getClientLocale } from '@/lib/i18n-client';
+  import { t } from '@/i18n';
+  import { SITE_NAME } from '@/config';
+  import type { FilterState, SubmissionEntry } from '@/types';
+
+  // 点击宿主外部时收起筛选下拉：全局监听只注册一次，作用于最近一次激活的筛选框集合
+  let activeFilterBoxes: { box: HTMLElement; panel: HTMLElement }[] = [];
+  document.addEventListener('click', (event) => {
+    const target = event.target as Node;
+    for (const { box, panel } of activeFilterBoxes) {
+      if (!box.contains(target)) panel.classList.add('hidden');
+    }
+  });
+
+  registerRoute(async (loc) => {
+    const segments = loc.path.split('/').filter(Boolean);
+    if (segments[0] !== 'project' || segments.length > 1) return;
+    const root = document.querySelector<HTMLElement>('[data-route-component="project"]');
+    if (!root) return;
+    const host = root.closest<HTMLElement>('[data-route-host]');
+    if (host) host.hidden = false;
+    document.querySelector('[data-role="not-found"]')?.setAttribute('hidden', '');
+    document.title = `${t(getClientLocale(), 'project.title')} - ${SITE_NAME}`;
+
+    const locale = getClientLocale();
+    const labels = buildCardLabels(locale);
+    const config = { pageSize: Number(root.dataset.pageSize) || 20 };
+
+    const listEl = root.querySelector('[data-component="list"]')!;
+    const emptyEl = root.querySelector<HTMLElement>('[data-role="empty"]')!;
+    const loadingEl = root.querySelector<HTMLElement>('[data-component="loading"]')!;
+    const pageInfo = root.querySelector<HTMLElement>('[data-role="page-info"]')!;
+    const prevBtn = root.querySelector<HTMLButtonElement>('[data-action="prev"]')!;
+    const nextBtn = root.querySelector<HTMLButtonElement>('[data-action="next"]')!;
+    const cancelBtn = root.querySelector<HTMLButtonElement>('[data-action="cancel"]')!;
+    const searchInput = root.querySelector<HTMLInputElement>('[data-role="search-input"]')!;
+    const searchBtn = root.querySelector<HTMLButtonElement>('[data-action="search"]')!;
+    const filterBoxes = [
+      ...root.querySelectorAll<HTMLElement>('[data-component="filters"] [data-filter-wrap]'),
+    ].map((box) => ({
+      box,
+      key: box.dataset.filterWrap!,
+      input: box.querySelector<HTMLInputElement>('input[data-filter]')!,
+      panel: box.querySelector<HTMLElement>('[data-role="filter-options"]')!,
+    }));
+    activeFilterBoxes = filterBoxes;
+
+    let entries: SubmissionEntry[] = [];
+    let filtered: SubmissionEntry[] = [];
+    let page = 0;
+    let keyword = '';
+    let aborter: AbortController | null = null;
+
+    function getFilters(): FilterState {
+      const filters: FilterState = {};
+      for (const { input } of filterBoxes) {
+        const value = input.value.trim();
+        if (value) filters[input.dataset.filter as keyof FilterState] = value;
+      }
+      return filters;
+    }
+
+    /** 各筛选键的候选值，按出现次数降序（最常用的排前面） */
+    const candidates: Record<string, string[]> = {};
+
+    function populateFilterOptions(): void {
+      const collect = (pick: (e: SubmissionEntry) => string[] | undefined) => {
+        const counts = new Map<string, number>();
+        for (const e of entries) {
+          for (const value of pick(e) ?? []) counts.set(value, (counts.get(value) ?? 0) + 1);
+        }
+        return [...counts.entries()]
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .map(([value]) => value);
+      };
+      candidates.track = collect((e) => e.songs);
+      candidates.engine = collect((e) => e.engines);
+      candidates.voicebank = collect((e) => e.voicebanks);
+      candidates.songLanguage = collect((e) => e.languages);
+      // 许可证为单值字段：有值的条目收集（SPDX 标识与 custom）
+      candidates.license = collect((e) => (e.license ? [e.license] : undefined));
+    }
+
+    function hidePanels(except?: HTMLElement): void {
+      for (const { panel } of filterBoxes) {
+        if (panel !== except) panel.classList.add('hidden');
+      }
+    }
+
+    /** 下拉候选：按已输入文本过滤，最多显示 10 条 */
+    function showOptions(key: string, input: HTMLInputElement, panel: HTMLElement): void {
+      const kw = input.value.trim().toLowerCase();
+      const list = (candidates[key] ?? [])
+        .filter((value) => !kw || value.toLowerCase().includes(kw))
+        .slice(0, 10);
+      panel.textContent = '';
+      if (!list.length) {
+        panel.classList.add('hidden');
+        return;
+      }
+      for (const value of list) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className =
+          'block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800';
+        item.textContent = value;
+        item.addEventListener('click', () => {
+          input.value = value;
+          hidePanels();
+        });
+        panel.appendChild(item);
+      }
+      panel.classList.remove('hidden');
+      hidePanels(panel);
+    }
+
+    for (const { box, key, input, panel } of filterBoxes) {
+      input.addEventListener('focus', () => showOptions(key, input, panel));
+      input.addEventListener('input', () => showOptions(key, input, panel));
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          hidePanels();
+          searchBtn.click();
+        }
+      });
+      box.addEventListener('focusout', (event) => {
+        if (!box.contains(event.relatedTarget as Node)) panel.classList.add('hidden');
+      });
+    }
+
+    function applyAndRender(): void {
+      filtered = applyFilters(entries, getFilters());
+      if (keyword) {
+        const kw = keyword.toLowerCase();
+        filtered = filtered.filter((e) =>
+          [e.title, e.owner, ...(e.songs ?? []), ...(e.tags ?? [])]
+            .join(' ')
+            .toLowerCase()
+            .includes(kw),
+        );
+      }
+      page = 0;
+      renderPage();
+    }
+
+    function renderPage(): void {
+      const totalPages = Math.max(1, Math.ceil(filtered.length / config.pageSize));
+      page = Math.min(page, totalPages - 1);
+      const slice = filtered.slice(page * config.pageSize, (page + 1) * config.pageSize);
+
+      listEl.textContent = '';
+      for (const entry of slice) listEl.appendChild(renderCard(entry, locale, labels));
+      emptyEl.hidden = slice.length > 0;
+      pageInfo.textContent = `${page + 1} / ${totalPages}`;
+      prevBtn.disabled = page === 0;
+      nextBtn.disabled = page >= totalPages - 1;
+    }
+
+    prevBtn.addEventListener('click', () => {
+      page -= 1;
+      renderPage();
+    });
+    nextBtn.addEventListener('click', () => {
+      page += 1;
+      renderPage();
+    });
+    searchBtn.addEventListener('click', () => {
+      keyword = searchInput.value.trim();
+      applyAndRender();
+    });
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') searchBtn.click();
+    });
+    cancelBtn.addEventListener('click', () => aborter?.abort());
+
+    // 初始加载（真实实现：先未归档索引，耗尽后按页自动加载归档索引，期间显示加载与取消）
+    loadingEl.hidden = false;
+    aborter = new AbortController();
+    try {
+      const all: SubmissionEntry[] = [];
+      for await (const entry of iterateAllSubmissions()) {
+        if (entry.type === 'project') all.push(entry);
+      }
+      entries = all.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+      populateFilterOptions();
+      applyAndRender();
+    } catch {
+      emptyEl.hidden = false;
+    } finally {
+      loadingEl.hidden = true;
+    }
+  });
+</script>

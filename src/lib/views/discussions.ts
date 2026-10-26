@@ -10,7 +10,7 @@ import type { IndexSource } from '@/config';
 import type { Platform } from '@/types';
 import type { DiscussionCategoryInfo, DiscussionComment, DiscussionInfo } from '@/types';
 import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
-import { withBase } from '@/lib/base';
+import { routeHref } from '@/lib/router';
 import type { Locale } from '@/i18n';
 
 export interface DiscussionsLabels {
@@ -274,7 +274,7 @@ export async function initDiscussionList(
 
   for (const { source, discussion } of items) {
     const card = el('a', 'card flex flex-col gap-2 p-4');
-    card.href = withBase(`/discussions/${source.platform}/${source.owner}/${source.repo}/${discussion.number}`);
+    card.href = routeHref(`/discussions/${source.platform}/${source.owner}/${source.repo}/${discussion.number}`);
     card.dataset.role = 'discussion-card';
 
     const head = el('div', 'flex flex-wrap items-center gap-2');

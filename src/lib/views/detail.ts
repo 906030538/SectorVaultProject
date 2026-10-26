@@ -27,7 +27,7 @@ import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels } from '@/lib/labels';
 import { normalizeLocale, type Locale } from '@/i18n';
 import { applyCover, badgeSvg, fileIconUrl, isRateLimitError, officialStarBadgeUrl, platformRepoUrl, setAvatar, showApiLimitNotice } from '@/lib/ui';
-import { withBase } from '@/lib/base';
+import { routeHref } from '@/lib/router';
 import type { IssueCommentInfo, IssueInfo, IssueReactionInfo, Platform, ReleaseInfo, RepoInfo, SubmissionEntry, SubmissionType } from '@/types';
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -68,11 +68,11 @@ function renderDeleted(
   back.addEventListener('click', () => window.history.back());
 
   const collection = el('a', 'btn', labels.viewCollection);
-  collection.href = withBase(`/view/${entry.owner}/${entry.repo}`);
+  collection.href = routeHref(`/view/${entry.owner}/${entry.repo}`);
   collection.dataset.action = 'goto-collection';
 
   const user = el('a', 'btn', labels.viewUser);
-  user.href = withBase(`/user/${entry.owner}`);
+  user.href = routeHref(`/user/${entry.owner}`);
   user.dataset.action = 'goto-user';
 
   const source = el('a', 'btn btn-primary', labels.sourceRepo);
@@ -1046,7 +1046,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   // 投稿用户本人（同平台登录）：标题行显示编辑与删除入口
   if (loadSessionBy(platform)?.login === user) {
     const edit = document.createElement('a');
-    edit.href = withBase(`/edit/${user}/${repo}/${slug}`);
+    edit.href = routeHref(`/edit/${user}/${repo}/${slug}`);
     edit.className = 'btn';
     edit.dataset.action = 'edit-submission';
     edit.textContent = labels.edit;
@@ -1061,7 +1061,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
       // 删除成功后跳转集合页（本页内容已不存在）
       void openDeleteSubmissionDialog(entry, locale, {
         onDone: () => {
-          window.location.href = withBase(`/view/${user}/${repo}`);
+          window.location.href = routeHref(`/view/${user}/${repo}`);
         },
       });
     });
@@ -1351,7 +1351,7 @@ function renderAuthor(
   // 展示名：索引记录的作者名，缺省回退仓库用户名
   const displayName = entry.author?.trim() || entry.owner;
   const userLink = document.createElement('a');
-  userLink.href = withBase(`/user/${entry.owner}`);
+  userLink.href = routeHref(`/user/${entry.owner}`);
   userLink.className = 'font-medium hover:text-emerald-600 dark:hover:text-emerald-400';
   userLink.textContent = displayName;
   if (displayName !== entry.owner) userLink.title = entry.owner;
@@ -1360,7 +1360,7 @@ function renderAuthor(
   // 用户名后的仓库 badge：仅显示仓库名，点击进入集合详情页（站内路由）
   const repoHome = repoInfo?.htmlUrl?.replace(/\.git$/, '') ?? platformRepoUrl(platform, entry.owner, entry.repo);
   const repoBadge = document.createElement('a');
-  repoBadge.href = withBase(`/view/${entry.owner}/${entry.repo}`);
+  repoBadge.href = routeHref(`/view/${entry.owner}/${entry.repo}`);
   repoBadge.title = `${entry.owner}/${entry.repo}`;
   repoBadge.dataset.role = 'repo-badge';
   repoBadge.innerHTML = badgeSvg(entry.repo, '', PLATFORM_BADGE_BG[platform]);

@@ -6,7 +6,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher.astro";
 import ThemeToggle from "@/components/ThemeToggle.astro";
 import LineSwitcher from "@/components/LineSwitcher.astro";
 import logoSmallUrl from "../../logo-small.svg?url";
-import { withBase } from "@/lib/base";
+import { clearLocationQuery, currentRoute, routeHref } from "@/lib/router";
 
 interface Props {
   locale: Locale;
@@ -20,11 +20,11 @@ const navItems: {
   href: string;
   fold: 460 | 560 | 700 | 800 | 900;
 }[] = [
-  { key: "nav.projects", href: withBase("/project"), fold: 460 },
-  { key: "nav.articles", href: withBase("/article"), fold: 560 },
-  { key: "nav.discussions", href: withBase("/discussions"), fold: 700 },
-  { key: "nav.faq", href: withBase("/faq"), fold: 800 },
-  { key: "nav.about", href: withBase("/about"), fold: 900 },
+  { key: "nav.projects", href: routeHref("/project"), fold: 460 },
+  { key: "nav.articles", href: routeHref("/article"), fold: 560 },
+  { key: "nav.discussions", href: routeHref("/discussions"), fold: 700 },
+  { key: "nav.faq", href: routeHref("/faq"), fold: 800 },
+  { key: "nav.about", href: routeHref("/about"), fold: 900 },
 ];
 
 /** 各平台站点根地址（问题反馈链接拼接用） */
@@ -77,7 +77,7 @@ function isActive(href: string): boolean {
   class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90"
 >
   <div class="relative flex h-14 items-center gap-3 px-4">
-    <a href={withBase("/")} class="flex shrink-0 items-center font-bold">
+    <a href={routeHref("/")} class="flex shrink-0 items-center font-bold">
       <img src={logoSmallUrl} alt={SITE_NAME} class="h-8 w-auto" />
     </a>
 
@@ -141,7 +141,7 @@ function isActive(href: string): boolean {
         <!-- 投稿与登录/用户信息：任何宽度都同一行（下拉内并排、桌面行内） -->
         <div class="flex items-center gap-2">
           <a
-            href={withBase("/new")}
+            href={routeHref("/new")}
             class="btn btn-primary min-w-0 flex-1 justify-center"
             data-role="nav-submit"
             data-i18n="nav.submit"
@@ -205,7 +205,7 @@ function isActive(href: string): boolean {
   import { getLineSources, getStoredLine } from "@/lib/index/sources";
   import { t } from "@/i18n";
   import { setAvatar } from "@/lib/ui";
-  import { withBase } from "@/lib/base";
+  import { clearLocationQuery, currentRoute, routeHref } from "@/lib/router";
   import { SUPPORTED_PLATFORMS } from "@/config";
   import type { Platform } from "@/types";
 
@@ -246,7 +246,7 @@ function isActive(href: string): boolean {
       if (session?.login) {
         area.textContent = "";
         const link = document.createElement("a");
-        link.href = withBase(`/user/${encodeURIComponent(session.login)}`);
+        link.href = routeHref(`/user/${encodeURIComponent(session.login)}`);
         link.className = "flex items-center gap-2";
         if (session.avatarUrl) {
           const img = document.createElement("img");
@@ -330,9 +330,10 @@ function isActive(href: string): boolean {
     if (event.key === "Escape") closeMenus();
   });
 
-  // OAuth 回退入口：/?auth=1 自动打开授权对话框（在监听器就绪后触发）
-  if (new URLSearchParams(window.location.search).get("auth") === "1") {
-    window.history.replaceState(null, "", window.location.pathname);
+  // OAuth 回退入口：/?auth=1 自动打开授权对话框（在监听器就绪后触发）；
+  // hash 模式查询可能在 # 内（路由 query 合并读取），清理地址栏时保留 #
+  if (currentRoute().query.get("auth") === "1") {
+    clearLocationQuery();
     void openAuthDialog(
       buildAuthLabels(getClientLocale()),
       linePlatform ?? undefined,

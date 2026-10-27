@@ -4,7 +4,17 @@
   "type": "object",
   "required": ["currentLimit"],
   "properties": {
-    "currentLimit": { "type": "integer", "minimum": 1 }
+    "currentLimit": { "type": "integer", "minimum": 1 },
+    "sensitiveScan": {
+      "type": "object",
+      "description": "敏感内容扫描门禁（scripts/check-sensitive.mjs，规则见 docs/sensitive-scan.md）",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "threshold": { "type": "integer", "minimum": 1, "description": "单条稿件总分拒入线，默认 30" },
+        "perCategory": { "type": "integer", "minimum": 1, "description": "单条稿件单分类得分拒入线，默认 25" }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

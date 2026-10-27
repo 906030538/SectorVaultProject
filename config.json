@@ -1,3 +1,8 @@
 {
-  "currentLimit": 128
+  "currentLimit": 128,
+  "sensitiveScan": {
+    "enabled": true,
+    "threshold": 30,
+    "perCategory": 25
+  }
 }

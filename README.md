@@ -30,11 +30,14 @@
 │   ├── check-mirrors.mjs       # 镜像索引单 key + svp-archive.json 一致性校验
 │   ├── check-blacklist.mjs     # 黑名单校验（git 提交与索引条目的作者/邮箱）
 │   ├── check-pr-owner.mjs      # PR 作者与被改动条目 owner 一致性校验
+│   ├── check-sensitive.mjs     # 敏感内容扫描门禁（词包打分，超分拒绝合入，规则见 docs/sensitive-scan.md）
 │   ├── sync-from-archives.mjs  # 从内容仓 svp-archive.json 同步稿件（补充/移除）
 │   └── generate-atom.mjs       # 从 current.json 生成 Atom feed（index/atom.xml）
-├── config.json             # 索引仓配置：currentLimit（current.json 稿件数上限，默认 1024）
+├── config.json             # 索引仓配置：currentLimit、sensitiveScan（敏感扫描阈值）
+├── docs/sensitive-scan.md  # 敏感内容扫描打分规则设计
 ├── .github/workflows/
 │   ├── validate.yml        # PR 格式校验门禁 + 自动合入
+│   ├── atomgit-gate.yml    # atomgit 分支镜像直推门禁 + 自动合入
 │   └── rebuild.yml         # 合入后重建 current.json；每月定时做仓库存活清理
 ├── .workflow/mirror-gate.yml           # Gitee 镜像仓门禁（Gitee Go 流水线）
 ├── .gitcode/workflows/mirror-gate.yml  # Atomgit 镜像仓门禁
@@ -194,10 +197,11 @@ Gitee 侧的 PR 门禁 `.workflow/validate.yml`（`triggers.pr`，目标分支 `
 `config.json`：
 
 ```json
-{ "currentLimit": 1024 }
+{ "currentLimit": 1024, "sensitiveScan": { "enabled": true, "threshold": 30, "perCategory": 25 } }
 ```
 
 - `currentLimit`：`current.json` 保留的最近稿件数上限，可通过修改该文件并重新合入触发重建；本地运行可用环境变量 `CURRENT_LIMIT` 覆盖。
+- `sensitiveScan`：敏感内容扫描门禁阈值（`enabled` 停用开关 / `threshold` 单条稿件总分拒入线 / `perCategory` 单分类得分拒入线），打分规则与词库来源见 [docs/sensitive-scan.md](docs/sensitive-scan.md)。
 
 ## 本地校验与重建
 

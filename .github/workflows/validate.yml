@@ -98,9 +98,45 @@ jobs:
           else
             echo "ownerMismatch=0" >> "$GITHUB_OUTPUT"
           fi
+      - name: Fetch sensitive-word pack
+        # 私仓 906030538/dict-resources，需 SVP_BOT_TOKEN 具备该仓读权限；
+        # 拉取失败不阻塞门禁（fail-open），扫描步骤自行跳过并告警
+        env:
+          GH_TOKEN: ${{ secrets.SVP_BOT_TOKEN || github.token }}
+        run: |
+          rm -f /tmp/dict-pack.bin
+          if gh api --header "Accept: application/vnd.github.raw" \
+              repos/906030538/dict-resources/contents/data/dict-pack.bin > /tmp/dict-pack.bin 2>/dev/null; then
+            echo "dict pack fetched: $(wc -c < /tmp/dict-pack.bin) bytes"
+          else
+            echo "::warning::dict-resources 词包拉取失败，敏感扫描将跳过（fail-open）"
+          fi
+      - name: Scan changed submissions for sensitive content
+        id: scan
+        run: node scripts/check-sensitive.mjs index/archive ../pr/index/archive --pack /tmp/dict-pack.bin
+      - name: Reject sensitive content
+        # 拒绝优先于人工审查路径：评论（幂等，重复推送时更新已有评论）+ 置败检查项阻止自动合并。
+        # 评论与日志只含分类得分，绝不含命中词（词典内容与试探面）
+        if: success() && steps.scan.outputs.scan == 'blocked'
+        run: |
+          body="检测到敏感内容，自行修改或联系管理员。（评分 ${SCORE} ≥ 阈值 ${THRESHOLD}；分类得分：${DETAIL}）"
+          cid=$(gh pr view "$PR_URL" --json comments --jq '[.comments[] | select(.body | startswith("检测到敏感内容"))][0].id // empty' || true)
+          if [ -n "$cid" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/$cid" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_URL" --body "$body"
+          fi
+          echo "::error::检测到敏感内容，已拒绝自动合并（评分 ${SCORE}）"
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.SVP_BOT_TOKEN || github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          SCORE: ${{ steps.scan.outputs.score }}
+          THRESHOLD: ${{ steps.scan.outputs.threshold }}
+          DETAIL: ${{ steps.scan.outputs.detail }}
       - name: Auto merge single-submission PRs
         # fork 来的 PR 中内置 GITHUB_TOKEN 被降级为只读，自动合并必须用 PAT/App token
-        if: success() && steps.scope.outputs.decision == 'auto'
+        if: success() && steps.scope.outputs.decision == 'auto' && steps.scan.outputs.scan != 'blocked'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           GH_TOKEN: ${{ secrets.SVP_BOT_TOKEN || github.token }}

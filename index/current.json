@@ -301,7 +301,7 @@
         "zh"
       ],
       "owner": "CLCNTanya",
-      "paramState": "with-params",
+      "paramState": "tuned",
       "platform": "gitee",
       "publishedAt": "2026-09-13T17:56:01.667Z",
       "release": "1142080",
@@ -328,7 +328,7 @@
         "zh"
       ],
       "owner": "CLCNTanya",
-      "paramState": "with-params",
+      "paramState": "tuned",
       "platform": "gitee",
       "publishedAt": "2026-09-13T17:52:36.981Z",
       "release": "1142077",
@@ -361,7 +361,7 @@
         "zh"
       ],
       "owner": "CLCNTanya",
-      "paramState": "with-params",
+      "paramState": "tuned",
       "platform": "gitee",
       "publishedAt": "2026-09-13T17:40:58.004Z",
       "release": "1142066",
@@ -637,7 +637,7 @@
         "zh"
       ],
       "owner": "y2361547758",
-      "paramState": "with-params",
+      "paramState": "no-params",
       "platform": "github",
       "publishedAt": "2026-09-11T21:02:47.794Z",
       "repo": "svp-default",

@@ -29,7 +29,7 @@ const locale = DEFAULT_LOCALE;
 </div>
 
 <script>
-  import { navigate, registerRoute, routeSegments } from '@/lib/router';
+  import { HASH_ROUTER, navigate, registerRoute, routeSegments } from '@/lib/router';
   import { getAdapterAsync } from '@/lib/adapters/lazy';
   import { getOAuthConfig } from '@/lib/index/sources';
   import { setToken, saveSession } from '@/lib/auth';
@@ -163,6 +163,16 @@ const locale = DEFAULT_LOCALE;
       })();
     });
 
+    if (HASH_ROUTER) {
+      // hash 单页构建已禁用 OAuth 网页流：不执行令牌交换，引导改用 PAT / GitHub 设备授权
+      retryBtn.classList.add('hidden');
+      fail(
+        document.documentElement.lang.startsWith('zh')
+          ? 'OAuth 网页登录已停用：请使用访问令牌登录，或改用 GitHub App 设备授权'
+          : 'Web OAuth login is disabled: use a personal access token, or GitHub App device flow',
+      );
+      return;
+    }
     void exchange().catch((error) => {
       fail(error instanceof Error ? error.message : String(error));
     });

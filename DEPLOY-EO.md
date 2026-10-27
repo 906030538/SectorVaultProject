@@ -17,8 +17,9 @@ hash 单页应用（`edgeone.json` 的 `buildCommand` 已切 `npm run build:hash
   （`/view/…` 等，`#` 为空）由前端路由回退 pathname 激活，行为与 path 模式回退一致；
 - 原 `/about`、`/project` 等静态目录页变为**重定向壳**（`location.replace('/#/about')`，
   查询串并入 hash 查询）——被直接访问时跳进单页；
-- `/login/:platform` 预渲染为**真实静态回调页**（`login/[platform].astro`，四平台各一页），
-  OAuth `redirect_uri` 保持 `/login/:platform` 形态不变，无需在平台侧改回调地址；
+- **OAuth 网页流在 hash 构建中禁用**（境内托管的 token 交换代理不可靠）：授权对话框仅保留
+  PAT 令牌登录与 GitHub App 设备授权（`/gh-oauth/*` 透传，零密钥）；`/login/:platform`
+  仍预渲染为真实静态页（四平台各一页）但只显示停用提示，不再执行令牌交换；
 - 路由核心在 `src/lib/router.ts`：`registerRoute` 注册激活回调，hash 变化时按初始快照
   重放宿主 DOM 再重新激活（可重复进出）；`#` 为空回退 pathname。path 模式
   （默认 `npm run build`，CF/GH Pages 用）行为不变。
@@ -87,7 +88,8 @@ EdgeOne Pages 仅把 `/*` → `/index.html` 这一样式识别为 SPA fallback
 - `/#/project`、`/#/article`、`/#/discussions`、`/#/faq?page=…`、`/#/user/<name>`、
   `/#/view/<owner>/<repo>[/slug]` 直接打开与站内点击均激活对应路由；
 - 未知 `/#/…` 显示站内 404 文案；旧路径 `/about`、`/project/` 等重定向壳跳进对应 `#/` 路由；
-- `/login/<platform>` 返回真实静态回调页（不再依赖重写/回退）；
+- `/login/<platform>` 返回真实静态页并显示「OAuth 网页登录已停用」提示；授权对话框内
+  仅 PAT 与 GitHub 设备授权可用（其余平台无 OAuth 跳转按钮）；
 - `/oauth/env` 返回各平台 clientId（函数路由）；
 - `/view/<owner>/<repo>/<slug>`、`/user/<name>`、`/edit/…`、`/login/…` 经 edgeone.json
   重写返回 404 页外壳（HTTP 200）且页面内路由组件激活、地址栏不变；

@@ -2,7 +2,7 @@ import { loadSessionBy, logoutPlatform, saveSession, setToken } from '@/lib/auth
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getOAuthConfig } from '@/lib/index/sources';
 import { pollDeviceToken, requestDeviceCode } from '@/lib/auth';
-import { routeHref } from '@/lib/router';
+import { HASH_ROUTER, routeHref } from '@/lib/router';
 import type { Platform } from '@/types';
 
 export interface AuthLabels {
@@ -277,7 +277,8 @@ export async function openAuthDialog(labels: AuthLabels, preferred?: Platform): 
       // 渲染批次已被替换（切过页签）时丢弃结果
       if (!buttons.isConnected) return;
       const useDevice = current === 'github' && !!(cfg?.appClientId ?? cfg?.clientId);
-      const useWeb = !!cfg?.clientId && !!cfg?.authorizeUrl;
+      // hash 单页构建禁用 OAuth 网页流（回调页不再是登录入口）：仅保留 GitHub 设备流与 PAT
+      const useWeb = !HASH_ROUTER && !!cfg?.clientId && !!cfg?.authorizeUrl;
       deviceBtn.classList.toggle('hidden', !useDevice);
       oauthBtn.classList.toggle('hidden', !useWeb);
     })();

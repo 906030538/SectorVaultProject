@@ -5,7 +5,7 @@
 - 主站点与索引数据共仓库，通过不同分支管理；本目录规范即索引分支的内容。
 - 索引分支允许所有人提交 PR，门禁校验格式通过后自动合入。
 
-> **当前尚处于Alpha开发阶段，数据可能不保留，结构定义可能变。**
+> **当前处于Beta公开测试阶段，数据将尽可能保留，如有结构变更可能需要用户协助适配。**
 
 ## 目录结构
 
@@ -112,17 +112,17 @@
 
 所有修改 `index/**` 的 PR 必须通过 `validate.yml`：
 
-| 检查项         | 说明                                                                                               |
-| -------------- | -------------------------------------------------------------------------------------------------- |
-| 派生数据保护   | 禁止手改 `index/current.json`（由 Action 生成，PR 中出现该文件改动即失败）                         |
-| 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败；`submittedAt`/`publishedAt` 不得晚于当前时间（预留 5 分钟时钟偏差） |
-| PR 范围限制    | 删除任何文件、或一次修改多个稿件（新增+改动 > 1 条）的 PR 不自动合并，评论说明原因并请求管理员审核 |
-| PR 身份校验    | PR 用户名必须与被改动（新增/修改/删除）条目中同平台条目的 `owner` 一致，不一致转人工审核；跨平台镜像条目由各自平台门禁把关 |
-| 黑名单        | `blacklist.json` 的规则（name/email 正则，同一规则内 AND）校验 git 提交与索引条目的作者/邮箱，命中即失败 |
-| 镜像索引      | `index/mirrors.json` 单次 PR 只允许修改一个顶层 key；修改时抓取源仓库与全部镜像仓根目录的 `svp-archive.json`，其 `mirrors` 字段必须与源仓库完全一致（顺序不敏感；不可达即失败） |
-| JSON 语法      | `index/archive/*.json` 必须是合法 JSON                                                             |
-| Schema 校验    | 使用 ajv（draft-07）按 `schema/` 下各 schema 递归校验                                              |
-| 枚举与格式     | `platform`、`type`、`paramState` 枚举值，`submittedAt`/`publishedAt` 为 ISO 8601，数组字段 ≤ 10 项 |
+| 检查项         | 说明                                                                                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 派生数据保护   | 禁止手改 `index/current.json`（由 Action 生成，PR 中出现该文件改动即失败）                                                                                                      |
+| 投稿日期不可变 | 已存在稿件（同 `platform/owner/repo/slug`）的 `submittedAt` 不允许修改，改动即失败；`submittedAt`/`publishedAt` 不得晚于当前时间（预留 5 分钟时钟偏差）                         |
+| PR 范围限制    | 删除任何文件、或一次修改多个稿件（新增+改动 > 1 条）的 PR 不自动合并，评论说明原因并请求管理员审核                                                                              |
+| PR 身份校验    | PR 用户名必须与被改动（新增/修改/删除）条目中同平台条目的 `owner` 一致，不一致转人工审核；跨平台镜像条目由各自平台门禁把关                                                      |
+| 黑名单         | `blacklist.json` 的规则（name/email 正则，同一规则内 AND）校验 git 提交与索引条目的作者/邮箱，命中即失败                                                                        |
+| 镜像索引       | `index/mirrors.json` 单次 PR 只允许修改一个顶层 key；修改时抓取源仓库与全部镜像仓根目录的 `svp-archive.json`，其 `mirrors` 字段必须与源仓库完全一致（顺序不敏感；不可达即失败） |
+| JSON 语法      | `index/archive/*.json` 必须是合法 JSON                                                                                                                                          |
+| Schema 校验    | 使用 ajv（draft-07）按 `schema/` 下各 schema 递归校验                                                                                                                           |
+| 枚举与格式     | `platform`、`type`、`paramState` 枚举值，`submittedAt`/`publishedAt` 为 ISO 8601，数组字段 ≤ 10 项                                                                              |
 
 校验通过且 PR 只涉及单个投稿（无文件删除、新增/改动稿件 ≤ 1 条）时，由 `gh pr merge --auto --squash` 自动合入，无需人工审核；其余情况（删除文件或同时修改多个投稿）转为人工流程：PR 会被评论标注原因并请求管理员审核。校验失败则 PR 被阻塞，需修改后重新推送。
 
@@ -140,10 +140,10 @@
 
 镜像同步来的 PR 仍会经过主索引仓的 `validate.yml` 门禁，规则与直接 PR 完全一致。
 
-| 平台    | 流水线配置                          | 密钥配置                                                  |
-| ------- | ----------------------------------- | --------------------------------------------------------- |
+| 平台    | 流水线配置                                                               | 密钥配置                                              |
+| ------- | ------------------------------------------------------------------------ | ----------------------------------------------------- |
 | Gitee   | `.workflow/mirror-gate.yml`（推送）；`.workflow/validate.yml`（PR 门禁） | 推送密钥 `SVP_GITHUB_TOKEN`；合入密钥 `SVP_MERGE_BOT` |
-| Atomgit | `.gitcode/workflows/mirror-gate.yml`| 仓库密钥 `SVP_GITHUB_TOKEN`                               |
+| Atomgit | `.gitcode/workflows/mirror-gate.yml`                                     | 仓库密钥 `SVP_GITHUB_TOKEN`                           |
 
 Gitee 侧的 PR 门禁 `.workflow/validate.yml`（`triggers.pr`，目标分支 `index`）能力对齐 GitHub 侧：schema 校验（归档/config/黑名单/镜像索引）、投稿日期不可变且不得晚于当前时间、黑名单（PR 提交与索引条目的作者/邮箱）、镜像索引单 key 与 `svp-archive.json` 一致性、派生数据保护（`current.json` 禁改）、单文件限制（仅允许一个归档文件或 `index/mirrors.json`）。校验全部通过后以 ff-only 方式合入目标分支（使用密钥 `SVP_MERGE_BOT`）；任何校验失败即流水线失败，不合入。
 

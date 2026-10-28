@@ -235,6 +235,7 @@ const zhHans = {
   'editor.titlePh': '输入稿件标题',
   'editor.videos': '视频站链接',
   'editor.songLanguages': '歌曲语言（含方言，代码参考 ISO 639-3）',
+  'editor.tracks': '关联曲目（方便搜索的名称，不要链接）',
   'editor.add': '添加',
   'editor.remove': '删除',
   'editor.limitHint': '每类最多 10 个',

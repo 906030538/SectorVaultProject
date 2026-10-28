@@ -237,6 +237,7 @@ const zhHant: Record<MessageKey, string> = {
   'editor.titlePh': '輸入稿件標題',
   'editor.videos': '影片站連結',
   'editor.songLanguages': '歌曲語言（含方言，代碼參考 ISO 639-3）',
+  'editor.tracks': '關聯曲目（方便搜尋的名稱，不要連結）',
   'editor.add': '新增',
   'editor.remove': '移除',
   'editor.limitHint': '每類最多 10 個',

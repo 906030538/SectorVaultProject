@@ -238,6 +238,7 @@ const en: Record<MessageKey, string> = {
   'editor.titlePh': 'Enter the submission title',
   'editor.videos': 'Video links',
   'editor.songLanguages': 'Song languages (incl. dialects, codes per ISO 639-3)',
+  'editor.tracks': 'Related tracks (search-friendly names, no links)',
   'editor.add': 'Add',
   'editor.remove': 'Remove',
   'editor.limitHint': 'Up to 10 values per type',

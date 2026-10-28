@@ -275,7 +275,8 @@ export function buildEditorLabels(locale: Locale): EditorLabels {
     paramsWith: t(locale, 'params.with'),
     paramsTuned: t(locale, 'params.tuned'),
     paramsNone: t(locale, 'params.none'),
-    tracks: t(locale, 'label.tracks'),
+    // 编辑器专用：提示该字段是便于搜索的名称，不生成链接
+    tracks: t(locale, 'editor.tracks'),
     engines: t(locale, 'label.engines'),
     voicebanks: t(locale, 'label.voicebanks'),
     songLanguages: t(locale, 'editor.songLanguages'),

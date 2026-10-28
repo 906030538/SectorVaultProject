@@ -238,6 +238,7 @@ const ja: Record<MessageKey, string> = {
   'editor.titlePh': '作品タイトルを入力',
   'editor.videos': '動画サイトリンク',
   'editor.songLanguages': '歌曲言語（方言を含む、コードはISO 639-3準拠）',
+  'editor.tracks': '関連楽曲（検索用の名称、リンク不要）',
   'editor.add': '追加',
   'editor.remove': '削除',
   'editor.limitHint': '各種類最大10個まで',

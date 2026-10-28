@@ -1,4 +1,613 @@
 {
-  "submissions": [],
-  "users": []
+  "submissions": [
+    {
+      "slug": "260809奇妙的和谐",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "POPY-奇妙的和谐",
+      "submittedAt": "2026-10-28T11:45:26.651Z",
+      "publishedAt": "2026-10-28T11:45:26.651Z",
+      "cover": "POPY.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1iV411f7Wv"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "POPY"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "260816你不要再去做情郎",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "ROSE-你不要再去做情郎",
+      "submittedAt": "2026-10-28T11:55:54.378Z",
+      "publishedAt": "2026-10-28T11:55:54.378Z",
+      "cover": "ROSE.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1SL4y1P7a5"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "ROSE"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "260830普罗旺斯的陆地和海洋",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "ROSE-普罗旺斯的陆地和海洋",
+      "submittedAt": "2026-10-28T12:02:18.138Z",
+      "publishedAt": "2026-10-28T12:02:18.138Z",
+      "cover": "ROSE.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "with-params",
+      "songs": [
+        "https://www.bilibili.com/video/BV1QM411R7cc"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "ROSE"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "260913微风轻拂",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "POPY & PASTEL-微风轻拂",
+      "submittedAt": "2026-10-28T12:08:12.045Z",
+      "publishedAt": "2026-10-28T12:08:12.045Z",
+      "cover": "POPY & PASTEL.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1G84y1n79i"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "POPY",
+        "PASTEL"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "260926人们叫我咪咪",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "PASTEL-人们叫我咪咪",
+      "submittedAt": "2026-10-28T12:13:35.042Z",
+      "publishedAt": "2026-10-28T12:13:35.042Z",
+      "cover": "PASTEL.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1aP4y1f7Sv"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "PASTEL"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261001听铃声响得多美妙",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "HALO（& POPY & ROSE）-听铃声响得多美妙",
+      "submittedAt": "2026-10-28T12:28:04.361Z",
+      "publishedAt": "2026-10-28T12:28:04.361Z",
+      "cover": "HALO.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1hF411E7Co"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "HALO",
+        "POPY",
+        "ROSE"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261002人们叫我咪咪",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-人们叫我咪咪",
+      "submittedAt": "2026-10-28T12:31:11.328Z",
+      "publishedAt": "2026-10-28T12:31:11.328Z",
+      "cover": "AVER.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1aP4y1f7Sv"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261002五步十步",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "POPY & ROSE-五步……十步……",
+      "submittedAt": "2026-10-28T12:35:48.308Z",
+      "publishedAt": "2026-10-28T12:35:48.308Z",
+      "cover": "POPY&ROSE.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV14C4y1Y7Et"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "POPY",
+        "ROSE"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261006亲切的名字",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-亲切的名字",
+      "submittedAt": "2026-10-28T12:39:25.527Z",
+      "publishedAt": "2026-10-28T12:39:25.527Z",
+      "cover": "AVER.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1sr4y1j7Kg"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261006求爱神给我安慰",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "PASTEL-求爱神给我安慰",
+      "submittedAt": "2026-10-28T12:42:33.055Z",
+      "publishedAt": "2026-10-28T12:42:33.055Z",
+      "cover": "PASTEL.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV14x411f7rU"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "PASTEL"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261012给大忙人让路",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "ROSE-给大忙人让路",
+      "submittedAt": "2026-10-28T12:45:44.464Z",
+      "publishedAt": "2026-10-28T12:45:44.464Z",
+      "cover": "ROSE.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV12b411B7d1"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "ROSE"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261017主人请听我说",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "PASTEL-主人，请听我说",
+      "submittedAt": "2026-10-28T12:48:24.596Z",
+      "publishedAt": "2026-10-28T12:48:24.596Z",
+      "cover": "PASTEL.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV16c411L7pS"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "PASTEL"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261017柳儿别哭",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-柳儿别哭",
+      "submittedAt": "2026-10-28T12:51:38.391Z",
+      "publishedAt": "2026-10-28T12:51:38.391Z",
+      "cover": "AVER.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1KJ411v7Kv"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261017星光灿烂",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-星光灿烂",
+      "submittedAt": "2026-10-28T12:55:19.846Z",
+      "publishedAt": "2026-10-28T12:55:19.846Z",
+      "cover": "AVER.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV19YbFeHETv"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261017你别颤抖",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-你别颤抖",
+      "submittedAt": "2026-10-28T12:57:59.866Z",
+      "publishedAt": "2026-10-28T12:57:59.866Z",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1Za411X7jX"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261018-复仇的火焰在我心中燃烧",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-复仇的火焰在我心中燃烧",
+      "submittedAt": "2026-10-28T13:01:08.095Z",
+      "publishedAt": "2026-10-28T13:01:08.095Z",
+      "cover": "AVER.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1s541127FX"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261012爱情的微风",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-爱情的微风",
+      "submittedAt": "2026-10-28T13:05:55.420Z",
+      "publishedAt": "2026-10-28T13:05:55.420Z",
+      "cover": "AVER.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1u34y1H7vT"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261024华丽变奏曲",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "POPY-华丽变奏曲",
+      "submittedAt": "2026-10-28T13:11:52.651Z",
+      "publishedAt": "2026-10-28T13:11:52.651Z",
+      "cover": "特殊POPY.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "with-params",
+      "songs": [
+        "https://www.bilibili.com/video/BV1iZ4y1v7v7"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "POPY"
+      ],
+      "languages": [
+        "ja"
+      ]
+    },
+    {
+      "slug": "261024侯爵请听",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "HALO-侯爵请听",
+      "submittedAt": "2026-10-28T13:15:10.169Z",
+      "publishedAt": "2026-10-28T13:15:10.169Z",
+      "cover": "HALO.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1be4y1s7FP"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "HALO"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261025原初之光",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-原初之光",
+      "submittedAt": "2026-10-28T13:20:50.724Z",
+      "publishedAt": "2026-10-28T13:20:50.724Z",
+      "cover": "AVER.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1hZkhYXEob"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261025谈谈我的妈妈",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "POPY & HALO-谈谈我的妈妈",
+      "submittedAt": "2026-10-28T13:23:59.553Z",
+      "publishedAt": "2026-10-28T13:23:59.553Z",
+      "cover": "POPY&HALO.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1xe4y1w7bM"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "POPY",
+        "HALO"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
+      "slug": "261027为艺术为爱情",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "AVER-为艺术为爱情",
+      "submittedAt": "2026-10-28T13:26:34.693Z",
+      "publishedAt": "2026-10-28T13:26:34.693Z",
+      "cover": "AVER.png",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "https://www.bilibili.com/video/BV1i3411n7ju"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "AVER"
+      ],
+      "languages": [
+        "zh"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "owner": "espkaiser",
+      "platform": "gitee",
+      "repos": [
+        {
+          "repo": "svp-esp"
+        }
+      ]
+    }
+  ]
 }

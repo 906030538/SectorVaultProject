@@ -39,6 +39,7 @@ const locale = DEFAULT_LOCALE;
   import { registerRoute, routeSegments } from '@/lib/router';
   import { initDiscussionDetail } from '@/lib/views/discussions';
   import { buildDiscussionsLabels } from '@/lib/labels';
+  import { SUPPORTED_PLATFORMS } from '@/config';
   import { getClientLocale } from '@/lib/i18n-client';
   import { SITE_NAME } from '@/config';
   import type { Platform } from '@/types';
@@ -48,7 +49,7 @@ const locale = DEFAULT_LOCALE;
     const segments = routeSegments(loc.path);
     const [platform, owner, repo, rawNumber] = segments.slice(1);
     const number = Number(rawNumber);
-    const validPlatform = ['github', 'gitee', 'atomgit', 'gitcode'].includes(platform);
+    const validPlatform = (SUPPORTED_PLATFORMS as string[]).includes(platform);
     if (!(segments[0] === 'discussions' && segments.length === 5 && validPlatform && owner && repo && number)) {
       return;
     }

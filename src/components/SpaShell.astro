@@ -6,6 +6,7 @@ import DiscussionsRoute from '@/components/routes/DiscussionsRoute.astro';
 import AboutRoute from '@/components/routes/AboutRoute.astro';
 import FaqRoute from '@/components/routes/FaqRoute.astro';
 import NewRoute from '@/components/routes/NewRoute.astro';
+import TermsRoute from '@/components/routes/TermsRoute.astro';
 import DynamicRouteHosts from '@/components/DynamicRouteHosts.astro';
 import { SITE_NAME } from '@/config';
 import { DEFAULT_LOCALE } from '@/i18n';
@@ -39,5 +40,6 @@ const locale = DEFAULT_LOCALE;
 <div hidden data-route-host="about"><AboutRoute /></div>
 <div hidden data-route-host="faq"><FaqRoute /></div>
 <div hidden data-route-host="new"><NewRoute /></div>
+<div hidden data-route-host="terms"><TermsRoute /></div>
 
 <DynamicRouteHosts />

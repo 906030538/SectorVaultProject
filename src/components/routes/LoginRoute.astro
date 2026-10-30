@@ -33,13 +33,13 @@ const locale = DEFAULT_LOCALE;
   import { getAdapterAsync } from '@/lib/adapters/lazy';
   import { getOAuthConfig } from '@/lib/index/sources';
   import { setToken, saveSession } from '@/lib/auth';
-  import { DIRECT_TOKEN_ENDPOINTS } from '@/config';
+  import { DIRECT_TOKEN_ENDPOINTS, SUPPORTED_PLATFORMS } from '@/config';
   import type { Platform } from '@/types';
 
   registerRoute(async (loc) => {
     const segments = routeSegments(loc.path);
     const platform = segments[1];
-    const valid = ['github', 'gitee', 'atomgit', 'gitcode'].includes(platform);
+    const valid = (SUPPORTED_PLATFORMS as string[]).includes(platform);
 
     if (!(segments[0] === 'login' && segments.length === 2 && valid)) return;
     {

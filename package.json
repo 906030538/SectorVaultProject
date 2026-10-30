@@ -9,6 +9,7 @@
     "dev:hash": "PUBLIC_SVP_ROUTER=hash astro dev",
     "build": "astro build",
     "build:hash": "PUBLIC_SVP_ROUTER=hash ASTRO_BASE=toy/svp/ astro build",
+    "prebuild:hash": "node scripts/fetch-dict-pack.mjs",
     "prebuild": "node scripts/fetch-dict-pack.mjs",
     "check": "astro check",
     "preview": "astro preview"

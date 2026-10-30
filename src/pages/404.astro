@@ -36,7 +36,7 @@ import { routeHref, HASH_ROUTER } from '@/lib/router';
           var path = window.location.pathname;
           if (base && base !== '/' && path.indexOf(base) === 0) path = path.slice(base.length);
           var first = path.split('/').filter(Boolean)[0];
-          if (!first || ['view', 'user', 'edit', 'discussions', 'login', 'project', 'article', 'about', 'faq', 'new'].indexOf(first) === -1) return;
+          if (!first || ['view', 'user', 'edit', 'discussions', 'login', 'project', 'article', 'about', 'faq', 'new', 'terms'].indexOf(first) === -1) return;
           var notice = document.querySelector('[data-role="not-found"]');
           if (notice) notice.setAttribute('hidden', '');
           setTimeout(function () {

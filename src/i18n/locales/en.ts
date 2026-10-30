@@ -303,6 +303,138 @@ const en: Record<MessageKey, string> = {
   'editor.errPassword': 'Encrypted files require a password',
   'editor.errCoverType': 'Cover must be an image',
   'editor.errLoad': 'Failed to load submission content',
+
+  'footer.terms': 'Terms of Service',
+
+  'terms.title': 'Terms of Service',
+  'terms.meta': 'Version 1.0 · Effective October 30, 2026',
+  'terms.intro':
+    'Welcome to Sector Vault Project (the “site”). This is a decentralized project-sharing community built on git platforms: full submissions and media live in contributors’ own Git repositories, while the main site keeps only a lightweight index.',
+  'terms.consent':
+    'Before using the site (including browsing, submitting, publishing and managing content), please read and understand these terms carefully — in particular the Section 6 reminders about content deletion and AI use. By accessing or using the site, you agree to all of these terms; if you do not agree, please stop using it.',
+
+  'terms.s1': 'How the site works',
+  'terms.s1lead': 'Understanding the site’s architecture is the premise for understanding these terms:',
+  'terms.s1i1': 'The site is purely static',
+  'terms.s1i1t':
+    '. There is no backend server or central database, and no account system of its own; sign-in happens via the OAuth of the platform you use, and access tokens are stored only in your browser — never on our servers.',
+  'terms.s1i2': 'Your data is hosted on git platforms',
+  'terms.s1i2a':
+    '. Everything you publish (project files, media, documents and so on) is stored in ',
+  'terms.s1i2b': 'public repositories',
+  'terms.s1i2c':
+    ' that belong to you or your organization on code-hosting platforms such as GitHub, Gitee or AtomGit. The site keeps no originals of this data, and content in private repositories is never indexed or displayed.',
+  'terms.s1i3': 'The site keeps a lightweight index',
+  'terms.s1i3t':
+    '. The index repositories record submission metadata (title, author, platform pointer, audio parameters, submission time and so on), archived monthly and collected via pull requests.',
+  'terms.s1i4': 'Content is read on demand',
+  'terms.s1i4t':
+    '. Site pages read submission content in the visitor’s browser in real time via each platform’s public API; for availability, when the source repository is unreachable, the site may read from the submission’s mirror repository according to its mirror configuration.',
+  'terms.s1i5': 'The site is open source',
+  'terms.s1i5t':
+    '. All site code and index data are version-controlled in Git repositories; anyone can audit them or deploy their own instance.',
+
+  'terms.s2': 'Content ownership',
+  'terms.s2p1':
+    'Your content stays yours. The terms of service of every platform confirm that the copyright and ownership of user-uploaded content belong to the user. The site claims no ownership over submission content and never asks you to transfer copyright.',
+  'terms.s2p2a':
+    'You may declare a license for your submission and collection repositories (LICENSE, e.g. CC0, CC BY, MIT), but understand this: ',
+  'terms.s2p2b':
+    'your data is hosted on public platforms in the plainest, most direct, least roundabout way possible',
+  'terms.s2p2c':
+    ' — anyone can access, download and copy it. A license is a legal statement, not a technical barrier; even where one exists, violations happen. Whether to publish, and what to publish, is your call to make under the reality that once public, it is public.',
+
+  'terms.s3': 'The rights you grant the site',
+  'terms.s3p1a':
+    'When you use the site’s publishing, submission or editing features (including filing index pull requests and creating collections), for the submissions you publish through these features you grant the site a ',
+  'terms.s3p1b': 'non-exclusive, worldwide, royalty-free',
+  'terms.s3p1c': ' license to:',
+  'terms.s3l1': 'Index',
+  'terms.s3l1t':
+    ': write submission metadata into the site’s index repositories (including monthly archives) for search, statistics and display;',
+  'terms.s3l2': 'Display',
+  'terms.s3l2t':
+    ': read submission content (body, images, audio metadata, releases and engagement) and render it on site pages;',
+  'terms.s3l3': 'Distribute',
+  'terms.s3l3t': ': serve the above pages and services to visitors through the site’s routes (CDN and mirror lines).',
+  'terms.s3p2': 'About this license:',
+  'terms.s3n1': 'It does not change content ownership, and does not prevent you from using or licensing your content yourself;',
+  'terms.s3n2': 'Where your submission carries its own license, the site’s display and distribution also follow that license;',
+  'terms.s3n3': 'You can delete submissions or remove them from the index at any time to stop further distribution (see Section 7);',
+  'terms.s3n4a': 'This license is ',
+  'terms.s3n4b': 'limited to the indexing, display and distribution purposes above',
+  'terms.s3n4c':
+    ' — the site will not use user data for AI training, but it also cannot stop others from obtaining and using your data (see Section 6);',
+  'terms.s3n5':
+    'Platform-published metadata such as repository star counts and descriptions is public platform data; the site’s display of it does not rely on the grant in this section.',
+
+  'terms.s4': 'Follow the terms of your platform',
+  'terms.s4p1':
+    'Your content and account activity must also comply with the terms of service and content policies of your platform (GitHub, Gitee, AtomGit and others). In particular:',
+  'terms.s4l1': 'Every platform has content-compliance requirements',
+  'terms.s4l1t': ' and reserves the right to delete content or suspend accounts without prior notice.',
+  'terms.s4l2':
+    'Platform-side deletions, bans or service changes are beyond the site’s control, and the site takes no responsibility for them.',
+
+  'terms.s5': 'Content rules and responsibility',
+  'terms.s5n1':
+    'You bear full and sole responsibility for the legality, non-infringement and accuracy of what you publish. Do not publish content that violates laws, infringes others’ copyright or privacy, or harms the community.',
+  'terms.s5n2':
+    'The site runs automated intake gates (format validation, blocked-word and scoring rules) plus human review, but does not promise to catch every problem.',
+  'terms.s5n3':
+    'The site reserves the right to remove violating content and revoke indexing; in serious cases it will cooperate with the platform and the relevant authorities as appropriate.',
+
+  'terms.s6': 'Important: platforms may retain deleted content and may use public content for AI',
+  'terms.s6p1a': 'After you publish content to any public platform, ',
+  'terms.s6p1b': '“deletion” is not always absolute, and AI-training uses usually cannot be fully ruled out',
+  'terms.s6p1c':
+    '. Please make sure content is suitable for the public before publishing; keep sensitive content private or publish it with care.',
+  'terms.s6h1': 'Deleted content may still exist:',
+  'terms.s6l1': 'Forked copies outlive the original',
+  'terms.s6l1t':
+    '. Once someone forks your repository they hold an independent copy; deleting the original does not affect those copies (GitHub’s terms state this explicitly).',
+  'terms.s6l2': 'Licenses granted to the platform may survive',
+  'terms.s6l2t':
+    '. For example, AtomGit’s terms grant the platform a “perpetual, irrevocable” content license; GitHub’s license ends when content is deleted, except for copies that were already forked.',
+  'terms.s6l3': 'Caches and snapshots',
+  'terms.s6l3t':
+    '. CDN caches, search-engine snapshots and third-party archive services may all keep copies of deleted content.',
+  'terms.s6h2': 'Public content may be used for AI training:',
+  'terms.s6l4': 'The site will not use user data for AI training, but it also cannot stop others from obtaining user data.',
+  'terms.s6l5':
+    'GitHub’s terms explicitly include AI features (such as Copilot) and the development, training and improvement of affiliated AI/ML models within the license you grant the platform.',
+  'terms.s6l6': 'Other platforms’ terms (such as AtomGit’s broad relicensing clause) similarly leave room for such uses.',
+  'terms.s6l7':
+    'Platforms generally offer no way to fully opt out of AI use, and the site cannot turn off any platform-side use on your behalf.',
+
+  'terms.s7': 'Deleting submissions and leaving',
+  'terms.s7p1': 'Data sovereignty is yours; you can leave at any time:',
+  'terms.s7i1': 'Delete a submission',
+  'terms.s7i1t':
+    ': the site offers a three-step delete (submission files, associated release, then index entry); once done, the submission disappears from the index and the pages;',
+  'terms.s7i2': 'Delete a collection or repository',
+  'terms.s7i2t':
+    ': delete the whole repository through the platform’s flow; the site stops showing the corresponding content once the source repository is gone;',
+  'terms.s7i3': 'CDN caches',
+  'terms.s7i3t': ' fade out naturally as they expire.',
+  'terms.s7p2':
+    'But note Section 6: copies beyond the site’s control — other people’s forks, platform-side licenses, third-party snapshots — may still exist. The site is not responsible for them and cannot remove them for you.',
+
+  'terms.s8': 'Reporting and enforcement',
+  'terms.s8p1':
+    'If you find infringing, illegal or terms-violating content, please report it via an issue on the site’s main repository. We will remove the entry after verification and notify the platform as appropriate.',
+
+  'terms.s9': 'No warranty and limitation of liability',
+  'terms.s9p1':
+    'The site is provided “as is” and “as available”, with no warranty of uninterrupted, error-free or always-available service. To the maximum extent permitted by law, the site is not liable for losses arising from use of or inability to use the service. The site depends on third-party platforms for data and APIs; platform-side changes, outages or terms adjustments are beyond its control.',
+
+  'terms.s10': 'Changes to these terms',
+  'terms.s10p1':
+    'These terms are version-controlled in a Git repository. Changes will bump the version number and be announced on the site; if you keep using the site after a change, you are deemed to accept the new version.',
+
+  'terms.s11': 'Scope and contact',
+  'terms.s11p1':
+    'These terms apply to the Sector Vault Project main site and its routes. Independent instances deployed by community members follow their deployers’ own rules and are not bound by these terms. For questions and suggestions, please open an issue on the main repository.',
 };
 
 export default en;

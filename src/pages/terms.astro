@@ -1,0 +1,259 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { DEFAULT_LOCALE, t } from "@/i18n";
+
+const locale = DEFAULT_LOCALE;
+---
+
+<BaseLayout titleKey="terms.title">
+  <div class="mx-auto max-w-3xl">
+    <h1 class="mb-2 text-2xl font-bold" data-i18n="terms.title">
+      {t(locale, "terms.title")}
+    </h1>
+    <p
+      class="mb-4 text-sm text-slate-500 dark:text-slate-400"
+      data-i18n="terms.meta"
+    >
+      {t(locale, "terms.meta")}
+    </p>
+    <p class="leading-relaxed" data-i18n="terms.intro">
+      {t(locale, "terms.intro")}
+    </p>
+    <p class="mt-3 leading-relaxed" data-i18n="terms.consent">
+      {t(locale, "terms.consent")}
+    </p>
+
+    <article class="card mt-6 space-y-8 p-6">
+      <!-- 1. 本站如何工作 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s1">
+          {t(locale, "terms.s1")}
+        </h2>
+        <p
+          class="leading-relaxed text-slate-600 dark:text-slate-300"
+          data-i18n="terms.s1lead"
+        >
+          {t(locale, "terms.s1lead")}
+        </p>
+        <ol class="list-decimal space-y-3 pl-6 leading-relaxed">
+          <li>
+            <strong data-i18n="terms.s1i1">{t(locale, "terms.s1i1")}</strong
+            ><span data-i18n="terms.s1i1t">{t(locale, "terms.s1i1t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s1i2">{t(locale, "terms.s1i2")}</strong
+            ><span data-i18n="terms.s1i2a">{t(locale, "terms.s1i2a")}</span
+            ><strong data-i18n="terms.s1i2b">{t(locale, "terms.s1i2b")}</strong
+            ><span data-i18n="terms.s1i2c">{t(locale, "terms.s1i2c")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s1i3">{t(locale, "terms.s1i3")}</strong
+            ><span data-i18n="terms.s1i3t">{t(locale, "terms.s1i3t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s1i4">{t(locale, "terms.s1i4")}</strong
+            ><span data-i18n="terms.s1i4t">{t(locale, "terms.s1i4t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s1i5">{t(locale, "terms.s1i5")}</strong
+            ><span data-i18n="terms.s1i5t">{t(locale, "terms.s1i5t")}</span>
+          </li>
+        </ol>
+      </section>
+
+      <!-- 2. 内容所有权 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s2">
+          {t(locale, "terms.s2")}
+        </h2>
+        <p class="leading-relaxed" data-i18n="terms.s2p1">
+          {t(locale, "terms.s2p1")}
+        </p>
+        <p class="leading-relaxed">
+          <span data-i18n="terms.s2p2a">{t(locale, "terms.s2p2a")}</span><strong
+            data-i18n="terms.s2p2b">{t(locale, "terms.s2p2b")}</strong
+          ><span data-i18n="terms.s2p2c">{t(locale, "terms.s2p2c")}</span>
+        </p>
+      </section>
+
+      <!-- 3. 你授予本站的权利 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s3">
+          {t(locale, "terms.s3")}
+        </h2>
+        <p class="leading-relaxed">
+          <span data-i18n="terms.s3p1a">{t(locale, "terms.s3p1a")}</span><strong
+            data-i18n="terms.s3p1b">{t(locale, "terms.s3p1b")}</strong
+          ><span data-i18n="terms.s3p1c">{t(locale, "terms.s3p1c")}</span>
+        </p>
+        <ul class="list-disc space-y-1 pl-6 leading-relaxed">
+          <li>
+            <strong data-i18n="terms.s3l1">{t(locale, "terms.s3l1")}</strong
+            ><span data-i18n="terms.s3l1t">{t(locale, "terms.s3l1t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s3l2">{t(locale, "terms.s3l2")}</strong
+            ><span data-i18n="terms.s3l2t">{t(locale, "terms.s3l2t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s3l3">{t(locale, "terms.s3l3")}</strong
+            ><span data-i18n="terms.s3l3t">{t(locale, "terms.s3l3t")}</span>
+          </li>
+        </ul>
+        <p class="leading-relaxed" data-i18n="terms.s3p2">
+          {t(locale, "terms.s3p2")}
+        </p>
+        <ol class="list-decimal space-y-1 pl-6 leading-relaxed">
+          <li data-i18n="terms.s3n1">{t(locale, "terms.s3n1")}</li>
+          <li data-i18n="terms.s3n2">{t(locale, "terms.s3n2")}</li>
+          <li data-i18n="terms.s3n3">{t(locale, "terms.s3n3")}</li>
+          <li>
+            <span data-i18n="terms.s3n4a">{t(locale, "terms.s3n4a")}</span
+            ><strong data-i18n="terms.s3n4b">{t(locale, "terms.s3n4b")}</strong
+            ><span data-i18n="terms.s3n4c">{t(locale, "terms.s3n4c")}</span>
+          </li>
+          <li data-i18n="terms.s3n5">{t(locale, "terms.s3n5")}</li>
+        </ol>
+      </section>
+
+      <!-- 4. 遵守所在平台的条款 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s4">
+          {t(locale, "terms.s4")}
+        </h2>
+        <p class="leading-relaxed" data-i18n="terms.s4p1">
+          {t(locale, "terms.s4p1")}
+        </p>
+        <ul class="list-disc space-y-1 pl-6 leading-relaxed">
+          <li>
+            <strong data-i18n="terms.s4l1">{t(locale, "terms.s4l1")}</strong
+            ><span data-i18n="terms.s4l1t">{t(locale, "terms.s4l1t")}</span>
+          </li>
+          <li data-i18n="terms.s4l2">{t(locale, "terms.s4l2")}</li>
+        </ul>
+      </section>
+
+      <!-- 5. 内容规范与责任 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s5">
+          {t(locale, "terms.s5")}
+        </h2>
+        <ol class="list-decimal space-y-1 pl-6 leading-relaxed">
+          <li data-i18n="terms.s5n1">{t(locale, "terms.s5n1")}</li>
+          <li data-i18n="terms.s5n2">{t(locale, "terms.s5n2")}</li>
+          <li data-i18n="terms.s5n3">{t(locale, "terms.s5n3")}</li>
+        </ol>
+      </section>
+
+      <!-- 6. 重要提醒 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s6">
+          {t(locale, "terms.s6")}
+        </h2>
+        <p class="leading-relaxed">
+          <span data-i18n="terms.s6p1a">{t(locale, "terms.s6p1a")}</span><strong
+            data-i18n="terms.s6p1b">{t(locale, "terms.s6p1b")}</strong
+          ><span data-i18n="terms.s6p1c">{t(locale, "terms.s6p1c")}</span>
+        </p>
+        <p class="font-semibold" data-i18n="terms.s6h1">
+          {t(locale, "terms.s6h1")}
+        </p>
+        <ul class="list-disc space-y-1 pl-6 leading-relaxed">
+          <li>
+            <strong data-i18n="terms.s6l1">{t(locale, "terms.s6l1")}</strong
+            ><span data-i18n="terms.s6l1t">{t(locale, "terms.s6l1t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s6l2">{t(locale, "terms.s6l2")}</strong
+            ><span data-i18n="terms.s6l2t">{t(locale, "terms.s6l2t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s6l3">{t(locale, "terms.s6l3")}</strong
+            ><span data-i18n="terms.s6l3t">{t(locale, "terms.s6l3t")}</span>
+          </li>
+        </ul>
+        <p class="font-semibold" data-i18n="terms.s6h2">
+          {t(locale, "terms.s6h2")}
+        </p>
+        <ul class="list-disc space-y-1 pl-6 leading-relaxed">
+          <li>
+            <strong data-i18n="terms.s6l4">{t(locale, "terms.s6l4")}</strong>
+          </li>
+          <li data-i18n="terms.s6l5">{t(locale, "terms.s6l5")}</li>
+          <li data-i18n="terms.s6l6">{t(locale, "terms.s6l6")}</li>
+          <li data-i18n="terms.s6l7">{t(locale, "terms.s6l7")}</li>
+        </ul>
+      </section>
+
+      <!-- 7. 删除稿件与退出 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s7">
+          {t(locale, "terms.s7")}
+        </h2>
+        <p class="leading-relaxed" data-i18n="terms.s7p1">
+          {t(locale, "terms.s7p1")}
+        </p>
+        <ol class="list-decimal space-y-1 pl-6 leading-relaxed">
+          <li>
+            <strong data-i18n="terms.s7i1">{t(locale, "terms.s7i1")}</strong
+            ><span data-i18n="terms.s7i1t">{t(locale, "terms.s7i1t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s7i2">{t(locale, "terms.s7i2")}</strong
+            ><span data-i18n="terms.s7i2t">{t(locale, "terms.s7i2t")}</span>
+          </li>
+          <li>
+            <strong data-i18n="terms.s7i3">{t(locale, "terms.s7i3")}</strong
+            ><span data-i18n="terms.s7i3t">{t(locale, "terms.s7i3t")}</span>
+          </li>
+        </ol>
+        <p
+          class="leading-relaxed text-slate-600 dark:text-slate-300"
+          data-i18n="terms.s7p2"
+        >
+          {t(locale, "terms.s7p2")}
+        </p>
+      </section>
+
+      <!-- 8. 举报与处置 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s8">
+          {t(locale, "terms.s8")}
+        </h2>
+        <p class="leading-relaxed" data-i18n="terms.s8p1">
+          {t(locale, "terms.s8p1")}
+        </p>
+      </section>
+
+      <!-- 9. 不担保与责任限制 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s9">
+          {t(locale, "terms.s9")}
+        </h2>
+        <p class="leading-relaxed" data-i18n="terms.s9p1">
+          {t(locale, "terms.s9p1")}
+        </p>
+      </section>
+
+      <!-- 10. 条款变更 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s10">
+          {t(locale, "terms.s10")}
+        </h2>
+        <p class="leading-relaxed" data-i18n="terms.s10p1">
+          {t(locale, "terms.s10p1")}
+        </p>
+      </section>
+
+      <!-- 11. 适用范围与联系 -->
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold" data-i18n="terms.s12">
+          {t(locale, "terms.s11")}
+        </h2>
+        <p class="leading-relaxed" data-i18n="terms.s12p1">
+          {t(locale, "terms.s11p1")}
+        </p>
+      </section>
+    </article>
+  </div>
+</BaseLayout>

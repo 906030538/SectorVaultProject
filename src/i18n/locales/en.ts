@@ -115,6 +115,8 @@ const en: Record<MessageKey, string> = {
   'detail.like': 'Like',
   'detail.liked': 'Liked',
   'detail.licenseCustomName': 'Custom',
+  'sensitive.blocked': 'Content blocked',
+  'sensitive.blockedHint': 'This content contains sensitive material and was hidden.',
   'detail.commentsDisabled': 'Comments are disabled',
   'detail.commentsClosed': 'Comments are closed',
   'detail.issueReopen': 'Reopen',

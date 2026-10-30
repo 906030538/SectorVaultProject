@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { unzipSync } from 'fflate';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
+import { renderBlockedBox, screenContent, warmupSensitive } from '@/lib/sensitive/gate';
 import { LICENSE_OPTIONS, licenseLinks, licenseSummary } from '@/config';
 import {
   loadRepoInfo,
@@ -112,6 +113,8 @@ export interface DetailLabels {
   like: string;
   liked: string;
   commentsDisabled: string;
+  contentBlocked: string;
+  contentBlockedHint: string;
   commentsClosed: string;
   noComments: string;
   viewIssue: string;
@@ -464,13 +467,13 @@ const REACTION_EMOJI: Record<string, string> = {
   eyes: '👀',
 };
 
-function renderRelease(
+async function renderRelease(
   init: DetailInit,
   platform: Platform,
   release: ReleaseInfo | null,
   labels: DetailLabels,
   els: DetailElements,
-): void {
+): Promise<void> {
   if (!release) return;
   void init;
   void platform;
@@ -482,14 +485,18 @@ function renderRelease(
   const box = document.createElement('div');
   box.className = 'card p-4';
 
-  // release 正文（发布简介 + 链接，Markdown 安全渲染）
+  // release 正文（发布简介 + 链接，Markdown 安全渲染；敏感超分显示已屏蔽框）
   if (release.body.trim()) {
     const body = document.createElement('div');
     body.className = 'text-sm';
     body.dataset.role = 'release-body';
-    body.innerHTML = DOMPurify.sanitize(
-      marked.parse(release.body, { async: false }),
-    ) as string;
+    if (await screenContent(release.body, 'body')) {
+      renderBlockedBox(body, labels.contentBlocked, labels.contentBlockedHint);
+    } else {
+      body.innerHTML = DOMPurify.sanitize(
+        marked.parse(release.body, { async: false }),
+      ) as string;
+    }
     box.appendChild(body);
   }
 
@@ -554,13 +561,15 @@ export interface IssueCommentActions {
   onDeleted?: (comment: IssueCommentInfo) => void;
 }
 
-/** 渲染单条 issue 评论：头像（失败回退首字母）+ 作者 + 正文；本人评论带删除 */
-function renderIssueComment(
+/** 渲染单条 issue 评论：头像（失败回退首字母）+ 作者 + 正文；本人评论带删除。
+ *  敏感超分的评论不渲染原文，正文区显示灰色已屏蔽框（头像/作者/日期保留） */
+async function renderIssueComment(
   comment: IssueCommentInfo,
   locale: string,
   platform: Platform,
+  labels: DetailLabels,
   actions?: IssueCommentActions,
-): HTMLElement {
+): Promise<HTMLElement> {
   const item = document.createElement('article');
   item.className = 'card flex gap-3 p-3';
   item.dataset.role = 'issue-comment';
@@ -656,10 +665,14 @@ function renderIssueComment(
   }
   main.appendChild(head);
   const body = el('div', 'prose-svp mt-2 text-sm');
-  body.innerHTML = DOMPurify.sanitize(marked.parse(comment.body, { async: false })) as string;
-  // 留言内容不保留跳转链接（保留其余排版）
-  for (const anchor of Array.from(body.querySelectorAll('a'))) {
-    anchor.replaceWith(document.createTextNode(anchor.textContent ?? ''));
+  if (await screenContent(comment.body, 'short')) {
+    renderBlockedBox(body, labels.contentBlocked, labels.contentBlockedHint);
+  } else {
+    body.innerHTML = DOMPurify.sanitize(marked.parse(comment.body, { async: false })) as string;
+    // 留言内容不保留跳转链接（保留其余排版）
+    for (const anchor of Array.from(body.querySelectorAll('a'))) {
+      anchor.replaceWith(document.createTextNode(anchor.textContent ?? ''));
+    }
   }
   main.appendChild(body);
   item.append(avatar, main);
@@ -859,7 +872,7 @@ async function renderIssueSection(
       } else {
         for (const comment of comments) {
           list.appendChild(
-            renderIssueComment(comment, locale, platform, commentActions(comment.author === viewer)),
+            await renderIssueComment(comment, locale, platform, labels, commentActions(comment.author === viewer)),
           );
         }
       }
@@ -898,7 +911,7 @@ async function renderIssueSection(
                 body,
                 createdAt: new Date().toISOString(),
               };
-            list.appendChild(renderIssueComment(mine, locale, platform, commentActions(true)));
+            list.appendChild(await renderIssueComment(mine, locale, platform, labels, commentActions(true)));
             shown += 1;
             syncCount();
           } catch (error) {
@@ -979,6 +992,9 @@ async function findEntryFromRepo(
 export async function initDetail(init: DetailInit): Promise<void> {
   const { slug, locale, labels, els } = init;
   let { user, repo } = init;
+
+  // 词包预热：与内容 API 请求并行加载，正文/评论渲染时通常已就绪
+  warmupSensitive();
 
   let entry = await findEntry(user, repo, slug);
   let preloaded: SubmissionContent | null = null;
@@ -1157,9 +1173,13 @@ export async function initDetail(init: DetailInit): Promise<void> {
   const metaList = buildMetaList(entry, labels, videos);
   els.meta.appendChild(metaList);
 
-  // 正文（不含文件头属性）
-  const html = await marked.parse(content.parsed.body);
-  els.body.innerHTML = DOMPurify.sanitize(html) as string;
+  // 正文（不含文件头属性）；敏感超分时不渲染原文，显示灰色已屏蔽框
+  if (await screenContent(content.parsed.body, 'body')) {
+    renderBlockedBox(els.body, labels.contentBlocked, labels.contentBlockedHint);
+  } else {
+    const html = await marked.parse(content.parsed.body);
+    els.body.innerHTML = DOMPurify.sanitize(html) as string;
+  }
 
   const tags = parseAttrList(content.parsed.attrs.tags);
   renderTags(tags, els);
@@ -1187,7 +1207,7 @@ export async function initDetail(init: DetailInit): Promise<void> {
   renderFiles(init, platform, content.baseDir, filesOnly, els);
 
   const release = releases.find((r) => r.tag === slug) ?? null;
-  renderRelease(init, platform, release, labels, els);
+  await renderRelease(init, platform, release, labels, els);
 
   const issue = issues.find((i) => i.title === slug) ?? null;
   await renderIssueSection(init, platform, issue, labels, els);

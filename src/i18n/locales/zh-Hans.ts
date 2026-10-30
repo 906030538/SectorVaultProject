@@ -113,6 +113,8 @@ const zhHans = {
   'detail.like': '点赞',
   'detail.liked': '已点赞',
   'detail.licenseCustomName': '自定义',
+  'sensitive.blocked': '内容已屏蔽',
+  'sensitive.blockedHint': '该内容包含敏感信息，未予显示',
   'detail.commentsDisabled': '评论区已禁用',
   'detail.commentsClosed': '已关闭评论区',
   'detail.issueReopen': '启用',

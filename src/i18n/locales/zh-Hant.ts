@@ -115,6 +115,8 @@ const zhHant: Record<MessageKey, string> = {
   'detail.like': '點讚',
   'detail.liked': '已點讚',
   'detail.licenseCustomName': '自訂',
+  'sensitive.blocked': '內容已屏蔽',
+  'sensitive.blockedHint': '該內容包含敏感資訊，未予顯示',
   'detail.commentsDisabled': '評論區已停用',
   'detail.commentsClosed': '已關閉評論區',
   'detail.issueReopen': '啟用',

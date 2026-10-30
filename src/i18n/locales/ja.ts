@@ -115,6 +115,8 @@ const ja: Record<MessageKey, string> = {
   'detail.like': 'いいね',
   'detail.liked': 'いいね済み',
   'detail.licenseCustomName': 'カスタム',
+  'sensitive.blocked': 'コンテンツ非表示',
+  'sensitive.blockedHint': 'センシティブな内容が含まれるため非表示にしました。',
   'detail.commentsDisabled': 'コメント欄は無効です',
   'detail.commentsClosed': 'コメントは締め切られています',
   'detail.issueReopen': '再開',

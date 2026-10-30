@@ -205,6 +205,19 @@ export const EDITOR_LIMITS = {
 };
 
 /**
+ * 敏感内容过滤（src/lib/sensitive/）：词包由构建期 scripts/fetch-dict-pack.mjs
+ * 注入 public/dict-pack.bin（需 CI 配置 DICT_PACK_TOKEN，缺省时过滤停用 fail-open）；
+ * 打分规则与索引仓门禁 scripts/check-sensitive.mjs 一致，阈值同步自其 config.json。
+ */
+export const SENSITIVE_SCAN = {
+  packUrl: '/dict-pack.bin',
+  /** 单内容总分屏蔽线 */
+  threshold: 30,
+  /** 单内容单分类得分屏蔽线 */
+  perCategory: 25,
+} as const;
+
+/**
  * 列表输入的下拉候选（可按部署配置；datalist 不限制自由输入）。
  * 仅合成引擎 / 使用声库 / 歌曲语言提供建议。
  */

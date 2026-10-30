@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
+import { renderBlockedBox, screenContent, warmupSensitive } from '@/lib/sensitive/gate';
 import { getIndexSources, getStoredLine } from '@/lib/index/sources';
 import { getToken, loadSession } from '@/lib/auth';
 import { openAuthDialog } from '@/lib/auth-dialog';
@@ -29,6 +30,8 @@ export interface DiscussionsLabels {
   createDiscussionFailed: string;
   loginFirst: string;
   none: string;
+  contentBlocked: string;
+  contentBlockedHint: string;
   loadError: string;
   comments: string;
   viewOriginal: string;
@@ -311,12 +314,11 @@ export interface DiscussionDetailInit {
   els: DiscussionDetailElements;
 }
 
-function renderComment(
+async function renderComment(
   comment: DiscussionComment,
   locale: string,
   labels: DiscussionsLabels,
-): HTMLElement {
-  const card = el('article', 'card p-4');
+): Promise<HTMLElement> {  const card = el('article', 'card p-4');
   card.dataset.role = 'discussion-comment';
   const head = el('p', 'text-sm');
   const author = el('span', 'font-medium', comment.author ?? '?');
@@ -338,8 +340,12 @@ function renderComment(
   card.appendChild(head);
 
   const body = el('div', 'prose-svp mt-2 text-sm');
-  const html = marked.parse(comment.body, { async: false });
-  body.innerHTML = DOMPurify.sanitize(html) as string;
+  if (await screenContent(comment.body, 'short')) {
+    renderBlockedBox(body, labels.contentBlocked, labels.contentBlockedHint);
+  } else {
+    const html = marked.parse(comment.body, { async: false });
+    body.innerHTML = DOMPurify.sanitize(html) as string;
+  }
   card.appendChild(body);
   return card;
 }
@@ -396,6 +402,9 @@ export async function initDiscussionDetail(init: DiscussionDetailInit): Promise<
   const { platform, owner, repo, number, locale, labels, els } = init;
   const adapter = await getAdapterAsync(platform);
 
+  // 词包预热：与讨论 API 请求并行加载
+  warmupSensitive();
+
   const [discussion, comments] = await Promise.all([
     adapter.getDiscussion(owner, repo, number),
     adapter.listDiscussionComments(owner, repo, number).catch(() => [] as DiscussionComment[]),
@@ -428,14 +437,19 @@ export async function initDiscussionDetail(init: DiscussionDetailInit): Promise<
   els.meta.textContent = '';
   els.meta.appendChild(meta);
 
-  const html = marked.parse(discussion.body ?? '', { async: false });
-  els.body.innerHTML = DOMPurify.sanitize(html) as string;
+  // 讨论正文；敏感超分时不渲染原文，显示灰色已屏蔽框
+  if (await screenContent(discussion.body ?? '', 'body')) {
+    renderBlockedBox(els.body, labels.contentBlocked, labels.contentBlockedHint);
+  } else {
+    const html = marked.parse(discussion.body ?? '', { async: false });
+    els.body.innerHTML = DOMPurify.sanitize(html) as string;
+  }
 
   // 评论列表
   els.comments.textContent = '';
   if (comments.length) {
     for (const comment of comments) {
-      els.comments.appendChild(renderComment(comment, locale, labels));
+      els.comments.appendChild(await renderComment(comment, locale, labels));
     }
   } else {
     els.comments.appendChild(el('p', 'text-sm text-slate-400', '–'));
@@ -460,7 +474,7 @@ export async function initDiscussionDetail(init: DiscussionDetailInit): Promise<
         .catch(() => [] as DiscussionComment[]);
       els.comments.textContent = '';
       for (const comment of fresh) {
-        els.comments.appendChild(renderComment(comment, locale, labels));
+        els.comments.appendChild(await renderComment(comment, locale, labels));
       }
     };
     els.reply.appendChild(renderReplyBox(init, () => void reload()));

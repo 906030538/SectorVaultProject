@@ -216,6 +216,13 @@ svp-archive.json -- 本地索引
 2. 媒体不统一放一个目录，而是与稿件相同目录。
 3. 支持用户自行部署静态页面。
 
+## 敏感内容过滤（src/lib/sensitive/）
+词包（SVPX 容器：`SVPX` magic + XOR(deflate-raw(JSON))）由构建期 `scripts/fetch-dict-pack.mjs` 注入：优先 `DICT_PACK_FILE` 本地文件，否则用 `DICT_PACK_TOKEN`/`GITHUB_TOKEN` 拉取私有 dict-resources 仓的 `data/dict-pack.bin`，两者皆缺则跳过（过滤停用，fail-open）；产物 `public/dict-pack.bin` 已 gitignore，仓库不落任何词包产物。
+
+1. `scorer.ts`：纯扫描引擎（fflate 解包 + Aho-Corasick 自动机），打分规则与索引仓门禁 `SectorVaultProject/scripts/check-sensitive.mjs` 完全一致——NFKC+小写归一；分类权重 politics 10 / porn 8 / violence 8 / ad 3 / other 3 / mixed 2；长度因子 clamp(len,2,8)/2；短词降权（2字词 field×0.25、body×0）；拉丁词整词精确匹配且弱分类（ad/mixed/other）不参与正文计分；非拉丁走归一+去分隔符双通道子串匹配（左最长去重）；URL 片段与噪声词（www/com 等）载入期丢弃；URL（scheme/www. 开头）单独提取仅按 ad 分类计分。
+2. `gate.ts`：模块级单例匹配器（首屏 warmup 预取 `packUrl`，force-cache + 20s 超时，约 240ms 建自动机）；`screenContent(text, 'body'|'short')` 超过总分阈值（30）或单分类阈值（25）返回 true；`renderBlockedBox()` 渲染灰色虚线已屏蔽卡（🚫 图标 + sensitive.blocked 文案，i18n 四语言）。
+3. 接入点（超分即不渲染原文、改为已屏蔽框，其余元数据正常展示）：投稿正文、release 正文、issue 评论（保留头像/作者/日期）、讨论正文、讨论评论。阈值定义在 `src/config.ts` 的 `SENSITIVE_SCAN`（与索引仓 config.json 同步）。
+
 ## 部署配置（deployment.json）
 ```json
 {

@@ -11,3 +11,4 @@ dist/
 .vscode/
 .wrangler/
 .dev.vars
+public/dict-pack.bin

@@ -12,12 +12,6 @@ const adapters: Record<Platform, GitPlatformAdapter> = {
     apiBase: 'https://api.atomgit.com/api/v5',
     webBase: 'https://atomgit.com',
   }),
-  gitcode: new V5PlatformAdapter({
-    platform: 'gitcode',
-    apiBase: 'https://api.gitcode.com/api/v5',
-    webBase: 'https://gitcode.com',
-    rawBase: 'https://raw.gitcode.com',
-  }),
 };
 
 export function getAdapter(platform: Platform): GitPlatformAdapter {

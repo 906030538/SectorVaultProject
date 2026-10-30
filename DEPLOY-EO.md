@@ -49,13 +49,12 @@ EdgeOne Pages 仅把 `/*` → `/index.html` 这一样式识别为 SPA fallback
    构建命令与输出目录已由 `edgeone.json` 声明（`npm run build` → `dist`），控制台可不填；
 2. 环境变量（项目设置 → 环境变量，与 Cloudflare Pages 部署一致，密钥不进 deployment.json）：
 
-   | 变量 | 用途 |
-   | --- | --- |
-   | `OAUTH_GITHUB_APP_ID` | GitHub App 设备授权流（`/gh-oauth/*` 透传，无需 secret） |
-   | `OAUTH_GITHUB_CLIENT_ID` + `OAUTH_GITHUB_CLIENT_SECRET` | GitHub OAuth 网页流（token 交换代理） |
-   | `OAUTH_GITEE_CLIENT_ID` + `OAUTH_GITEE_CLIENT_SECRET` | Gitee OAuth |
-   | `OAUTH_ATOMGIT_CLIENT_ID` + `OAUTH_ATOMGIT_CLIENT_SECRET` | AtomGit OAuth |
-   | `OAUTH_GITCODE_CLIENT_ID` | GitCode（暂仅 clientId 下发） |
+   | 变量                                                      | 用途                                                     |
+   | --------------------------------------------------------- | -------------------------------------------------------- |
+   | `OAUTH_GITHUB_APP_ID`                                     | GitHub App 设备授权流（`/gh-oauth/*` 透传，无需 secret） |
+   | `OAUTH_GITHUB_CLIENT_ID` + `OAUTH_GITHUB_CLIENT_SECRET`   | GitHub OAuth 网页流（token 交换代理）                    |
+   | `OAUTH_GITEE_CLIENT_ID` + `OAUTH_GITEE_CLIENT_SECRET`     | Gitee OAuth                                              |
+   | `OAUTH_ATOMGIT_CLIENT_ID` + `OAUTH_ATOMGIT_CLIENT_SECRET` | AtomGit OAuth                                            |
 
 3. 构建失败提示 Node 版本过低时，在 `edgeone.json` 加 `"nodeVersion": "22"`
    （Astro 7 需 Node ≥ 20.3）。

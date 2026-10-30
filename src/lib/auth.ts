@@ -5,7 +5,6 @@ const TOKEN_KEY: Record<Platform, string> = {
   github: 'svp-token-github',
   gitee: 'svp-token-gitee',
   atomgit: 'svp-token-atomgit',
-  gitcode: 'svp-token-gitcode',
 };
 
 /** GitHub Device Flow / GitHub App 的 OAuth Client ID（部署时通过构建配置注入） */
@@ -151,7 +150,7 @@ export async function pollDeviceToken(
   tokenUrl = 'https://github.com/login/oauth/access_token',
 ): Promise<string> {
   const intervalMs = Math.max(1, intervalSeconds) * 1000;
-  for (;;) {
+  for (; ;) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
     const response = await fetch(tokenUrl, {

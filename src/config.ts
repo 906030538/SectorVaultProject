@@ -100,7 +100,7 @@ export const MAIN_REPO = {
 };
 
 /** 支持的 git 平台 */
-export const SUPPORTED_PLATFORMS: Platform[] = ['github', 'gitee', 'atomgit', 'gitcode'];
+export const SUPPORTED_PLATFORMS: Platform[] = ['github', 'gitee', 'atomgit'];
 
 /** 默认许可证选项：CC0、CC4.0（含细分系列） */
 export const LICENSE_OPTIONS: { value: string; label?: string; labelKey?: MessageKey }[] = [
@@ -181,14 +181,13 @@ export function licenseSummary(id: string, locale: string): string | null {
 /** 许可证外链：SPDX 页面（无语言变体）+ CC deed（有当前语言版本时提供） */
 export function licenseLinks(id: string, locale: string): { spdx: string; deed?: string } {
   const links: { spdx: string; deed?: string } = { spdx: `https://spdx.org/licenses/${id}.html` };
-  const lang = locale === 'zh-Hans' ? 'zh' : locale === 'zh-Hant' ? 'zh-Hant' : locale;
   if (id === 'CC0-1.0') {
-    links.deed = `https://creativecommons.org/publicdomain/zero/1.0/deed.${lang}`;
+    links.deed = `https://creativecommons.org/publicdomain/zero/1.0/deed.${locale}`;
     return links;
   }
   // CC-BY-4.0 → by、CC-BY-NC-SA-4.0 → by-nc-sa
   const cc = id.match(/^CC-(BY(?:-NC)?(?:-SA|-ND)?)-4\.0$/);
-  if (cc) links.deed = `https://creativecommons.org/licenses/${cc[1]!.toLowerCase()}/4.0/deed.${lang}`;
+  if (cc) links.deed = `https://creativecommons.org/licenses/${cc[1]!.toLowerCase()}/4.0/deed.${locale}`;
   return links;
 }
 

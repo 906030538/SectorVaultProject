@@ -14,7 +14,6 @@ const HOST_PLATFORM: Record<string, Platform> = {
   'github.com': 'github',
   'gitee.com': 'gitee',
   'atomgit.com': 'atomgit',
-  'gitcode.com': 'gitcode',
 };
 
 function parseAddress(address: string): MirrorTarget | null {

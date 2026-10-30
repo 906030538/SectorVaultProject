@@ -12,25 +12,24 @@
 
 任何平台只要实现以下 4 类请求即可（源实现见 `functions/` 目录，行为需保持一致）：
 
-| 请求 | 行为 |
-| --- | --- |
-| `GET /oauth/env` | 从环境变量组装各平台 clientId 下发（见下表）；`cache-control: no-store` |
+| 请求                           | 行为                                                                                                                                                                                |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /oauth/env`               | 从环境变量组装各平台 clientId 下发（见下表）；`cache-control: no-store`                                                                                                             |
 | `POST /oauth/{platform}/token` | platform ∈ `github`/`gitee`/`atomgit`。读请求体（form-urlencoded 的 `code`、`redirect_uri` 等），**服务端注入 client_id/client_secret** 后转发对应平台 token 端点，原样返回上游响应 |
-| `POST /gh-oauth/device/code` | 透传到 `https://github.com/login/device/code`（body 原样转发） |
-| `POST /gh-oauth/access_token` | 透传到 `https://github.com/login/oauth/access_token` |
+| `POST /gh-oauth/device/code`   | 透传到 `https://github.com/login/device/code`（body 原样转发）                                                                                                                      |
+| `POST /gh-oauth/access_token`  | 透传到 `https://github.com/login/oauth/access_token`                                                                                                                                |
 
 所有响应必须带 CORS 头（前端跨域调用）：`Access-Control-Allow-Origin: *`；OPTIONS 预检返回 204 并带
 `Allow-Methods: POST, GET, OPTIONS` 与 `Allow-Headers: content-type`。token 交换响应加 `cache-control: no-store`。
 
 环境变量（密钥只存在于函数平台，不下发浏览器、不写 deployment.json）：
 
-| 变量 | 用途 |
-| --- | --- |
-| `OAUTH_GITHUB_APP_ID` | GitHub App 设备流 clientId（`/oauth/env` 下发为 `github.appClientId`） |
-| `OAUTH_GITHUB_CLIENT_ID` / `OAUTH_GITHUB_CLIENT_SECRET` | GitHub OAuth 网页流（`/oauth/github/token` 注入） |
-| `OAUTH_GITEE_CLIENT_ID` / `OAUTH_GITEE_CLIENT_SECRET` | Gitee token 交换 |
-| `OAUTH_ATOMGIT_CLIENT_ID` / `OAUTH_ATOMGIT_CLIENT_SECRET` | AtomGit token 交换 |
-| `OAUTH_GITCODE_CLIENT_ID` | GitCode（仅 clientId 下发） |
+| 变量                                                      | 用途                                                                   |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `OAUTH_GITHUB_APP_ID`                                     | GitHub App 设备流 clientId（`/oauth/env` 下发为 `github.appClientId`） |
+| `OAUTH_GITHUB_CLIENT_ID` / `OAUTH_GITHUB_CLIENT_SECRET`   | GitHub OAuth 网页流（`/oauth/github/token` 注入）                      |
+| `OAUTH_GITEE_CLIENT_ID` / `OAUTH_GITEE_CLIENT_SECRET`     | Gitee token 交换                                                       |
+| `OAUTH_ATOMGIT_CLIENT_ID` / `OAUTH_ATOMGIT_CLIENT_SECRET` | AtomGit token 交换                                                     |
 
 > 仅做 OAuth 代理时**不需要** `functions/[[path]].ts` 的 SPA 回退——那是代理同时托管静态站点时才用的。
 
@@ -79,7 +78,7 @@ async function handle(req, res) {
     if (process.env.OAUTH_GITHUB_APP_ID) github.appClientId = process.env.OAUTH_GITHUB_APP_ID;
     if (process.env.OAUTH_GITHUB_CLIENT_ID) github.clientId = process.env.OAUTH_GITHUB_CLIENT_ID;
     if (github.appClientId || github.clientId) config.github = github;
-    for (const [key, envKey] of [['gitee', 'OAUTH_GITEE_CLIENT_ID'], ['atomgit', 'OAUTH_ATOMGIT_CLIENT_ID'], ['gitcode', 'OAUTH_GITCODE_CLIENT_ID']]) {
+    for (const [key, envKey] of [['gitee', 'OAUTH_GITEE_CLIENT_ID'], ['atomgit', 'OAUTH_ATOMGIT_CLIENT_ID']]) {
       if (process.env[envKey]) config[key] = { clientId: process.env[envKey] };
     }
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', ...CORS });

@@ -130,7 +130,6 @@ const PLATFORM_HOST: Record<Platform, string> = {
   github: 'github.com',
   gitee: 'gitee.com',
   atomgit: 'atomgit.com',
-  gitcode: 'gitcode.com',
 };
 
 /** 仓库地址（域名/属主/仓库，mirrors 键与值的统一形式） */
@@ -364,9 +363,8 @@ function openEditDialog(
       } catch (saveError) {
         save.disabled = false;
         save.textContent = labels.save;
-        error.textContent = `${labels.saveFailed}${
-          saveError instanceof Error && saveError.message ? `：${saveError.message.slice(0, 120)}` : ''
-        }`;
+        error.textContent = `${labels.saveFailed}${saveError instanceof Error && saveError.message ? `：${saveError.message.slice(0, 120)}` : ''
+          }`;
         error.classList.remove('hidden');
       }
     })();

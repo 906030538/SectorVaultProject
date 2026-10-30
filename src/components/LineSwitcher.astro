@@ -1,7 +1,7 @@
 ---
-import { t } from '@/i18n';
-import type { Locale } from '@/i18n';
-import { DEFAULT_LOCALE } from '@/i18n';
+import { t } from "@/i18n";
+import type { Locale } from "@/i18n";
+import { DEFAULT_LOCALE } from "@/i18n";
 
 interface Props {
   locale?: Locale;
@@ -18,88 +18,107 @@ const { locale = DEFAULT_LOCALE } = Astro.props;
     class="input flex h-8 items-center gap-1 px-2 text-xs"
     aria-haspopup="listbox"
     aria-expanded="false"
-    aria-label={t(locale, 'nav.line')}
+    aria-label={t(locale, "nav.line")}
     data-i18n-aria="nav.line"
   >
     <span data-role="line-label"></span>
-    <svg viewBox="0 0 24 24" width="0.75em" height="0.75em" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    <svg
+      viewBox="0 0 24 24"
+      width="0.75em"
+      height="0.75em"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg
+    >
   </button>
   <div
     class="absolute right-0 z-40 mt-1 hidden w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
     data-role="line-menu"
     role="listbox"
-    aria-label={t(locale, 'nav.line')}
-  ></div>
+    aria-label={t(locale, "nav.line")}
+  >
+  </div>
 </div>
 
 <script>
-  import { getAvailablePlatforms, getStoredLine, setStoredLine } from '@/lib/index/sources';
-  import { t } from '@/i18n';
-  import type { MessageKey } from '@/i18n';
-  import { getClientLocale } from '@/lib/i18n-client';
+  import {
+    getAvailablePlatforms,
+    getStoredLine,
+    setStoredLine,
+  } from "@/lib/index/sources";
+  import { t } from "@/i18n";
+  import type { MessageKey } from "@/i18n";
+  import { getClientLocale } from "@/lib/i18n-client";
 
   // 线路选项文案：标注线路性质（全球主要线路 / 国内镜像）
   const LINE_LABEL_KEY: Record<string, MessageKey> = {
-    github: 'line.github',
-    gitee: 'line.gitee',
-    atomgit: 'line.atomgit',
-    gitcode: 'line.gitcode',
+    github: "line.github",
+    gitee: "line.gitee",
+    atomgit: "line.atomgit",
   };
 
   // 平台选项来自部署配置的索引源；切换后整页重载以刷新各线路数据
   const locale = getClientLocale();
   const root = document.querySelector('[data-role="line-switcher"]');
-  const button = root?.querySelector<HTMLButtonElement>('#line-switcher') ?? null;
-  const label = root?.querySelector<HTMLElement>('[data-role="line-label"]') ?? null;
-  const menu = root?.querySelector<HTMLElement>('[data-role="line-menu"]') ?? null;
+  const button =
+    root?.querySelector<HTMLButtonElement>("#line-switcher") ?? null;
+  const label =
+    root?.querySelector<HTMLElement>('[data-role="line-label"]') ?? null;
+  const menu =
+    root?.querySelector<HTMLElement>('[data-role="line-menu"]') ?? null;
 
   if (root && button && label && menu) {
     const close = (): void => {
-      menu.classList.add('hidden');
-      button.setAttribute('aria-expanded', 'false');
+      menu.classList.add("hidden");
+      button.setAttribute("aria-expanded", "false");
     };
-    button.addEventListener('click', () => {
-      const open = menu.classList.toggle('hidden');
-      button.setAttribute('aria-expanded', String(!open));
+    button.addEventListener("click", () => {
+      const open = menu.classList.toggle("hidden");
+      button.setAttribute("aria-expanded", String(!open));
     });
     // 点击组件外部关闭下拉
-    document.addEventListener('click', (event) => {
+    document.addEventListener("click", (event) => {
       if (!root.contains(event.target as Node)) close();
     });
 
     void getAvailablePlatforms().then((platforms) => {
       // 无线路偏好时默认选首个平台
       const stored = getStoredLine();
-      const current = platforms.includes(stored as never) ? (stored ?? '') : (platforms[0] ?? '');
+      const current = platforms.includes(stored as never)
+        ? (stored ?? "")
+        : (platforms[0] ?? "");
       if (!stored) setStoredLine((platforms[0] ?? null) as never);
       // 收起态仅显示平台名
       const plainName = (platform: string): string =>
-        LINE_LABEL_KEY[platform] ? t(locale, LINE_LABEL_KEY[platform]).split(' · ')[0] ?? platform : platform;
+        LINE_LABEL_KEY[platform]
+          ? (t(locale, LINE_LABEL_KEY[platform]).split(" · ")[0] ?? platform)
+          : platform;
       label.textContent = plainName(current);
 
       for (const platform of platforms) {
-        const item = document.createElement('button');
-        item.type = 'button';
+        const item = document.createElement("button");
+        item.type = "button";
         item.className =
-          'flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800';
-        item.setAttribute('role', 'option');
+          "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800";
+        item.setAttribute("role", "option");
         item.dataset.line = platform;
         // 平台名 + 线路性质提示（展开时可见）
-        const name = document.createElement('span');
-        name.className = 'font-medium';
+        const name = document.createElement("span");
+        name.className = "font-medium";
         name.textContent = plainName(platform);
-        const hint = document.createElement('span');
-        hint.className = 'text-xs text-slate-400 dark:text-slate-500';
+        const hint = document.createElement("span");
+        hint.className = "text-xs text-slate-400 dark:text-slate-500";
         hint.textContent = LINE_LABEL_KEY[platform]
-          ? (t(locale, LINE_LABEL_KEY[platform]).split(' · ')[1] ?? '')
-          : '';
+          ? (t(locale, LINE_LABEL_KEY[platform]).split(" · ")[1] ?? "")
+          : "";
         item.append(name, hint);
         if (platform === current) {
-          item.classList.add('bg-emerald-50', 'dark:bg-emerald-950/40');
-          item.setAttribute('aria-selected', 'true');
+          item.classList.add("bg-emerald-50", "dark:bg-emerald-950/40");
+          item.setAttribute("aria-selected", "true");
         }
-        item.addEventListener('click', () => {
-          setStoredLine(platform as 'github' | 'gitee' | 'atomgit');
+        item.addEventListener("click", () => {
+          setStoredLine(platform as "github" | "gitee" | "atomgit");
           location.reload();
         });
         menu.appendChild(item);

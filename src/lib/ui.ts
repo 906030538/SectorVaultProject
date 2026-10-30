@@ -72,7 +72,6 @@ const PLATFORM_WEB_BASE: Record<Platform, string> = {
   github: 'https://github.com',
   gitee: 'https://gitee.com',
   atomgit: 'https://atomgit.com',
-  gitcode: 'https://gitcode.com',
 };
 
 /** 元仓库官方 star badge 路径（无官方 badge 的平台不在此列） */

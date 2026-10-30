@@ -1,8 +1,8 @@
 ---
-import BaseLayout from '@/layouts/BaseLayout.astro';
-import { DEFAULT_LOCALE, t } from '@/i18n';
-import { SITE_NAME } from '@/config';
-import logoBigUrl from '../../logo-big.svg?url';
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { DEFAULT_LOCALE, t } from "@/i18n";
+import { SITE_NAME } from "@/config";
+import logoBigUrl from "../../logo-big.svg?url";
 
 const locale = DEFAULT_LOCALE;
 ---
@@ -11,71 +11,101 @@ const locale = DEFAULT_LOCALE;
   <div class="mb-6 flex justify-center">
     <img src={logoBigUrl} alt={SITE_NAME} />
   </div>
-  <h1 class="mb-6 text-2xl font-bold" data-i18n="about.title">{t(locale, 'about.title')}</h1>
+  <h1 class="mb-6 text-2xl font-bold" data-i18n="about.title">
+    {t(locale, "about.title")}
+  </h1>
 
   <section class="card p-6">
-    <h2 class="mb-3 text-lg font-semibold" data-i18n="about.arch">{t(locale, 'about.arch')}</h2>
-    <p class="leading-relaxed text-slate-600 dark:text-slate-300" data-i18n="about.archText">
-      {t(locale, 'about.archText')}
+    <h2 class="mb-3 text-lg font-semibold" data-i18n="about.arch">
+      {t(locale, "about.arch")}
+    </h2>
+    <p
+      class="leading-relaxed text-slate-600 dark:text-slate-300"
+      data-i18n="about.archText"
+    >
+      {t(locale, "about.archText")}
     </p>
   </section>
 
   <section class="card mt-4 p-6">
     <h2 class="mb-3 text-lg font-semibold" data-i18n="about.advantages">
-      {t(locale, 'about.advantages')}
+      {t(locale, "about.advantages")}
     </h2>
-    <ul class="list-inside list-disc space-y-1.5 text-slate-600 dark:text-slate-300">
-      <li data-i18n="about.advantage1">{t(locale, 'about.advantage1')}</li>
-      <li data-i18n="about.advantage2">{t(locale, 'about.advantage2')}</li>
-      <li data-i18n="about.advantage3">{t(locale, 'about.advantage3')}</li>
-      <li data-i18n="about.advantage4">{t(locale, 'about.advantage4')}</li>
+    <ul
+      class="list-inside list-disc space-y-1.5 text-slate-600 dark:text-slate-300"
+    >
+      <li data-i18n="about.advantage1">{t(locale, "about.advantage1")}</li>
+      <li data-i18n="about.advantage2">{t(locale, "about.advantage2")}</li>
+      <li data-i18n="about.advantage3">{t(locale, "about.advantage3")}</li>
+      <li data-i18n="about.advantage4">{t(locale, "about.advantage4")}</li>
     </ul>
   </section>
 
   <section class="card mt-4 p-6">
     <h2 class="mb-3 text-lg font-semibold" data-i18n="about.indexRepos">
-      {t(locale, 'about.indexRepos')}
+      {t(locale, "about.indexRepos")}
     </h2>
-    <div class="flex flex-wrap items-center gap-2" data-component="index-badges"></div>
+    <div
+      class="flex flex-wrap items-center gap-2"
+      data-component="index-badges"
+    >
+    </div>
   </section>
 
   <section class="card mt-4 p-6">
-    <h2 class="mb-4 text-lg font-semibold" data-i18n="about.stats">{t(locale, 'about.stats')}</h2>
+    <h2 class="mb-4 text-lg font-semibold" data-i18n="about.stats">
+      {t(locale, "about.stats")}
+    </h2>
     <div class="grid grid-cols-2 gap-4 text-center">
       <div>
-        <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-stat="submissions">
+        <div
+          class="text-3xl font-bold text-emerald-600 dark:text-emerald-400"
+          data-stat="submissions"
+        >
           –
         </div>
         <div
           class="mt-1 text-sm text-slate-500 dark:text-slate-400"
           data-i18n="home.submissionCount"
         >
-          {t(locale, 'home.submissionCount')}
+          {t(locale, "home.submissionCount")}
         </div>
       </div>
       <div>
-        <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-stat="users">–</div>
-        <div class="mt-1 text-sm text-slate-500 dark:text-slate-400" data-i18n="home.userCount">
-          {t(locale, 'home.userCount')}
+        <div
+          class="text-3xl font-bold text-emerald-600 dark:text-emerald-400"
+          data-stat="users"
+        >
+          –
+        </div>
+        <div
+          class="mt-1 text-sm text-slate-500 dark:text-slate-400"
+          data-i18n="home.userCount"
+        >
+          {t(locale, "home.userCount")}
         </div>
       </div>
     </div>
   </section>
 
   <script>
-    import { loadLineIndexMerged } from '@/lib/index/loader';
-    import { getIndexSources } from '@/lib/index/sources';
-    import { loadRepoInfo } from '@/lib/content';
-    import { badgeSvg, officialStarBadgeUrl, platformRepoUrl } from '@/lib/ui';
-    import type { Platform } from '@/types';
+    import { loadLineIndexMerged } from "@/lib/index/loader";
+    import { getIndexSources } from "@/lib/index/sources";
+    import { loadRepoInfo } from "@/lib/content";
+    import { badgeSvg, officialStarBadgeUrl, platformRepoUrl } from "@/lib/ui";
+    import type { Platform } from "@/types";
 
     try {
       // current + 归档合并：无 CI 重建 current 的线路投稿在归档里
       const index = await loadLineIndexMerged();
       const submissions = document.querySelector('[data-stat="submissions"]');
-      if (submissions) submissions.textContent = String(index.submissions.length);
+      if (submissions)
+        submissions.textContent = String(index.submissions.length);
       const users = document.querySelector('[data-stat="users"]');
-      if (users) users.textContent = String(new Set(index.submissions.map((s) => s.owner)).size);
+      if (users)
+        users.textContent = String(
+          new Set(index.submissions.map((s) => s.owner)).size,
+        );
     } catch {
       /* 索引加载失败时保留占位符 */
     }
@@ -83,10 +113,9 @@ const locale = DEFAULT_LOCALE;
     // 索引仓收藏 badges：Gitee/AtomGit 用平台官方 star badge 图；
     // 其余平台用 shields 风格内联 SVG，星标数经各平台适配器读取
     const BADGE_LABEL_BG: Record<Platform, string> = {
-      github: '#24292f',
-      gitee: '#c71d23',
-      atomgit: '#2b6fe0',
-      gitcode: '#fe7300',
+      github: "#24292f",
+      gitee: "#c71d23",
+      atomgit: "#2b6fe0",
     };
 
     void (async () => {
@@ -97,36 +126,40 @@ const locale = DEFAULT_LOCALE;
         const key = `${source.platform}:${source.owner}/${source.repo}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        const labelBg = BADGE_LABEL_BG[source.platform] ?? '#334155';
+        const labelBg = BADGE_LABEL_BG[source.platform] ?? "#334155";
         const label = `${source.owner}/${source.repo}`;
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = platformRepoUrl(source.platform, source.owner, source.repo);
-        link.target = '_blank';
-        link.rel = 'noopener';
+        link.target = "_blank";
+        link.rel = "noopener";
         link.title = `${key}@${source.branch}`;
-        const officialBadge = officialStarBadgeUrl(source.platform, source.owner, source.repo);
+        const officialBadge = officialStarBadgeUrl(
+          source.platform,
+          source.owner,
+          source.repo,
+        );
         if (officialBadge) {
-          const img = document.createElement('img');
+          const img = document.createElement("img");
           img.src = officialBadge;
           img.alt = `${label} star`;
-          img.className = 'h-5';
+          img.className = "h-5";
           link.appendChild(img);
           host.appendChild(link);
           continue;
         }
-        link.innerHTML = badgeSvg(label, '★ …', labelBg);
+        link.innerHTML = badgeSvg(label, "★ …", labelBg);
         host.appendChild(link);
         const setBadge = (value: string): void => {
-          const svg = link.querySelector('svg');
+          const svg = link.querySelector("svg");
           if (svg) svg.outerHTML = badgeSvg(label, value, labelBg);
         };
         // 星标数异步补全；仓库详情不可读（匿名受限/无 CORS 头）时显示 –
         void loadRepoInfo(source.platform, source.owner, source.repo)
           .then((info) => {
-            if (info?.htmlUrl) link.href = info.htmlUrl.replace(/\.git$/, '');
-            setBadge(`★ ${info ? info.stars : '–'}`);
+            if (info?.htmlUrl) link.href = info.htmlUrl.replace(/\.git$/, "");
+            setBadge(`★ ${info ? info.stars : "–"}`);
           })
-          .catch(() => setBadge('★ –'));
+          .catch(() => setBadge("★ –"));
       }
     })();
   </script>

@@ -175,8 +175,6 @@ function repoWebBase(platform: Platform): string {
       return 'https://gitee.com';
     case 'atomgit':
       return 'https://atomgit.com';
-    case 'gitcode':
-      return 'https://gitcode.com';
     default:
       return 'https://github.com';
   }
@@ -851,9 +849,9 @@ export async function updateSubmission(
     !sameList(draft.songLanguages, entry.languages);
   const updatedEntry = indexChanged
     ? buildIndexEntry(draft, entry.submittedAt, currentCover, nextPublishedAt, {
-        issue: issueMissing(issueId) ? undefined : issueId,
-        release: ctx.releaseId ?? undefined,
-      })
+      issue: issueMissing(issueId) ? undefined : issueId,
+      release: ctx.releaseId ?? undefined,
+    })
     : null;
 
   const removedFiles = ctx.oldFiles.filter((of) => !draft.files.some((f) => f.name === of.name));

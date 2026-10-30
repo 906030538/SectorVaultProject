@@ -1313,7 +1313,6 @@ const PLATFORM_BADGE_BG: Record<Platform, string> = {
   github: '#24292f',
   gitee: '#c71d23',
   atomgit: '#2b6fe0',
-  gitcode: '#fe7300',
 };
 
 function renderAuthor(

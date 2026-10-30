@@ -1,5 +1,5 @@
 /** Git 托管平台 */
-export type Platform = 'github' | 'gitee' | 'atomgit' | 'gitcode';
+export type Platform = 'github' | 'gitee' | 'atomgit';
 
 /** 稿件类型：工程投稿 / 专栏投稿 */
 export type SubmissionType = 'project' | 'article';

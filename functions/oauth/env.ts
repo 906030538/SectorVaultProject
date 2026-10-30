@@ -7,7 +7,6 @@
 //   OAUTH_GITHUB_CLIENT_ID / OAUTH_GITHUB_CLIENT_SECRET  GitHub OAuth 网页流（token 交换代理用）
 //   OAUTH_GITEE_CLIENT_ID / OAUTH_GITEE_CLIENT_SECRET
 //   OAUTH_ATOMGIT_CLIENT_ID / OAUTH_ATOMGIT_CLIENT_SECRET
-//   OAUTH_GITCODE_CLIENT_ID
 
 interface PagesFunctionEnv {
   ASSETS: { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
@@ -18,7 +17,6 @@ interface PagesFunctionEnv {
   OAUTH_GITEE_CLIENT_SECRET?: string;
   OAUTH_ATOMGIT_CLIENT_ID?: string;
   OAUTH_ATOMGIT_CLIENT_SECRET?: string;
-  OAUTH_GITCODE_CLIENT_ID?: string;
 }
 
 declare type PagesFunction<E = { ASSETS: { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> } }> = (
@@ -38,9 +36,6 @@ export const onRequestGet: PagesFunction<PagesFunctionEnv> = async (context) => 
   }
   if (env.OAUTH_ATOMGIT_CLIENT_ID) {
     config.atomgit = { clientId: env.OAUTH_ATOMGIT_CLIENT_ID };
-  }
-  if (env.OAUTH_GITCODE_CLIENT_ID) {
-    config.gitcode = { clientId: env.OAUTH_GITCODE_CLIENT_ID };
   }
   return new Response(JSON.stringify(config), {
     headers: {

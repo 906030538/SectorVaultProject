@@ -1,14 +1,13 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, SUPPORTED_PLATFORMS, POSTS_DIR
-  } from '@/config';
+import { CONTENT_REPO_PREFIX, EDITOR_LIMITS, LIST_CANDIDATES, SLUG_PATTERN, POSTS_DIR } from '@/config';
 import { withBase } from '@/lib/base';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { openAuthDialog } from '@/lib/auth-dialog';
 import { buildAuthLabels, buildUserLabels } from '@/lib/labels';
 import { getClientLocale } from '@/lib/i18n-client';
 import { openCreateDialog } from '@/lib/views/user';
-import { getToken, loadSession, loadSessionBy, saveSession, setToken } from '@/lib/auth';
+import { getToken, loadSession, loadSessionBy } from '@/lib/auth';
 import { loadReleases, loadSubmissionContent, parseAttrList, type ProjectFile } from '@/lib/content';
 import {
   defaultScheme,
@@ -803,7 +802,8 @@ function showSuccessDialog(labels: EditorLabels, href: string, onCancel: () => v
   document.body.appendChild(overlay);
 }
 
-function renderDone(root: HTMLElement, labels: EditorLabels, config: EditorConfig, mode: 'new' | 'edit'): void {  const panel = el('div', 'card flex flex-col gap-3 p-6');
+function renderDone(root: HTMLElement, labels: EditorLabels, config: EditorConfig, mode: 'new' | 'edit'): void {
+  const panel = el('div', 'card flex flex-col gap-3 p-6');
   panel.setAttribute('data-role', 'done');
   panel.appendChild(el('h2', 'text-lg font-semibold', mode === 'new' ? labels.doneNew : labels.doneEdit));
   const links = el('div', 'flex gap-2');

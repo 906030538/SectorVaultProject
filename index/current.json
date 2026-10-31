@@ -681,6 +681,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "with-params",
       "platform": "gitee",
@@ -721,6 +722,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "with-params",
       "platform": "gitee",
@@ -752,6 +754,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "with-params",
       "platform": "gitee",
@@ -791,6 +794,7 @@
       "languages": [
         "zh"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "tuned",
       "platform": "gitee",
@@ -825,6 +829,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "with-params",
       "platform": "gitee",
@@ -900,6 +905,7 @@
       "languages": [
         "zh"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "tuned",
       "platform": "gitee",
@@ -927,6 +933,7 @@
       "languages": [
         "zh"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "tuned",
       "platform": "gitee",
@@ -960,6 +967,7 @@
       "languages": [
         "zh"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "tuned",
       "platform": "gitee",
@@ -994,6 +1002,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "with-params",
       "platform": "gitee",
@@ -1032,6 +1041,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "no-params",
       "platform": "gitee",
@@ -1066,6 +1076,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "y2361547758",
       "paramState": "with-params",
       "platform": "github",
@@ -1104,6 +1115,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "CLCNTanya",
       "paramState": "with-params",
       "platform": "gitee",
@@ -1136,6 +1148,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "y2361547758",
       "paramState": "tuned",
       "platform": "github",
@@ -1170,6 +1183,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "y2361547758",
       "paramState": "tuned",
       "platform": "github",
@@ -1202,6 +1216,7 @@
       "languages": [
         "ja"
       ],
+      "license": "CC-BY-4.0",
       "owner": "y2361547758",
       "paramState": "with-params",
       "platform": "github",
@@ -1236,6 +1251,7 @@
       "languages": [
         "zh"
       ],
+      "license": "CC-BY-4.0",
       "owner": "y2361547758",
       "paramState": "no-params",
       "platform": "github",

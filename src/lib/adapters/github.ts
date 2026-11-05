@@ -1,3 +1,4 @@
+import { rawFileUrl } from '@/lib/remote-url';
 import { Octokit } from 'octokit';
 import type {
   AuthInfo,
@@ -156,7 +157,7 @@ export class GitHubAdapter implements GitPlatformAdapter {
   }
 
   rawUrl(user: string, repo: string, path: string): string {
-    return `https://raw.githubusercontent.com/${user}/${repo}/HEAD/${path}`;
+    return rawFileUrl('github', user, repo, path);
   }
 
   async listReleases(user: string, repo: string): Promise<ReleaseInfo[]> {

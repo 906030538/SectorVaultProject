@@ -8,9 +8,7 @@ import FaqRoute from '@/components/routes/FaqRoute.astro';
 import NewRoute from '@/components/routes/NewRoute.astro';
 import TermsRoute from '@/components/routes/TermsRoute.astro';
 import DynamicRouteHosts from '@/components/DynamicRouteHosts.astro';
-import { SITE_NAME } from '@/config';
-import { DEFAULT_LOCALE } from '@/i18n';
-import { routeHref } from '@/lib/router';
+import NotFoundBlock from '@/components/blocks/NotFoundBlock.astro';
 
 /**
  * hash 模式整站壳：全部路由宿主挂载于单页（index / 404 复用），
@@ -23,15 +21,9 @@ interface Props {
 }
 
 const { showNotFound = false } = Astro.props;
-const locale = DEFAULT_LOCALE;
 ---
 
-<div class="py-24 text-center" data-role="not-found" hidden={!showNotFound}>
-  <p class="text-6xl font-bold text-slate-200 dark:text-slate-800">404</p>
-  <a href={routeHref("/")} class="btn btn-primary mt-6">
-    ← {SITE_NAME}
-  </a>
-</div>
+<NotFoundBlock hidden={!showNotFound} />
 
 <div data-route-host="home" hidden={showNotFound}><HomeRoute /></div>
 <div hidden data-route-host="project"><ProjectRoute /></div>

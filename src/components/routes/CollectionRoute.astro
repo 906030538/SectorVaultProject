@@ -1,21 +1,34 @@
 ---
 import Pagination from '@/components/Pagination.astro';
 import { DEFAULT_LOCALE, t } from '@/i18n';
+import { ssgCards } from '@/lib/build/ssg';
+import type { SubmissionEntry } from '@/types';
 
 /**
  * 集合详情路由 /view/:user/:repo（SPA 回退渲染）。
  * 投稿详情见 SubmissionRoute；两组件同页挂载时按路径段数各自激活。
+ * SSG 构建经 props 预填集合头部与投稿卡片（SEO 底座），script 照常 initCollection 接管。
  */
+interface Props {
+  user?: string;
+  repo?: string;
+  entries?: SubmissionEntry[];
+}
+
+const { user, repo, entries = [] } = Astro.props;
 const locale = DEFAULT_LOCALE;
+const sorted = [...entries].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 ---
 
 <div data-route-component="collection" data-view-skeleton="collection" hidden>
   <header class="mb-6">
     <div class="flex flex-wrap items-center gap-3">
-      <h1 class="text-2xl font-bold" data-role="repo-name"></h1>
+      <h1 class="text-2xl font-bold" data-role="repo-name">{repo ?? ''}</h1>
       <div class="ml-auto flex gap-2" data-role="actions"></div>
     </div>
-    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400" data-role="repo-meta"></p>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400" data-role="repo-meta">
+      {user && sorted.length > 0 ? `${user}/${repo} · ${sorted.length}` : ''}
+    </p>
   </header>
 
   <div class="mb-4 flex gap-2" data-role="tabs">
@@ -27,7 +40,7 @@ const locale = DEFAULT_LOCALE;
     </button>
   </div>
 
-  <div class="flex flex-col gap-3" data-component="list"></div>
+  <div class="flex flex-col gap-3" data-component="list" set:html={ssgCards(sorted)} />
   <p
     class="py-8 text-center text-slate-400"
     data-role="empty"

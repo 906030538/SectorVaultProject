@@ -1,0 +1,21 @@
+---
+import { SITE_NAME } from '@/config';
+import { routeHref } from '@/lib/router';
+
+/**
+ * 站内 404 文案块：404 页（各模式分支）、SPA 外壳与 SSG 详情未收录页共用。
+ */
+interface Props {
+  /** 初始隐藏（由路由激活逻辑决定显隐的宿主场景） */
+  hidden?: boolean;
+}
+
+const { hidden = false } = Astro.props;
+---
+
+<div class="py-24 text-center" data-role="not-found" hidden={hidden}>
+  <p class="text-6xl font-bold text-slate-200 dark:text-slate-800">404</p>
+  <a href={routeHref("/")} class="btn btn-primary mt-6">
+    ← {SITE_NAME}
+  </a>
+</div>

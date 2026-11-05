@@ -1,3 +1,4 @@
+import { rawFileUrl } from '@/lib/remote-url';
 import type {
   AuthInfo,
   DiscussionCategoryInfo,
@@ -42,7 +43,6 @@ interface V5AdapterConfig {
   /** 网页根地址（链接拼接用） */
   webBase: string;
   /** raw 文件根地址（缺省同 webBase） */
-  rawBase?: string;
 }
 
 interface RequestOptions {
@@ -85,13 +85,11 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   readonly supportsRepoTemplate = true;
   protected readonly apiBase: string;
   private readonly webBase: string;
-  private readonly rawBase: string;
 
   constructor(config: V5AdapterConfig) {
     this.platform = config.platform;
     this.apiBase = config.apiBase;
     this.webBase = config.webBase;
-    this.rawBase = config.rawBase ?? config.webBase;
   }
 
   protected async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -182,7 +180,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   }
 
   rawUrl(user: string, repo: string, path: string): string {
-    return `${this.rawBase}/${user}/${repo}/raw/HEAD/${path}`;
+    return rawFileUrl(this.platform, user, repo, path);
   }
 
   async listReleases(user: string, repo: string): Promise<ReleaseInfo[]> {

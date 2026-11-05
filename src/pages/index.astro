@@ -2,13 +2,11 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import HomeRoute from '@/components/routes/HomeRoute.astro';
 import SpaShell from '@/components/SpaShell.astro';
-import SsgHome from '@/components/ssg/SsgHome.astro';
-import { HASH_ROUTER, STATIC_SSG } from '@/lib/router';
+import { HASH_ROUTER } from '@/lib/router';
 
-// hash 模式：index 即整站单页壳；static 模式：SSG 首页（统计与最新投稿构建期固化）；
-// path 模式：index 是首页落地页，动态路由由 404 SPA 回退承载
+// hash 模式：index 即整站单页壳；其余模式：首页（static 构建 HomeRoute 自带 SSG 预填）
 ---
 
 <BaseLayout>
-  {HASH_ROUTER ? <SpaShell /> : STATIC_SSG ? <SsgHome /> : <HomeRoute />}
+  {HASH_ROUTER ? <SpaShell /> : <HomeRoute />}
 </BaseLayout>

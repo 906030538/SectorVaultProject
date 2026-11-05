@@ -1,11 +1,51 @@
 ---
 import { DEFAULT_LOCALE, t } from '@/i18n';
+import { fileIconUrl } from '@/lib/ui';
+import { rawFileUrl } from '@/lib/remote-url';
+import { POSTS_DIR } from '@/config';
+import type { ParsedReadme } from '@/lib/content';
+import type { SubmissionEntry } from '@/types';
 
 /**
  * 投稿详情路由 /view/:user/:repo/:slug（SPA 回退渲染）。
  * 集合详情见 CollectionRoute；两组件同页挂载时按路径段数各自激活。
+ * SSG 构建经 props 预填标题/日期/正文/标签/文件（SEO 底座，净化后的正文），
+ * script 照常运行 initDetail 全量渲染覆盖（评论/release/编辑等动态区仅运行期填充）。
  */
+interface Props {
+  entry?: SubmissionEntry;
+  parsed?: ParsedReadme | null;
+  /** 预净化正文 HTML（marked + DOMPurify，构建期完成） */
+  bodyHtml?: string;
+  /** 敏感词命中：正文渲染为屏蔽框（与运行期 gate 同阈值判定） */
+  blocked?: boolean;
+}
+
+const { entry, parsed, bodyHtml = '', blocked = false } = Astro.props;
 const locale = DEFAULT_LOCALE;
+
+const attrList = (raw: string | undefined): string[] =>
+  (raw ?? '')
+    .replace(/^\[|\]$/g, '')
+    .split(',')
+    .map((v) => v.trim().replace(/^"|"$/g, ''))
+    .filter(Boolean);
+const chips = parsed
+  ? [
+      ...attrList(parsed.attrs.songs).map((v) => `♪ ${v}`),
+      ...attrList(parsed.attrs.engines),
+      ...attrList(parsed.attrs.voicebanks),
+      ...attrList(parsed.attrs.languages),
+      ...(parsed.attrs.license ? [parsed.attrs.license] : []),
+    ]
+  : [];
+const dateText = entry?.submittedAt
+  ? new Date(entry.submittedAt).toLocaleDateString(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+  : '–';
 ---
 
 <article
@@ -17,19 +57,38 @@ const locale = DEFAULT_LOCALE;
   <div class="min-w-0 lg:row-start-1">
     <header>
       <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-3xl font-bold" data-role="title"></h1>
+        <h1 class="text-3xl font-bold" data-role="title">{entry?.title ?? ''}</h1>
         <span class="ml-auto flex gap-2" data-role="detail-actions"></span>
       </div>
       <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400" data-role="date-row">
-        <span data-role="date">–</span>
+        <span data-role="date">{dateText}</span>
         <span data-role="engagement"></span>
       </div>
       <div class="mt-4" data-role="meta"></div>
     </header>
 
-    <section class="prose-svp mt-8" data-role="body"></section>
+    <section class="prose-svp mt-8" data-role="body">
+      {
+        blocked ? (
+          <div
+            class="card flex items-center justify-center gap-3 border-dashed p-8 text-center text-sm text-slate-400 dark:text-slate-500"
+            data-role="sensitive-blocked"
+          >
+            <span class="text-xl text-slate-300 dark:text-slate-600">🚫</span>
+            <div class="flex flex-col gap-1">
+              <p class="font-medium">{t(locale, 'sensitive.blocked')}</p>
+              <p>{t(locale, 'sensitive.blockedHint')}</p>
+            </div>
+          </div>
+        ) : (
+          <Fragment set:html={bodyHtml} />
+        )
+      }
+    </section>
 
-    <div class="mt-6 flex flex-wrap gap-2" data-role="tags"></div>
+    <div class="mt-6 flex flex-wrap gap-2" data-role="tags">
+      {chips.map((chip) => <span class="chip">{chip}</span>)}
+    </div>
 
     <section class="mt-8" data-role="media-section">
       <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.media">
@@ -42,14 +101,37 @@ const locale = DEFAULT_LOCALE;
   <!-- 右侧栏（宽屏）：作者 / 工程文件 / 关联 release；窄屏时依次排在主列之后 -->
   <aside class="flex flex-col gap-6 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1">
     <section class="card flex items-center gap-3 p-4" data-role="author">
-      <span class="text-sm text-slate-400" data-role="author-path"></span>
+      <span class="text-sm text-slate-400" data-role="author-path">
+        {entry ? `${entry.owner}/${entry.repo}` : ''}
+      </span>
     </section>
 
     <section class="mt-8 lg:mt-0">
       <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.files">
         {t(locale, 'detail.files')}
       </h2>
-      <div data-role="files"></div>
+      <div data-role="files">
+        {
+          entry && parsed && parsed.files.length > 0 ? (
+            <ul class="card divide-y divide-slate-200 dark:divide-slate-700">
+              {parsed.files.map((file) => (
+                <li>
+                  <a
+                    href={rawFileUrl(entry.platform, entry.owner, entry.repo, `${POSTS_DIR}/${entry.slug}/${file.name}`)}
+                    referrerpolicy="no-referrer"
+                    class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                  >
+                    <img src={fileIconUrl(file.name)} alt="" width="18" height="18" />
+                    <span class="min-w-0 flex-1 truncate">{file.name}</span>
+                    {file.compressed && <span class="chip">zip</span>}
+                    {file.encrypted && <span class="chip">🔒</span>}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null
+        }
+      </div>
     </section>
 
     <section class="mt-8 lg:mt-0">

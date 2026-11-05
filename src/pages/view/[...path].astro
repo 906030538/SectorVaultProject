@@ -2,15 +2,14 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import SubmissionRoute from '@/components/routes/SubmissionRoute.astro';
 import CollectionRoute from '@/components/routes/CollectionRoute.astro';
-import SsgDetail from '@/components/ssg/SsgDetail.astro';
-import SsgCollection from '@/components/ssg/SsgCollection.astro';
+import NotFoundBlock from '@/components/blocks/NotFoundBlock.astro';
 import { STATIC_SSG } from '@/lib/router';
-import { ssgIndex } from '@/lib/build/ssg';
-import type { SubmissionEntry } from '@/types';
+import { ssgContent, ssgIndex, ssgMarkdownHtml, ssgScreenBlocked } from '@/lib/build/ssg';
 
 /**
  * 动态路由 /view/:name/:repo[/:slug]。
- * - static 构建：getStaticPaths 枚举索引全部集合与投稿，SSG 预渲染（SEO、无回退依赖）；
+ * - static 构建：getStaticPaths 枚举索引全部集合与投稿，经 props 预填 SEO 底座
+ *   （净化正文/标签/文件），script 照常 initDetail/initCollection 全量接管；
  * - path 构建：不预渲染，由 404 SPA 回退客户端渲染（始终最新数据）；
  * - hash 构建：无产出（路由挂在 index 单页壳）。
  */
@@ -19,10 +18,8 @@ export async function getStaticPaths() {
   const index = await ssgIndex();
   const paths: { params: { path: string } }[] = [];
   // 集合（owner/repo 去重）
-  const collections = new Set(index.submissions.map((s) => `${s.platform}/${s.owner}/${s.repo}`));
-  for (const key of collections) {
-    const [platform, owner, repo] = key.split('/');
-    void platform;
+  for (const key of new Set(index.submissions.map((s) => `${s.owner}/${s.repo}`))) {
+    const [owner, repo] = key.split('/');
     paths.push({ params: { path: [owner, repo].join('/') } });
   }
   // 投稿（slug 可含多段）
@@ -39,27 +36,29 @@ const segments = String(Astro.params.path ?? '')
 const [user, repo, ...slugParts] = segments;
 const slug = slugParts.join('/');
 
+// SSG 预填数据：详情页拉正文并预净化；集合页拉该仓全部投稿
 const index = STATIC_SSG ? await ssgIndex() : null;
-const byKey = (entry: SubmissionEntry): boolean =>
-  entry.owner === user && entry.repo === repo && (slug ? entry.slug === slug : true);
-const entries = index?.submissions.filter(byKey) ?? [];
-const entry = slug ? entries[0] : undefined;
+const inCollection = (e: { owner: string; repo: string }) => e.owner === user && e.repo === repo;
+const entries = index?.submissions.filter(inCollection) ?? [];
+const matched = slug ? entries.find((e) => e.slug === slug) : undefined;
+const parsed = matched ? await ssgContent(matched) : null;
+const blocked = parsed ? ssgScreenBlocked(parsed.body) : false;
+const bodyHtml = parsed && !blocked ? await ssgMarkdownHtml(parsed.body) : '';
 ---
 
-<BaseLayout title={STATIC_SSG && (entry || !slug) ? (slug ? `${entry?.title} · ${repo}` : `${repo}`) : undefined}>
+<BaseLayout
+  title={STATIC_SSG ? (matched ? `${matched.title} · ${repo}` : slug ? undefined : repo) : undefined}
+>
   {
     STATIC_SSG ? (
       slug ? (
-        entry ? (
-          <SsgDetail entry={entry} />
+        matched ? (
+          <SubmissionRoute entry={matched} parsed={parsed} bodyHtml={bodyHtml} blocked={blocked} />
         ) : (
-          <div class="py-24 text-center text-slate-400" data-role="not-found">
-            <p class="text-6xl font-bold text-slate-200 dark:text-slate-800">404</p>
-            <a href="/" class="btn btn-primary mt-6">← SVP</a>
-          </div>
+          <NotFoundBlock />
         )
       ) : (
-        <SsgCollection user={user!} repo={repo!} entries={entries} />
+        <CollectionRoute user={user} repo={repo} entries={entries} />
       )
     ) : (
       <>

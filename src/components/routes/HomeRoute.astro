@@ -1,13 +1,30 @@
 ---
 import { SITE_NAME } from '@/config';
 import { DEFAULT_LOCALE, t } from '@/i18n';
-import { routeHref } from '@/lib/router';
+import { STATIC_SSG, routeHref } from '@/lib/router';
+import { ssgCards, ssgIndex } from '@/lib/build/ssg';
 
 /**
  * 首页路由 /（hash 模式挂在 index 单页壳上，path 模式直接渲染在 index 页）。
  * 统计与最新列表由客户端拉取索引渲染。
  */
 const locale = DEFAULT_LOCALE;
+
+// SSG 预填：统计与最新投稿构建期固化（SEO 底座）；script 照常运行，数据到达后刷新
+const ssg = STATIC_SSG
+  ? await ssgIndex()
+  : null;
+const ssgStats = ssg
+  ? {
+      submissions: ssg.submissions.length,
+      users: new Set(ssg.submissions.map((s) => s.owner)).size,
+    }
+  : null;
+const ssgLatest = ssg
+  ? [...ssg.submissions]
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+      .slice(0, 5)
+  : [];
 ---
 
 <section class="py-12 text-center" data-route-component="home">
@@ -37,7 +54,7 @@ const locale = DEFAULT_LOCALE;
 <section class="mx-auto grid max-w-3xl grid-cols-2 gap-4 text-center">
   <div class="card p-6">
     <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-stat="submissions">
-      –
+      {ssgStats ? ssgStats.submissions : '–'}
     </div>
     <div
       class="mt-1 text-sm text-slate-500 dark:text-slate-400"
@@ -47,7 +64,9 @@ const locale = DEFAULT_LOCALE;
     </div>
   </div>
   <div class="card p-6">
-    <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-stat="users">–</div>
+    <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" data-stat="users">
+      {ssgStats ? ssgStats.users : '–'}
+    </div>
     <div class="mt-1 text-sm text-slate-500 dark:text-slate-400" data-i18n="home.userCount">
       {t(locale, 'home.userCount')}
     </div>
@@ -64,7 +83,7 @@ const locale = DEFAULT_LOCALE;
       <span data-i18n="home.viewAll">{t(locale, 'home.viewAll')}</span> →
     </a>
   </div>
-  <div class="flex flex-col gap-3" data-component="latest-list"></div>
+  <div class="flex flex-col gap-3" data-component="latest-list" set:html={ssgCards(ssgLatest)} />
 </section>
 
 <script>

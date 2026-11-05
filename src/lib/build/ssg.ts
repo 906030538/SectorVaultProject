@@ -11,6 +11,7 @@ import {
   type IndexSource,
 } from '@/config';
 import { mergeIndexFiles } from '@/lib/index/merge';
+import { rawFileUrl, repoUrl as repoWebUrl } from '@/lib/remote-url';
 import { buildCardLabels } from '@/lib/labels';
 import { parseReadme, type ParsedReadme } from '@/lib/content';
 import { renderCard } from '@/lib/ui';
@@ -44,13 +45,7 @@ function ensureDom(): void {
   purify = createDOMPurify(win as unknown as Parameters<typeof createDOMPurify>[0]);
 }
 
-// ---- raw URL 规则（与各 adapter.rawUrl 一致，独立实现避免拉入 SDK）----
-
-const RAW_URL: Record<Platform, (user: string, repo: string, path: string) => string> = {
-  github: (u, r, p) => `https://raw.githubusercontent.com/${u}/${r}/HEAD/${p}`,
-  gitee: (u, r, p) => `https://gitee.com/${u}/${r}/raw/HEAD/${p}`,
-  atomgit: (u, r, p) => `https://atomgit.com/${u}/${r}/raw/HEAD/${p}`,
-};
+// raw/web 地址规则与运行期适配器共用（src/lib/remote-url）
 
 async function fetchText(url: string): Promise<string | null> {
   try {
@@ -116,7 +111,7 @@ export function ssgIndex(): Promise<IndexFile> {
   indexPromise ??= (async () => {
     const parts: IndexFile[] = [];
     for (const source of ssgSources()) {
-      const raw = (url: string) => RAW_URL[source.platform](source.owner, source.repo, url);
+      const raw = (url: string) => rawFileUrl(source.platform, source.owner, source.repo, url);
       const current = await fetchJson<IndexFile>(raw(INDEX_PATHS.current));
       if (!current) {
         console.warn(`[ssg] 索引源不可用，跳过 ${source.platform}:${source.owner}/${source.repo}`);
@@ -139,7 +134,7 @@ export function ssgIndex(): Promise<IndexFile> {
 /** 投稿正文：README 拉取失败返回 null（页面降级为占位 + 外链） */
 export async function ssgContent(entry: SubmissionEntry): Promise<ParsedReadme | null> {
   const base = `${POSTS_DIR}/${entry.slug}`;
-  const raw = await fetchText(RAW_URL[entry.platform](entry.owner, entry.repo, `${base}/README.md`));
+  const raw = await fetchText(rawFileUrl(entry.platform, entry.owner, entry.repo, `${base}/README.md`));
   if (raw === null) return null;
   try {
     return parseReadme(raw);
@@ -195,7 +190,8 @@ export async function ssgMarkdownHtml(body: string): Promise<string> {
 function coverUrl(entry: SubmissionEntry): string | null {
   if (!entry.cover) return null;
   if (entry.cover.startsWith('http')) return entry.cover;
-  return RAW_URL[entry.platform](
+  return rawFileUrl(
+    entry.platform,
     entry.owner,
     entry.repo,
     `${POSTS_DIR}/${entry.slug}/${entry.cover}`,
@@ -217,22 +213,7 @@ export function ssgCards(entries: SubmissionEntry[], opts?: { compact?: boolean 
     .join('\n');
 }
 
-/** 工程文件 raw 下载地址 */
-export function ssgRawUrl(platform: Platform, user: string, repo: string, path: string): string {
-  return RAW_URL[platform](user, repo, path);
-}
-
-/** 内容仓 web 地址（「在平台查看」外链） */
+/** 内容仓 web 地址（外链），见 src/lib/remote-url 的 repoUrl */
 export function ssgRepoUrl(platform: Platform, user: string, repo: string): string {
-  const base: Record<Platform, string> = {
-    github: 'https://github.com',
-    gitee: 'https://gitee.com',
-    atomgit: 'https://atomgit.com',
-  };
-  return `${base[platform]}/${user}/${repo}`;
-}
-
-/** 投稿在内容仓的目录 web 地址 */
-export function ssgPostUrl(entry: SubmissionEntry): string {
-  return `${ssgRepoUrl(entry.platform, entry.owner, entry.repo)}/tree/HEAD/${POSTS_DIR}/${entry.slug}`;
+  return repoWebUrl(platform, user, repo);
 }

@@ -4,6 +4,7 @@ import logoSmallUrl from '../../logo-small.svg?url';
 import { POSTS_DIR } from '@/config';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { withBase } from '@/lib/base';
+import { rawFileUrl } from '@/lib/remote-url';
 import { routeHref } from '@/lib/router';
 import { getClientLocale } from '@/lib/i18n-client';
 import { t } from '@/i18n';
@@ -113,13 +114,8 @@ export async function applyCover(entry: SubmissionEntry, coverLink: HTMLElement,
   }
   let src: string | null = entry.cover.startsWith('http') ? entry.cover : null;
   if (!src) {
-    try {
-      const adapter = await getAdapterAsync(entry.platform);
-      src = adapter.rawUrl(entry.owner, entry.repo, `${POSTS_DIR}/${entry.slug}/${entry.cover}`);
-    } catch {
-      if (placeholder) coverLink.appendChild(placeholder);
-      return;
-    }
+    // 相对文件名：拼内容仓 raw 地址（共享地址规则，无需装配平台适配器）
+    src = rawFileUrl(entry.platform, entry.owner, entry.repo, `${POSTS_DIR}/${entry.slug}/${entry.cover}`);
   }
   const img = document.createElement('img');
   // gitee raw 有 Referer 防盗链（跨站引用一律 403）：先设策略再赋 src，确保首次请求即不发送 Referer

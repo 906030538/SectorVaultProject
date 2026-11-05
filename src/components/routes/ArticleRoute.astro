@@ -3,12 +3,21 @@ import LoadingBlock from '@/components/LoadingBlock.astro';
 import Pagination from '@/components/Pagination.astro';
 import { PAGE_SIZE } from '@/config';
 import { DEFAULT_LOCALE, t } from '@/i18n';
+import { STATIC_SSG } from '@/lib/router';
+import { ssgCards, ssgIndex } from '@/lib/build/ssg';
 
 /**
  * /article 文章列表路由（hash 模式挂在 index 单页壳上，path 模式直接渲染在 /article 页）。
  * 列表数据、搜索与翻页全部客户端完成；分页大小经根节点 dataset 下发。
  */
 const locale = DEFAULT_LOCALE;
+
+// SSG 预填：首屏卡片构建期固化（SEO 底座）；script 照常拉取全量并接管搜索/翻页
+const ssgArticles = STATIC_SSG
+  ? [...(await ssgIndex()).submissions]
+      .filter((e) => e.type === 'article')
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+  : [];
 ---
 
 <div data-route-component="article" data-page-size={PAGE_SIZE}>
@@ -27,7 +36,7 @@ const locale = DEFAULT_LOCALE;
     </button>
   </div>
 
-  <div class="flex flex-col gap-3" data-component="list"></div>
+  <div class="flex flex-col gap-3" data-component="list" set:html={ssgCards(ssgArticles.slice(0, PAGE_SIZE), { compact: true })} />
   <p class="py-8 text-center text-slate-400" data-role="empty" data-i18n="common.noResults" hidden>
     {t(locale, 'common.noResults')}
   </p>

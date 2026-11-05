@@ -3,7 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import DynamicRouteHosts from '@/components/DynamicRouteHosts.astro';
 import SpaShell from '@/components/SpaShell.astro';
 import { SITE_NAME } from '@/config';
-import { routeHref, HASH_ROUTER } from '@/lib/router';
+import { routeHref, HASH_ROUTER, STATIC_SSG } from '@/lib/router';
 
 // path 模式：本页是静态托管 404 回退壳（未知路径回退到 404.html）；
 // hash 模式：本页与 index 同为整站单页壳 —— 经重写 / 函数兜底送进来的旧路径
@@ -13,6 +13,14 @@ import { routeHref, HASH_ROUTER } from '@/lib/router';
 <BaseLayout title="404">
   {HASH_ROUTER ? (
     <SpaShell showNotFound />
+  ) : STATIC_SSG ? (
+    // static 构建不依赖 404 回退（全部路由已预渲染为真实文件），纯文案页
+    <div class="py-24 text-center" data-role="not-found">
+      <p class="text-6xl font-bold text-slate-200 dark:text-slate-800">404</p>
+      <a href={routeHref("/")} class="btn btn-primary mt-6">
+        ← {SITE_NAME}
+      </a>
+    </div>
   ) : (
     <>
       <div class="py-24 text-center" data-role="not-found">

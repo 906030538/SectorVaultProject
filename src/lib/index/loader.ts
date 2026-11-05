@@ -2,9 +2,10 @@ import {
   INDEX_PATHS,
   type IndexSource,
 } from '@/config';
-import type { FilterState, IndexFile, Platform, SubmissionEntry, UserRecord } from '@/types';
+import type { FilterState, IndexFile, Platform, SubmissionEntry } from '@/types';
 import { getAdapterAsync } from '@/lib/adapters/lazy';
 import { getIndexSources, getLineSources } from '@/lib/index/sources';
+import { mergeIndexFiles, submissionKey } from '@/lib/index/merge';
 import { writeCookie } from '@/lib/cookies';
 import { isRateLimitError, showApiLimitNotice } from '@/lib/ui';
 
@@ -161,43 +162,6 @@ async function listArchiveFiles(
     /* 目录列举不可用时仅用清单 */
   }
   return [...new Set([...dirListing, ...manifest])].sort().reverse();
-}
-
-function submissionKey(entry: SubmissionEntry): string {
-  return `${entry.platform}:${entry.owner}/${entry.repo}/${entry.slug}`;
-}
-
-/** 用户记录合并（同 rebuild.mjs：按平台+用户名合并，repos 取并集） */
-function mergeUserRecords(target: UserRecord[], incoming: UserRecord[]): void {
-  for (const user of incoming) {
-    const existing = target.find((u) => u.platform === user.platform && u.owner === user.owner);
-    if (!existing) {
-      target.push({ ...user, repos: (user.repos ?? []).map((r) => ({ ...r })) });
-      continue;
-    }
-    const repos = new Set((existing.repos ?? []).map((r) => r.repo));
-    for (const ref of user.repos ?? []) repos.add(ref.repo);
-    existing.repos = [...repos].map((repo) => ({ repo }));
-    existing.displayName = existing.displayName ?? user.displayName;
-    existing.avatar = existing.avatar ?? user.avatar;
-    existing.pagesUrl = existing.pagesUrl ?? user.pagesUrl;
-  }
-}
-
-/** 合并多个索引文件：稿件按唯一键去重（先到先得），用户记录合并 */
-function mergeIndexFiles(files: IndexFile[]): IndexFile {
-  const merged: IndexFile = { submissions: [], users: [] };
-  const seen = new Set<string>();
-  for (const file of files) {
-    for (const submission of file.submissions) {
-      const key = submissionKey(submission);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      merged.submissions.push(submission);
-    }
-    mergeUserRecords(merged.users, file.users);
-  }
-  return merged;
 }
 
 /** 单源加载失败时跳过该源（多源部署下单个坏源不阻断整站）；配额超限时提示登录或切换线路 */

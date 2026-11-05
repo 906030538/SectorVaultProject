@@ -1,19 +1,38 @@
 import { stripBase, withBase } from '@/lib/base';
 
 /**
- * 站点路由核心：path / hash 双模式，由编译参数区分（互斥产物，不混用）。
+ * 站点路由核心：hash / static / path 三种构建目标，由编译参数 PUBLIC_SVP_ROUTER
+ * 区分（互斥产物，不混用），对应三类部署平台策略：
  *
- * - path 模式（默认 `npm run build`）：路由即 URL 路径，动态路由依赖静态托管的
- *   404 回退（404.html 作 SPA 外壳），适合 CF Pages / GitHub Pages 等回退可用的环境；
- * - hash 模式（`npm run build:hash`，PUBLIC_SVP_ROUTER=hash 注入）：整站收敛为
- *   index.html 单页，路由形如 /#/view/owner/repo/slug —— 不依赖任何 404 回退 /
- *   重写 / 边缘函数兜底，适配 EdgeOne Pages、ESA 等回退不可靠的静态托管。
+ * - path 模式（默认 `npm run build`）：混合 SPA——静态预渲染壳 + 404.html 回退壳
+ *   客户端渲染动态路由，列表数据始终客户端拉取（最新数据）。适合部署成本中等、
+ *   支持 404 回退的平台（CF Pages / GitHub Pages）；
+ * - static 模式（`npm run build:static`，=static）：纯静态 SSG——构建期拉取索引与
+ *   稿件内容，列表/详情/集合/用户页全部预渲染（SEO 友好，无需任何回退），
+ *   数据固化到构建时刻。适合部署成本低、想直接扔上任意静态托管的平台；
+ * - hash 模式（`npm run build:hash`，=hash）：整站收敛为 index.html 单页，
+ *   路由形如 /#/view/owner/repo/slug——不依赖任何 404 回退 / 重写 / 边缘函数
+ *   兜底。适合部署成本高、回退不可靠的平台（EdgeOne Pages、ESA）。
  *
- * 路由组件一律经 registerRoute 注册激活回调：path 模式在首次加载时跑一轮，
- * hash 模式额外监听 hashchange，每轮先按初始快照重放宿主 DOM 再重新激活。
+ * 路由组件一律经 registerRoute 注册激活回调：path/static 模式在首次加载时跑一轮
+ * （静态预渲染页直接渲染组件），hash 模式额外监听 hashchange，每轮先按初始快照
+ * 重放宿主 DOM 再重新激活。
  */
 
-export const HASH_ROUTER: boolean = import.meta.env.PUBLIC_SVP_ROUTER === 'hash';
+/** 构建目标（编译参数注入；未设置 = path 混合 SPA） */
+export type RouterMode = 'hash' | 'static' | 'path';
+
+export const ROUTER: RouterMode =
+  import.meta.env.PUBLIC_SVP_ROUTER === 'hash'
+    ? 'hash'
+    : import.meta.env.PUBLIC_SVP_ROUTER === 'static'
+      ? 'static'
+      : 'path';
+
+export const HASH_ROUTER: boolean = ROUTER === 'hash';
+
+/** 纯静态 SSG 构建：页面内容构建期固化，运行期无数据拉取（动态路由不依赖回退壳） */
+export const STATIC_SSG: boolean = ROUTER === 'static';
 
 /** 当前路由位置：path 为站内路径（已剥 base），query 合并路由查询与地址栏 search */
 export interface RouteLocation {

@@ -188,6 +188,9 @@ export interface CardOptions {
   /** 登录用户为稿件所有者时显示编辑/删除按钮 */
   owner?: { editLabel: string; deleteLabel: string };
   engagement?: EngagementStats;
+  /** 预解析封面地址（SSG 构建期同步渲染）：string=封面 raw/完整地址，null=无封面占位；
+   *  缺省走异步 applyCover（运行期行为不变） */
+  coverUrl?: string | null;
 }
 
 function chip(text: string): HTMLSpanElement {
@@ -210,8 +213,23 @@ export function renderCard(
   const coverLink = document.createElement('a');
   coverLink.href = routeHref(`/view/${entry.owner}/${entry.repo}/${entry.slug}`);
   coverLink.className = 'block w-32 shrink-0';
-  // 有封面时异步解析并插入（完整 URL 或内容仓相对路径）
-  void applyCover(entry, coverLink, coverPlaceholder());
+  if (opts.coverUrl !== undefined) {
+    // SSG 构建期：封面地址已预解析，同步直出（序列化时无异步竞争）
+    if (opts.coverUrl) {
+      const img = document.createElement('img');
+      img.referrerPolicy = 'no-referrer';
+      img.src = opts.coverUrl;
+      img.alt = entry.title;
+      img.loading = 'lazy';
+      img.className = 'aspect-video w-full rounded-lg object-cover';
+      coverLink.appendChild(img);
+    } else {
+      coverLink.appendChild(coverPlaceholder());
+    }
+  } else {
+    // 运行期：有封面时异步解析并插入（完整 URL 或内容仓相对路径）
+    void applyCover(entry, coverLink, coverPlaceholder());
+  }
 
   const body = document.createElement('div');
   body.className = 'min-w-0 flex-1';

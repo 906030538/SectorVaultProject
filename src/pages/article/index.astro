@@ -2,12 +2,20 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import ArticleRoute from '@/components/routes/ArticleRoute.astro';
 import HashRedirect from '@/components/HashRedirect.astro';
-import { HASH_ROUTER } from '@/lib/router';
+import SsgList from '@/components/ssg/SsgList.astro';
+import { HASH_ROUTER, STATIC_SSG } from '@/lib/router';
+import { ssgIndex } from '@/lib/build/ssg';
+
+const entries = STATIC_SSG ? (await ssgIndex()).submissions.filter((e) => e.type === 'article') : [];
 ---
 
 {
   HASH_ROUTER ? (
     <HashRedirect to="/article" />
+  ) : STATIC_SSG ? (
+    <BaseLayout titleKey="article.title">
+      <SsgList titleKey="article.title" entries={entries} compact />
+    </BaseLayout>
   ) : (
     <BaseLayout titleKey="article.title">
       <ArticleRoute />

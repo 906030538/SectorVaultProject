@@ -1,0 +1,133 @@
+---
+import { fileIconUrl } from '@/lib/ui';
+import { DEFAULT_LOCALE, t } from '@/i18n';
+import { ssgMarkdownHtml, ssgPostUrl, ssgRawUrl, ssgScreenBlocked, ssgContent } from '@/lib/build/ssg';
+import { POSTS_DIR } from '@/config';
+
+/**
+ * SSG 投稿详情：README 正文与元数据构建期渲染（marked + DOMPurify，与运行期同防线）。
+ * 正文拉取失败降级为占位 + 内容仓外链；敏感词命中渲染屏蔽框（词包缺失 fail-open）。
+ */
+const { entry } = Astro.props;
+const locale = DEFAULT_LOCALE;
+
+const parsed = await ssgContent(entry);
+const blocked = parsed ? ssgScreenBlocked(parsed.body) : false;
+const bodyHtml = parsed && !blocked ? await ssgMarkdownHtml(parsed.body) : '';
+
+const attrs = parsed?.attrs ?? {};
+const attrList = (raw: string | undefined): string[] =>
+  (raw ?? '')
+    .replace(/^\[|\]$/g, '')
+    .split(',')
+    .map((v) => v.trim().replace(/^"|"$/g, ''))
+    .filter(Boolean);
+const chips: string[] = [
+  ...attrList(attrs.songs).map((v) => `♪ ${v}`),
+  ...attrList(attrs.engines),
+  ...attrList(attrs.voicebanks),
+  ...attrList(attrs.languages),
+  ...(attrs.license ? [attrs.license] : []),
+];
+const date = new Date(entry.submittedAt).toLocaleDateString(locale, {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const baseDir = `${POSTS_DIR}/${entry.slug}`;
+---
+
+<article class="mx-auto w-full max-w-3xl" data-role="ssg-detail">
+  <header>
+    <div class="flex flex-wrap items-center gap-3">
+      <h1 class="text-3xl font-bold">{entry.title}</h1>
+    </div>
+    <p class="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+      <a href={`/user/${entry.owner}`} class="hover:text-emerald-600 dark:hover:text-emerald-400">
+        {entry.owner}
+      </a>
+      <span class="mx-1.5">·</span>
+      <time datetime={entry.submittedAt}>{date}</time>
+      <a
+        href={`/view/${entry.owner}/${entry.repo}`}
+        class="ml-auto rounded-full border border-slate-300 px-2.5 py-0.5 text-xs hover:border-emerald-500 dark:border-slate-600"
+      >
+        {entry.repo}
+      </a>
+    </p>
+    {chips.length > 0 && (
+      <div class="mt-4 flex flex-wrap gap-1.5">
+        {chips.map((chip) => <span class="chip">{chip}</span>)}
+      </div>
+    )}
+  </header>
+
+  {
+    entry.cover && (
+      <img
+        src={entry.cover.startsWith('http') ? entry.cover : ssgRawUrl(entry.platform, entry.owner, entry.repo, `${baseDir}/${entry.cover}`)}
+        alt={entry.title}
+        referrerpolicy="no-referrer"
+        loading="lazy"
+        class="mt-6 w-full rounded-xl"
+      />
+    )
+  }
+
+  {
+    blocked ? (
+      <div
+        class="card mt-6 flex items-center justify-center gap-3 border-dashed p-8 text-center text-sm text-slate-400 dark:text-slate-500"
+        data-role="sensitive-blocked"
+      >
+        <span class="text-xl text-slate-300 dark:text-slate-600">🚫</span>
+        <div class="flex flex-col gap-1">
+          <p class="font-medium">{t(locale, 'sensitive.blocked')}</p>
+          <p>{t(locale, 'sensitive.blockedHint')}</p>
+        </div>
+      </div>
+    ) : parsed ? (
+      <section class="prose-svp mt-8" set:html={bodyHtml} />
+    ) : (
+      <div class="card mt-6 p-8 text-center text-sm text-slate-400">
+        <p>{t(locale, 'faq.loadError')}</p>
+        <a href={ssgPostUrl(entry)} target="_blank" rel="noopener" class="btn mt-4">
+          {t(locale, 'detail.files')} ↗
+        </a>
+      </div>
+    )
+  }
+
+  {
+    parsed && parsed.files.length > 0 && (
+      <section class="mt-8">
+        <h2 class="mb-3 text-lg font-semibold" data-i18n="detail.files">
+          {t(locale, 'detail.files')}
+        </h2>
+        <ul class="card divide-y divide-slate-200 dark:divide-slate-700">
+          {parsed.files.map((file) => (
+            <li>
+              <a
+                href={ssgRawUrl(entry.platform, entry.owner, entry.repo, `${baseDir}/${file.name}`)}
+                referrerpolicy="no-referrer"
+                class="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
+              >
+                <img src={fileIconUrl(file.name)} alt="" class="h-4.5 w-4.5" width="18" height="18" />
+                <span class="min-w-0 flex-1 truncate">{file.name}</span>
+                {file.compressed && <span class="chip">zip</span>}
+                {file.encrypted && <span class="chip">🔒</span>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  <div class="mt-8 flex flex-wrap gap-2">
+    <a href={ssgPostUrl(entry)} target="_blank" rel="noopener" class="btn">
+      {t(locale, 'discussions.open')} ↗
+    </a>
+    <a href={`/view/${entry.owner}/${entry.repo}`} class="btn">{entry.repo}</a>
+  </div>
+</article>

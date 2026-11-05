@@ -1,16 +1,30 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import UserRoute from '@/components/routes/UserRoute.astro';
+import SsgUser from '@/components/ssg/SsgUser.astro';
+import { STATIC_SSG } from '@/lib/router';
+import { ssgIndex } from '@/lib/build/ssg';
+import { DEFAULT_LOCALE, t } from '@/i18n';
 
 /**
  * 动态路由 /user/:name。
- * 不做构建期预渲染（避免按用户生成具体页面），全部由 404 SPA 回退客户端渲染。
+ * - static 构建：getStaticPaths 枚举索引全部用户（users 记录 + 投稿 owner 并集），SSG 预渲染；
+ * - path 构建：不预渲染，由 404 SPA 回退客户端渲染；
+ * - hash 构建：无产出（路由挂在 index 单页壳）。
  */
-export function getStaticPaths() {
-  return [];
+export async function getStaticPaths() {
+  if (!STATIC_SSG) return [];
+  const index = await ssgIndex();
+  const owners = new Set<string>([
+    ...index.submissions.map((s) => s.owner),
+    ...index.users.map((u) => u.owner),
+  ]);
+  return [...owners].map((name) => ({ params: { name } }));
 }
+
+const name = decodeURIComponent(Astro.params.name ?? '');
 ---
 
-<BaseLayout>
-  <UserRoute />
+<BaseLayout title={STATIC_SSG ? `${name} · ${t(DEFAULT_LOCALE, "user.title")}` : undefined}>
+  {STATIC_SSG ? <SsgUser name={name} /> : <UserRoute />}
 </BaseLayout>

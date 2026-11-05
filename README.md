@@ -20,6 +20,12 @@
 
 使用Git作为内容数据托管，天然支持版本管理，数据也能平滑迁移到任意git托管平台。
 
+## 构建目标
+
+一套代码支持三种构建产物（编译参数区分）：`npm run build`（混合 SPA，数据最新）、
+`npm run build:static`（纯静态 SSG，SEO 友好）、`npm run build:hash`（hash 单页，
+不依赖 404 回退）。选择依据与各模式差异见 [BUILDS.md](BUILDS.md)。
+
 ## 部署配置
 
 索引数据源通过 `public/deployment.json` 配置，允许配置多个索引（按配置顺序合并，跨源按 平台+用户+仓库+slug 去重）：

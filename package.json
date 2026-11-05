@@ -7,8 +7,11 @@
   "scripts": {
     "dev": "astro dev",
     "dev:hash": "PUBLIC_SVP_ROUTER=hash astro dev",
+    "dev:static": "PUBLIC_SVP_ROUTER=static astro dev",
     "build": "astro build",
     "build:hash": "PUBLIC_SVP_ROUTER=hash ASTRO_BASE=toy/svp/ astro build",
+    "build:static": "PUBLIC_SVP_ROUTER=static astro build",
+    "prebuild:static": "node scripts/fetch-dict-pack.mjs",
     "prebuild:hash": "node scripts/fetch-dict-pack.mjs",
     "prebuild": "node scripts/fetch-dict-pack.mjs",
     "check": "astro check",

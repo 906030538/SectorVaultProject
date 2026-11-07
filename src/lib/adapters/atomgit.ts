@@ -749,36 +749,94 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     changes: FileChange[],
   ): Promise<string> {
     const { owner, repo, branch } = target;
-    const base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
-    // 轻量 PR：同仓直接创建工作分支提交（无需 fork；要求令牌对索引仓有写权限）
+    const upstreamBase = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
     const prBranch = `svp-index-${Date.now().toString(36)}`;
 
     // 基准提交：目标索引分支头（AtomGit 分支接口的 commit 字段为 id）
     const baseBranch = await this.request<{ commit?: { id?: string; sha?: string } }>(
-      `${base}/branches/${encodeURIComponent(branch)}`,
+      `${upstreamBase}/branches/${encodeURIComponent(branch)}`,
       { token },
     );
     const baseSha = baseBranch.commit?.id ?? baseBranch.commit?.sha;
     if (!baseSha) throw new Error('AtomGit: cannot resolve index branch head');
 
-    // 创建工作分支（Gitee v5 风格；端点不存在时回退 git refs API，其他错误原样抛出）
-    try {
-      await this.request(`${base}/branches`, {
-        method: 'POST',
-        token,
-        body: { branch_name: prBranch, refs: branch },
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (/image repository/i.test(message)) {
-        throw new Error('索引仓为镜像仓库，平台禁止写入；请将其重建为普通仓库后再投稿');
+    const login = (await this.getViewer(token)).login;
+    const sameOwner = login.toLowerCase() === owner.toLowerCase();
+    let headOwner = owner;
+    if (!sameOwner) {
+      try {
+        await this.request(`${upstreamBase}/forks`, { method: 'POST', token });
+      } catch (error) {
+        const forkPath = `/repos/${encodeURIComponent(login)}/${encodeURIComponent(repo)}`;
+        try {
+          await this.request(forkPath, { token });
+        } catch {
+          throw error;
+        }
       }
-      if (!/\b404\b|not found/i.test(message)) throw error;
-      await this.request(`${base}/git/refs`, {
-        method: 'POST',
-        token,
-        body: { ref: `refs/heads/${prBranch}`, sha: baseSha },
-      });
+      headOwner = login;
+    }
+    const headBase = `/repos/${encodeURIComponent(headOwner)}/${encodeURIComponent(repo)}`;
+
+    // 创建工作分支
+    // - 同仓：优先 branches 接口（可识别镜像仓），404 回退 git/refs
+    // - fork：先把 fork 的基准分支快进到上游头（Sync fork，fork 网络共享对象库），
+    //   再以该 sha 建工作分支；同步失败时退回 fork 自身分支头，fork 异步就绪时重试
+    if (sameOwner) {
+      try {
+        await this.request(`${headBase}/branches`, {
+          method: 'POST',
+          token,
+          body: { branch_name: prBranch, refs: branch },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (/image repository/i.test(message)) {
+          throw new Error('索引仓为镜像仓库，平台禁止写入；请将其重建为普通仓库后再投稿');
+        }
+        if (!/\b404\b|not found/i.test(message)) throw error;
+        await this.request(`${headBase}/git/refs`, {
+          method: 'POST',
+          token,
+          body: { ref: `refs/heads/${prBranch}`, sha: baseSha },
+        });
+      }
+    } else {
+      let refSha = baseSha;
+      try {
+        await this.request(`${headBase}/git/refs/heads/${encodeURIComponent(branch)}`, {
+          method: 'PATCH',
+          token,
+          body: { sha: baseSha, force: true },
+        });
+      } catch {
+        try {
+          const forkBranch = await this.request<{ commit?: { id?: string; sha?: string } }>(
+            `${headBase}/branches/${encodeURIComponent(branch)}`,
+            { token },
+          );
+          refSha = forkBranch.commit?.id ?? forkBranch.commit?.sha ?? baseSha;
+        } catch {
+          /* fork 尚无该分支，退回上游 sha */
+        }
+      }
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          await this.request(`${headBase}/git/refs`, {
+            method: 'POST',
+            token,
+            body: { ref: `refs/heads/${prBranch}`, sha: refSha },
+          });
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (!/404|not found/i.test(String(error))) break;
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
+      }
+      if (lastError) throw lastError;
     }
 
     // 逐文件提交到工作分支。contents GET 的 ref 解析存在滞后/回退：
@@ -786,7 +844,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     // 报 sha is missing——PUT 一律要求已取到 sha，两种失败按对方路径重试。
     for (const change of changes) {
       if (change.delete) continue;
-      const path = `${base}/contents/${change.path}`;
+      const path = `${headBase}/contents/${change.path}`;
       const fetchSha = async (): Promise<string | undefined> => {
         try {
           const data = await this.request<{ sha?: string } | Array<unknown>>(path, {
@@ -838,13 +896,14 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       }
     }
 
-    // 创建 PR（同仓分支：head 直用分支名）
+    // 创建 PR：fork 的 head 需 "owner:branch"，同仓直用分支名
+    const head = sameOwner ? prBranch : `${headOwner}:${prBranch}`;
     const pr = await this.request<{ number?: number | string; html_url?: string }>(
-      `${base}/pulls`,
+      `${upstreamBase}/pulls`,
       {
         method: 'POST',
         token,
-        body: { title, head: prBranch, base: branch, body: '*Powered by Sector Vault Project*' },
+        body: { title, head, base: branch, body: '*Powered by Sector Vault Project*' },
       },
     );
     return pr.html_url ?? `${this.webBase}/${owner}/${repo}/pulls/${pr.number ?? ''}`;

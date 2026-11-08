@@ -742,6 +742,87 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     }
   }
 
+  /**
+   * fork 的索引分支同步到上游头。gitee 无 git/refs 写端点、无 fork 同步 API，
+   * 走「向上游拉取的反向 PR + 自动合并」（投稿者对自己 fork 有全权；fork 已含
+   * 上游头时 gitee 报「不存在差异」，视作已同步）；AtomGit 有官方 sync_repo。
+   * 同步不可放弃也不能跳过——落后的 fork 上发按上游归档构建的投稿会撤销上游新提交。
+   */
+  private async syncForkIndexBranch(
+    token: string,
+    target: { upstreamOwner: string; headBase: string; branch: string; baseSha: string },
+  ): Promise<void> {
+    const { upstreamOwner, headBase, branch, baseSha } = target;
+    const readHead = async (): Promise<string | undefined> => {
+      try {
+        const data = await this.request<{ commit?: { id?: string; sha?: string } }>(
+          `${headBase}/branches/${encodeURIComponent(branch)}`,
+          { token },
+        );
+        return data.commit?.id ?? data.commit?.sha;
+      } catch {
+        return undefined;
+      }
+    };
+    const manualSyncHint = `请到平台网页手动同步你的索引仓 fork（${branch} 分支）后重试`;
+    const forkSha = await readHead();
+    if (forkSha === baseSha) return; // 已同步（fork 刚创建时的常见情形）
+
+    if (this.platform === 'atomgit') {
+      // PUT sync_repo：repo_sync_result 判定成败；fork 缺该分支（上游分支晚于
+      // fork 创建）时同步会拉齐分支，轮询等待其出现即可
+      let result: { repo_sync_result?: boolean; repo_sync_message?: string };
+      try {
+        result = await this.request<{ repo_sync_result?: boolean; repo_sync_message?: string }>(
+          `${headBase}/sync_repo`,
+          { method: 'PUT', token, body: { branch } },
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`索引 fork 自动同步失败（${message.slice(0, 120)}），${manualSyncHint}`);
+      }
+      if (result.repo_sync_result === false) {
+        throw new Error(
+          `索引 fork 同步失败（${result.repo_sync_message ?? 'unknown'}），${manualSyncHint}`,
+        );
+      }
+      if (forkSha === undefined) {
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          if ((await readHead()) !== undefined) return;
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        throw new Error(`索引 fork 同步后仍缺 ${branch} 分支，${manualSyncHint}`);
+      }
+      return;
+    }
+
+    if (forkSha === undefined) {
+      // gitee 无法经 API 给既有 fork 补建缺失分支（无 refs 写端点，反向 PR 也需 base 分支）
+      throw new Error(`投稿 fork 缺少 ${branch} 分支，请删除你的索引仓 fork 后重新投稿（会自动重建）`);
+    }
+    // gitee：head="owner:branch" 的两段式跨仓语法实测会被解析为「空间 + 沿用 base
+    // 仓的分支」，正是 fork 场景；merge 空体即可（PUT /pulls/{n}/merge）
+    try {
+      const pr = await this.request<{ number?: number | string }>(`${headBase}/pulls`, {
+        method: 'POST',
+        token,
+        body: {
+          title: `sync ${branch} from upstream`,
+          head: `${upstreamOwner}:${branch}`,
+          base: branch,
+        },
+      });
+      if (pr.number === undefined) throw new Error('sync PR has no number');
+      await this.request(`${headBase}/pulls/${pr.number}/merge`, { method: 'PUT', token, body: {} });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // 「不存在差异」＝fork 已包含上游头（此前同步过头为 merge commit ≠ baseSha）
+      if (!/不存在差异|已合并|已关闭/.test(message)) {
+        throw new Error(`索引 fork 自动同步失败（${message.slice(0, 120)}），${manualSyncHint}`);
+      }
+    }
+  }
+
   async openIndexPr(
     token: string,
     target: { owner: string; repo: string; branch: string },
@@ -771,72 +852,55 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
         try {
           await this.request(forkPath, { token });
         } catch {
-          throw error;
+          // 403 常见于仓库级私人令牌（无权 fork 仓），补人话提示
+          const message = error instanceof Error ? error.message : String(error);
+          const hint = /\b403\b/.test(message)
+            ? '（令牌权限不足：仓库级令牌无法 fork，请改用全权限私人令牌）'
+            : '';
+          throw new Error(`创建/访问索引仓 fork 失败${hint}：${message}`);
         }
       }
       headOwner = login;
     }
     const headBase = `/repos/${encodeURIComponent(headOwner)}/${encodeURIComponent(repo)}`;
 
-    // 创建工作分支
-    // - 同仓：优先 branches 接口（可识别镜像仓），404 回退 git/refs
-    // - fork：先把 fork 的基准分支快进到上游头（Sync fork，fork 网络共享对象库），
-    //   再以该 sha 建工作分支；同步失败时退回 fork 自身分支头，fork 异步就绪时重试
-    if (sameOwner) {
+    if (!sameOwner) {
+      // fork 的索引分支必须包含上游头：投稿文件按上游最新归档构建，
+      // 基于落后分支建工作分支会让 PR diff 撤销上游新提交（丢其他投稿人的条目）
+      await this.syncForkIndexBranch(token, { upstreamOwner: owner, headBase, branch, baseSha });
+    }
+
+    // 创建工作分支：branches 接口优先（v5 风格；gitee/AtomGit 均无 git/refs 写端点，
+    // 2026-11-08 实测两平台 POST/PATCH /git/refs 全部 404）。fork 刚创建尚未就绪时
+    // branches 报 404 → 退避重试；仍 404 时 owner 路径保留 git/refs 回退（其他 v5
+    // 平台理论兼容），fork 路径直接抛出（该端点在两平台均不存在）
+    let lastError: unknown;
+    for (let attempt = 0; ; attempt += 1) {
       try {
         await this.request(`${headBase}/branches`, {
           method: 'POST',
           token,
           body: { branch_name: prBranch, refs: branch },
         });
+        lastError = null;
+        break;
       } catch (error) {
+        lastError = error;
         const message = error instanceof Error ? error.message : String(error);
         if (/image repository/i.test(message)) {
           throw new Error('索引仓为镜像仓库，平台禁止写入；请将其重建为普通仓库后再投稿');
         }
-        if (!/\b404\b|not found/i.test(message)) throw error;
-        await this.request(`${headBase}/git/refs`, {
-          method: 'POST',
-          token,
-          body: { ref: `refs/heads/${prBranch}`, sha: baseSha },
-        });
+        if (attempt >= 5 || !/\b404\b|not found/i.test(message)) break;
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
       }
-    } else {
-      let refSha = baseSha;
-      try {
-        await this.request(`${headBase}/git/refs/heads/${encodeURIComponent(branch)}`, {
-          method: 'PATCH',
-          token,
-          body: { sha: baseSha, force: true },
-        });
-      } catch {
-        try {
-          const forkBranch = await this.request<{ commit?: { id?: string; sha?: string } }>(
-            `${headBase}/branches/${encodeURIComponent(branch)}`,
-            { token },
-          );
-          refSha = forkBranch.commit?.id ?? forkBranch.commit?.sha ?? baseSha;
-        } catch {
-          /* fork 尚无该分支，退回上游 sha */
-        }
-      }
-      let lastError: unknown;
-      for (let attempt = 0; attempt < 6; attempt += 1) {
-        try {
-          await this.request(`${headBase}/git/refs`, {
-            method: 'POST',
-            token,
-            body: { ref: `refs/heads/${prBranch}`, sha: refSha },
-          });
-          lastError = null;
-          break;
-        } catch (error) {
-          lastError = error;
-          if (!/404|not found/i.test(String(error))) break;
-          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-        }
-      }
-      if (lastError) throw lastError;
+    }
+    if (lastError) {
+      if (!sameOwner) throw lastError;
+      await this.request(`${headBase}/git/refs`, {
+        method: 'POST',
+        token,
+        body: { ref: `refs/heads/${prBranch}`, sha: baseSha },
+      });
     }
 
     // 逐文件提交到工作分支。contents GET 的 ref 解析存在滞后/回退：
@@ -896,14 +960,23 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       }
     }
 
-    // 创建 PR：fork 的 head 需 "owner:branch"，同仓直用分支名
+    // 创建 PR：fork 的 head 需 "owner:branch"，同仓直用分支名；
+    // AtomGit 跨仓 PR 必填 fork_path（fork 项目的 owner/repo，官方文档）
     const head = sameOwner ? prBranch : `${headOwner}:${prBranch}`;
     const pr = await this.request<{ number?: number | string; html_url?: string }>(
       `${upstreamBase}/pulls`,
       {
         method: 'POST',
         token,
-        body: { title, head, base: branch, body: '*Powered by Sector Vault Project*' },
+        body: {
+          title,
+          head,
+          base: branch,
+          body: '*Powered by Sector Vault Project*',
+          ...(this.platform === 'atomgit' && !sameOwner
+            ? { fork_path: `${headOwner}/${repo}` }
+            : {}),
+        },
       },
     );
     return pr.html_url ?? `${this.webBase}/${owner}/${repo}/pulls/${pr.number ?? ''}`;

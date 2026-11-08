@@ -1,6 +1,34 @@
 {
   "submissions": [
     {
+      "slug": "261107林中小鸟",
+      "owner": "espkaiser",
+      "repo": "svp-esp",
+      "platform": "gitee",
+      "type": "project",
+      "title": "HALO-林中小鸟",
+      "submittedAt": "2026-11-07T06:47:56.606Z",
+      "publishedAt": "2026-11-07T06:47:56.606Z",
+      "cover": "HALO.png",
+      "issue": "IKTMCQ",
+      "author": "EspKaiser",
+      "email": "speranza@espkaiser.cn",
+      "license": "CC-BY-SA-4.0",
+      "paramState": "tuned",
+      "songs": [
+        "Les oiseaux dans la charmille"
+      ],
+      "engines": [
+        "Synthesizer V 2"
+      ],
+      "voicebanks": [
+        "HALO"
+      ],
+      "languages": [
+        "zh"
+      ]
+    },
+    {
       "slug": "261027为艺术为爱情",
       "owner": "espkaiser",
       "repo": "svp-esp",
@@ -1422,7 +1450,7 @@
     {
       "file": "2026-11.json",
       "byType": {
-        "project": 0,
+        "project": 1,
         "article": 0
       }
     },

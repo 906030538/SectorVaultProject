@@ -1,0 +1,2 @@
+gitee fork-path verification probe (misakahonoka -> CLCNTanya/SectorVaultProject index)
+Generated 2026-11-11 by end-to-end adapter run. Safe to close WITHOUT merge.

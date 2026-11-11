@@ -743,16 +743,16 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
   }
 
   /**
-   * fork 的索引分支同步到上游头。gitee 无 git/refs 写端点、无 fork 同步 API，
-   * 走「向上游拉取的反向 PR + 自动合并」（投稿者对自己 fork 有全权；fork 已含
-   * 上游头时 gitee 报「不存在差异」，视作已同步）；AtomGit 有官方 sync_repo。
-   * 同步不可放弃也不能跳过——落后的 fork 上发按上游归档构建的投稿会撤销上游新提交。
+   * 校验并同步 fork 的索引分支到上游头。AtomGit 有官方 sync_repo 端点；
+   * gitee 无任何 fork 同步 API（反向 PR 仅支持 fork→上游方向），落后时报错
+   * 提示手动同步。同步不可跳过——落后的 fork 上发按上游归档构建的投稿
+   * 会经 PR diff 撤销上游新提交（丢其他投稿人的条目）。
    */
   private async syncForkIndexBranch(
     token: string,
-    target: { upstreamOwner: string; headBase: string; branch: string; baseSha: string },
+    target: { headBase: string; branch: string; baseSha: string },
   ): Promise<void> {
-    const { upstreamOwner, headBase, branch, baseSha } = target;
+    const { headBase, branch, baseSha } = target;
     const readHead = async (): Promise<string | undefined> => {
       try {
         const data = await this.request<{ commit?: { id?: string; sha?: string } }>(
@@ -765,7 +765,14 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       }
     };
     const manualSyncHint = `请到平台网页手动同步你的索引仓 fork（${branch} 分支）后重试`;
-    const forkSha = await readHead();
+    // fork 异步就绪期间 branches 读取会 404：先退避重试等待就绪，
+    // 仍读不到才是真缺分支（上游分支晚于 fork 创建的情形）——2026-11-11
+    // 实测：fork 刚建立即读取即 404，新投稿者首次投稿必经此路径
+    let forkSha = await readHead();
+    for (let attempt = 0; attempt < 6 && forkSha === undefined; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+      forkSha = await readHead();
+    }
     if (forkSha === baseSha) return; // 已同步（fork 刚创建时的常见情形）
 
     if (this.platform === 'atomgit') {
@@ -800,27 +807,11 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
       // gitee 无法经 API 给既有 fork 补建缺失分支（无 refs 写端点，反向 PR 也需 base 分支）
       throw new Error(`投稿 fork 缺少 ${branch} 分支，请删除你的索引仓 fork 后重新投稿（会自动重建）`);
     }
-    // gitee：head="owner:branch" 的两段式跨仓语法实测会被解析为「空间 + 沿用 base
-    // 仓的分支」，正是 fork 场景；merge 空体即可（PUT /pulls/{n}/merge）
-    try {
-      const pr = await this.request<{ number?: number | string }>(`${headBase}/pulls`, {
-        method: 'POST',
-        token,
-        body: {
-          title: `sync ${branch} from upstream`,
-          head: `${upstreamOwner}:${branch}`,
-          base: branch,
-        },
-      });
-      if (pr.number === undefined) throw new Error('sync PR has no number');
-      await this.request(`${headBase}/pulls/${pr.number}/merge`, { method: 'PUT', token, body: {} });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      // 「不存在差异」＝fork 已包含上游头（此前同步过头为 merge commit ≠ baseSha）
-      if (!/不存在差异|已合并|已关闭/.test(message)) {
-        throw new Error(`索引 fork 自动同步失败（${message.slice(0, 120)}），${manualSyncHint}`);
-      }
-    }
+    // gitee 无 fork 同步 API（sync_repo 等端点不存在；反向 PR head="上游:分支"实测
+    // 400「源仓库不存在」——跨仓 PR 仅支持 fork→上游方向，2026-11-11 实测）。
+    // fork 头落后且无法 API 同步：投稿文件按上游最新归档构建，基于落后头发 PR
+    // 会经 diff 撤销上游新提交（丢其他投稿人的条目），不能带病继续——明确报错
+    throw new Error(`投稿 fork 的 ${branch} 分支已落后于索引仓，${manualSyncHint}`);
   }
 
   async openIndexPr(
@@ -867,7 +858,7 @@ export class V5PlatformAdapter implements GitPlatformAdapter {
     if (!sameOwner) {
       // fork 的索引分支必须包含上游头：投稿文件按上游最新归档构建，
       // 基于落后分支建工作分支会让 PR diff 撤销上游新提交（丢其他投稿人的条目）
-      await this.syncForkIndexBranch(token, { upstreamOwner: owner, headBase, branch, baseSha });
+      await this.syncForkIndexBranch(token, { headBase, branch, baseSha });
     }
 
     // 创建工作分支：branches 接口优先（v5 风格；gitee/AtomGit 均无 git/refs 写端点，
